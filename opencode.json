@@ -1,0 +1,4 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "_note": "Use `make render-opencode-config` to generate opencode.generated.json from NEXO_COREVIEW_LLM_* env. Docker mounts the generated file."
+}

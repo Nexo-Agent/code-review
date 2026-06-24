@@ -66,3 +66,5 @@ async def test_openapi_schema(client: AsyncClient) -> None:
     schema = response.json()
     assert schema["info"]["title"] == "Code Review API"
     assert "/api/v1/health" in schema["paths"]
+    assert "/api/v1/reviews" in schema["paths"]
+    assert "/api/v1/webhooks/github" in schema["paths"]

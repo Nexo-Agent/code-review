@@ -10,5 +10,6 @@ __pycache__
 *.py[cod]
 .openapi.json
 openapi.json
+opencode.generated.json
 .idea
 .vscode

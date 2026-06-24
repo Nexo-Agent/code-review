@@ -19,9 +19,65 @@ services:
       - "${APP_PORT:-8000}:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
+      NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
+      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    profiles: [prod]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+    command: ["code-review", "job", "worker"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
+      NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
+      NEXO_COREVIEW_GITHUB_TOKEN: ${NEXO_COREVIEW_GITHUB_TOKEN:-}
+      NEXO_COREVIEW_GITHUB_WEBHOOK_SECRET: ${NEXO_COREVIEW_GITHUB_WEBHOOK_SECRET:-}
+      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
+      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
+      NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
+    volumes:
+      - review_workspaces:/workspaces
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      opencode-serve:
+        condition: service_started
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  opencode-serve:
+    image: ghcr.io/anomalyco/opencode:latest
+    command: ["serve", "--hostname", "0.0.0.0", "--port", "4096"]
+    environment:
+      OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
+      OPENCODE_CONFIG: /config/opencode.json
+    volumes:
+      - ./opencode.generated.json:/config/opencode.json:ro
+      - ./.agents/skills/code-review:/opencode/skills/code-review:ro
+      - review_workspaces:/workspaces
+    ports:
+      - "${OPENCODE_PORT:-4096}:4096"
     restart: unless-stopped
 
   db:
@@ -55,3 +111,4 @@ services:
 
 volumes:
   postgres_data:
+  review_workspaces:

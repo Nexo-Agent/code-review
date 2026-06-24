@@ -1,4 +1,4 @@
-.PHONY: dev-db dev-api dev-web dev dev-watch dev-down dev-migrate migrate migrate-down openapi prod-up lint test
+.PHONY: dev-db dev-api dev-web dev dev-watch dev-down dev-migrate dev-worker migrate migrate-down openapi prod-up lint test render-opencode-config
 
 ifneq (,$(wildcard .env))
 include .env
@@ -11,7 +11,7 @@ COMPOSE_PROD := docker compose -f docker-compose.yaml
 MIGRATIONS_DIR := backend/migrations
 
 dev-db:
-	docker compose up -d db
+	docker compose up -d db redis
 
 # Native local dev (no Docker for app processes)
 dev-api:
@@ -20,11 +20,23 @@ dev-api:
 dev-web:
 	cd frontend && yarn dev
 
+dev-worker:
+	cd backend && uv run code-review job worker
+
+dev-opencode-serve: render-opencode-config
+	docker compose up -d opencode-serve
+
+render-opencode-config:
+	cd backend && uv run code-review config render-opencode -o ../opencode.generated.json
+
+opencode.generated.json:
+	@test -f opencode.generated.json || echo '{"$$schema":"https://opencode.ai/config.json"}' > opencode.generated.json
+
 # Docker dev: merges docker-compose.yaml + docker-compose.override.yaml
-dev:
+dev: opencode.generated.json
 	$(COMPOSE) up --build
 
-dev-watch:
+dev-watch: opencode.generated.json
 	$(COMPOSE) watch
 
 dev-down:
@@ -53,7 +65,7 @@ openapi:
 	cd backend && uv run python -c "import json; from app.main import create_app; app = create_app(); open('../openapi.json', 'w').write(json.dumps(app.openapi(), indent=2))"
 	cd frontend && yarn openapi:generate
 
-prod-up:
+prod-up: opencode.generated.json
 	$(COMPOSE_PROD) --profile prod up --build -d
 
 lint:

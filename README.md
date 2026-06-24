@@ -82,6 +82,9 @@ Production uses only the base compose file (`-f docker-compose.yaml`), so `docke
 | `make dev-db` | Start Postgres only |
 | `make dev-api` | Uvicorn with reload (native) |
 | `make dev-web` | Vite dev server (native) |
+| `make dev-worker` | Celery worker (native) |
+| `make dev-opencode-serve` | Start OpenCode HTTP server (Docker) |
+| `make render-opencode-config` | Generate `opencode.generated.json` from `NEXO_COREVIEW_LLM_*` |
 | `make migrate` | Apply SQL migrations (dbmate) |
 | `make openapi` | Export OpenAPI schema and generate TS types |
 | `make lint` | Ruff + ESLint + typecheck |
@@ -126,3 +129,17 @@ See [.env.example](.env.example). Key variables:
 - `CHOKIDAR_USEPOLLING` — Enable polling file watcher in Vite (Docker Desktop)
 - `APP_PORT` — Backend port (default `8000`)
 - `WEB_PORT` — Frontend dev port (default `5173`)
+
+### Code Review pilot (`NEXO_COREVIEW_*`)
+
+Infrastructure env vars only (see [.env.example](.env.example)):
+
+- `NEXO_COREVIEW_CELERY_BROKER_URL` — Redis broker URL
+- `NEXO_COREVIEW_OPENCODE_SERVER_URL` — OpenCode `serve` base URL
+- `NEXO_COREVIEW_OPENCODE_CONFIG_PATH` — Path to generated OpenCode config file
+
+**Dynamic settings** (GitHub repo, webhook secret, GitHub token, LLM provider) are stored in Postgres and edited at **Settings** (`/settings` in the UI, `GET/PUT /api/v1/settings/integration`). Saving settings regenerates `opencode.generated.json`; restart `opencode-serve` to apply LLM changes.
+
+**GitHub webhook:** `POST /api/v1/webhooks/github` (Pull request events: opened, synchronize, reopened).
+
+**CLI modes:** `code-review backend run`, `code-review job worker`, `code-review agent run --review-id <uuid>`.

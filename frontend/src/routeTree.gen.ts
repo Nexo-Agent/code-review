@@ -10,11 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
 import { Route as ExamplesIndexRouteImport } from './routes/examples/index'
+import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
+  id: '/reviews/',
+  path: '/reviews/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
@@ -22,31 +35,59 @@ const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
   path: '/examples/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
+  id: '/reviews/$reviewId',
+  path: '/reviews/$reviewId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/examples/': typeof ExamplesIndexRoute
+  '/reviews/': typeof ReviewsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/examples': typeof ExamplesIndexRoute
+  '/reviews': typeof ReviewsIndexRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/examples/': typeof ExamplesIndexRoute
+  '/reviews/': typeof ReviewsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/examples/'
+  fullPaths:
+    | '/'
+    | '/reviews/$reviewId'
+    | '/examples/'
+    | '/reviews/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/examples'
-  id: '__root__' | '/' | '/examples/'
+  to: '/' | '/reviews/$reviewId' | '/examples' | '/reviews' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/reviews/$reviewId'
+    | '/examples/'
+    | '/reviews/'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
   ExamplesIndexRoute: typeof ExamplesIndexRoute
+  ReviewsIndexRoute: typeof ReviewsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +99,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reviews/': {
+      id: '/reviews/'
+      path: '/reviews'
+      fullPath: '/reviews/'
+      preLoaderRoute: typeof ReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/examples/': {
       id: '/examples/'
       path: '/examples'
@@ -65,12 +120,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamplesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reviews/$reviewId': {
+      id: '/reviews/$reviewId'
+      path: '/reviews/$reviewId'
+      fullPath: '/reviews/$reviewId'
+      preLoaderRoute: typeof ReviewsReviewIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ReviewsReviewIdRoute: ReviewsReviewIdRoute,
   ExamplesIndexRoute: ExamplesIndexRoute,
+  ReviewsIndexRoute: ReviewsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

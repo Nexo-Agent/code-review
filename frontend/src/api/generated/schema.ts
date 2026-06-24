@@ -56,6 +56,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reviews */
+        get: operations["list_reviews_api_v1_reviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{review_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["get_review_api_v1_reviews__review_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{review_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Review */
+        post: operations["retry_review_api_v1_reviews__review_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/integration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_api_v1_settings_integration_get"];
+        /** Put Settings */
+        put: operations["put_settings_api_v1_settings_integration_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/github": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Github Webhook */
+        post: operations["github_webhook_api_v1_webhooks_github_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -93,6 +179,135 @@ export interface components {
             db: string;
             /** Version */
             version: string;
+        };
+        /** IntegrationSettingsResponse */
+        IntegrationSettingsResponse: {
+            /** Git Provider */
+            git_provider: string;
+            /** Github Repo Full Name */
+            github_repo_full_name: string;
+            /** Github Webhook Secret Configured */
+            github_webhook_secret_configured: boolean;
+            /** Github Token Configured */
+            github_token_configured: boolean;
+            /** Llm Provider Id */
+            llm_provider_id: string;
+            /** Llm Base Url */
+            llm_base_url: string;
+            /** Llm Model */
+            llm_model: string;
+            /** Llm Api Token Configured */
+            llm_api_token_configured: boolean;
+            /** Opencode Model */
+            opencode_model: string;
+            /** Resolved Opencode Model */
+            resolved_opencode_model: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** IntegrationSettingsUpdate */
+        IntegrationSettingsUpdate: {
+            /** Git Provider */
+            git_provider?: string | null;
+            /**
+             * Github Repo Full Name
+             * @description owner/repo — empty accepts all repos
+             */
+            github_repo_full_name?: string | null;
+            /**
+             * Github Webhook Secret
+             * @description Omit to keep; empty string clears
+             */
+            github_webhook_secret?: string | null;
+            /**
+             * Github Token
+             * @description Omit to keep; empty string clears
+             */
+            github_token?: string | null;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
+            /** Llm Base Url */
+            llm_base_url?: string | null;
+            /**
+             * Llm Api Token
+             * @description Omit to keep; empty string clears
+             */
+            llm_api_token?: string | null;
+            /** Llm Model */
+            llm_model?: string | null;
+            /**
+             * Opencode Model
+             * @description Optional override for OpenCode model ref
+             */
+            opencode_model?: string | null;
+        };
+        /** ReviewFindingResponse */
+        ReviewFindingResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Severity */
+            severity: string;
+            /** File Path */
+            file_path: string | null;
+            /** Line Start */
+            line_start: number | null;
+            /** Line End */
+            line_end: number | null;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReviewListResponse */
+        ReviewListResponse: {
+            /** Items */
+            items: components["schemas"]["ReviewResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** ReviewResponse */
+        ReviewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Provider */
+            provider: string;
+            /** Repo Full Name */
+            repo_full_name: string;
+            /** Pr Number */
+            pr_number: number;
+            /** Head Sha */
+            head_sha: string;
+            /** Status */
+            status: string;
+            /** Delivery Id */
+            delivery_id: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Findings */
+            findings?: components["schemas"]["ReviewFindingResponse"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -207,6 +422,188 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExampleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reviews_api_v1_reviews_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                repo?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_review_api_v1_reviews__review_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_review_api_v1_reviews__review_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_api_v1_settings_integration_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationSettingsResponse"];
+                };
+            };
+        };
+    };
+    put_settings_api_v1_settings_integration_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationSettingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    github_webhook_api_v1_webhooks_github_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-GitHub-Event"?: string | null;
+                "X-GitHub-Delivery"?: string | null;
+                "X-Hub-Signature-256"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

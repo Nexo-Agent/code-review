@@ -18,12 +18,21 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       CORS_ORIGINS: '["http://localhost:5173"]'
+      NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
+      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
+      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
+      NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
+      NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
+      - review_workspaces:/workspaces
+      - ./opencode.generated.json:/config/opencode.generated.json
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     develop:
       watch:
         - action: rebuild
@@ -76,6 +85,28 @@ services:
           path: ./frontend/tsconfig.app.json
           target: /app/tsconfig.app.json
 
+  worker:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: api
+    command: ["uv", "run", "code-review", "job", "worker"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
+      NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
+      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
+      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
+      NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
+    volumes:
+      - ./backend:/app
+      - backend_venv:/app/.venv
+      - review_workspaces:/workspaces
+    depends_on:
+      - api
+      - redis
+      - opencode-serve
+
 volumes:
   backend_venv:
   frontend_node_modules:
+  review_workspaces:
