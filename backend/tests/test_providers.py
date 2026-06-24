@@ -237,7 +237,8 @@ def test_build_opencode_config_includes_mcp() -> None:
     ]
     assert config["tools"]["bash"] is False
     agent = config["agent"]["code-reviewer"]
-    assert agent["tools"]["coreview-git_*"] is True
+    assert agent["tools"]["coreview-git_fetch_pr_context"] is True
+    assert agent["tools"]["coreview-ci_get_summary"] is True
     assert agent["permission"]["bash"]["*"] == "deny"
 
 
