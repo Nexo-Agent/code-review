@@ -52,7 +52,7 @@ function LlmProvidersPage() {
       await createLlm.mutateAsync(payload)
       setNewLlm(emptyLlmForm())
       setShowAddForm(false)
-      toast.success("LLM provider created — restart opencode-serve to apply")
+      toast.success("LLM provider created")
     } catch {
       toast.error("Failed to create LLM provider")
     }

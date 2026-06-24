@@ -3,7 +3,6 @@ from functools import lru_cache
 from app.config import CodeReviewSettings, get_code_review_settings
 from app.providers.ci.github import GitHubCIProvider
 from app.providers.git.github import GitHubProvider
-from app.providers.llm.opencode import OpenCodeLLMProvider
 from app.providers.protocols import ProviderBundle
 from app.providers.runtime.docker import DockerRuntimeProvider
 
@@ -38,15 +37,7 @@ def build_providers(settings: CodeReviewSettings | None = None) -> ProviderBundl
         docker_host=cfg.docker_host or None,
         git_image=git_image,
     )
-    llm = OpenCodeLLMProvider(
-        server_url=cfg.opencode_server_url,
-        username=cfg.opencode_server_username,
-        password=cfg.opencode_server_password,
-        agent=cfg.opencode_agent,
-        model=cfg.resolved_opencode_model,
-        timeout_seconds=cfg.review_timeout_seconds,
-    )
-    return ProviderBundle(git=git, ci=ci, runtime=runtime, llm=llm)
+    return ProviderBundle(git=git, ci=ci, runtime=runtime)
 
 
 @lru_cache

@@ -19,15 +19,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       CORS_ORIGINS: '["http://localhost:5173"]'
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
-      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
-      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
-      NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
       NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
       - review_workspaces:/workspaces
       - ./opencode.generated.json:/config/opencode.generated.json
+    networks:
+      - coreview
     depends_on:
       db:
         condition: service_healthy
@@ -94,50 +93,23 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
-      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
-      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
       NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
+      NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-nexo-coreview-agent:dev}
+      NEXO_COREVIEW_AGENT_NETWORK: coreview
+      NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
+      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
       - review_workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./opencode.generated.json:/config/opencode.generated.json:ro
+    networks:
+      - coreview
     depends_on:
       - api
       - redis
-      - opencode-serve
-      - mcp-serve
-
-  mcp-serve:
-    build:
-      context: .
-      dockerfile: dev.Dockerfile
-      target: api
-    command:
-      [
-        "uv",
-        "run",
-        "code-review",
-        "mcp",
-        "serve",
-        "--transport",
-        "sse",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8001",
-      ]
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-      NEXO_COREVIEW_MCP_SERVER_PORT: "8001"
-      NEXO_COREVIEW_MCP_SERVER_URL: http://mcp-serve:8001/sse
-    ports:
-      - "${MCP_PORT:-8001}:8001"
-    volumes:
-      - ./backend:/app
-      - backend_venv:/app/.venv
-    depends_on:
       - db
 
 volumes:

@@ -62,7 +62,7 @@ compose*.yml
 compose*.yaml
 .docker
 
-# Agent skills & tooling (not needed in image)
+# Agent skills & tooling (not needed in main app image)
 .agents
 
 # Misc caches

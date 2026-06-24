@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
@@ -133,9 +133,15 @@ class RuntimeProvider(Protocol):
     def command_runner(self) -> CommandRunner: ...
 
 
+class LLMProvider(Protocol):
+    async def run_review(
+        self,
+        workspace: Workspace,
+        context: PRContext,
+    ) -> list[ReviewFinding]: ...
+
+
 @dataclass(slots=True)
 class ProviderBundle:
     git: GitProvider
     ci: CIProvider
-    runtime: RuntimeProvider
-    extra: dict[str, object] = field(default_factory=dict)

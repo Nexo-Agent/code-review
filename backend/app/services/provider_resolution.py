@@ -96,34 +96,6 @@ async def build_providers_for_repo(
     return build_providers(cfg)
 
 
-async def build_providers_for_review(
-    conn,
-    repo_integration_id: UUID | None,
-    repo_full_name: str,
-    infra: CodeReviewSettings | None = None,
-) -> tuple[ProviderBundle, RepoIntegrationRow, LlmProviderRow]:
-    repo_repo = RepoIntegrationRepository(conn)
-    if repo_integration_id:
-        repo_integration = await repo_repo.get(repo_integration_id)
-    else:
-        repo_integration = None
-
-    if repo_integration is None:
-        repo_integration = await repo_repo.resolve_for_repo(repo_full_name)
-
-    if repo_integration is None:
-        msg = f"No repository integration configured for {repo_full_name}"
-        raise ValueError(msg)
-
-    llm_provider = await resolve_llm_provider(conn, repo_integration)
-    if llm_provider is None:
-        msg = "No LLM provider configured"
-        raise ValueError(msg)
-
-    cfg = build_providers_config(repo_integration, llm_provider, infra)
-    return build_providers(cfg), repo_integration, llm_provider
-
-
 async def sync_opencode_config_from_db(
     conn,
     output_path: Path | None = None,

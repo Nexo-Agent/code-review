@@ -81,7 +81,7 @@ Production uses only the base compose file; `docker-compose.override.yaml` is no
 | [`dev.Dockerfile`](dev.Dockerfile) | Multi-stage dev images (`target: api` / `target: web`) |
 | [`Dockerfile`](Dockerfile) | Production bundle (API + static SPA) |
 
-Docker dev stack services: `api`, `worker`, `mcp-serve`, `opencode-serve`, `redis`, `db`. The worker mounts `/var/run/docker.sock` for isolated git workspaces. OpenCode connects to `mcp-serve` for MCP tools (`coreview-git_*`, `coreview-ci_*`).
+Docker dev stack services: `api`, `worker`, `redis`, `db`. The worker mounts `/var/run/docker.sock` and spawns a per-review agent container (`nexo-coreview-agent`) with OpenCode + MCP.
 
 ## Environment variables
 
@@ -121,14 +121,15 @@ Configured via **Settings** (`/settings`) or the API:
 - **LLM providers** — `GET/POST /api/v1/settings/llm-providers`, `PUT/DELETE .../{id}`
 - **Repositories** — `GET/POST /api/v1/settings/repos`, `PUT/DELETE .../{id}`
 
-Saving LLM providers regenerates `opencode.generated.json`; restart `opencode-serve` to apply.
+Saving LLM providers regenerates `opencode.generated.json`; new reviews pick up the config automatically.
 
 ## CLI modes
 
 ```bash
 cd backend && uv run code-review backend run
 cd backend && uv run code-review job worker
-cd backend && uv run code-review agent run --review-id <uuid>
+cd agent && uv run coreview-agent review run --review-id <uuid>
+cd agent && uv run coreview-agent serve --transport sse --host 0.0.0.0 --port 8001
 ```
 
 ## Project structure
@@ -142,10 +143,18 @@ backend/
     services/         # Business logic
     providers/        # Swappable LLM, Git, CI, runtime adapters
     jobs/             # Celery tasks
-    toolbase/         # MCP Git/CI tools
-    mcp/              # MCP server
     cli/              # Typer commands
   migrations/         # dbmate SQL (-- migrate:up / migrate:down)
+  tests/
+agent/
+  skills/             # OpenCode skills (bundled in agent image)
+  app/
+    mcp/              # MCP server
+    toolbase/         # MCP Git/CI tools
+    providers/        # GitHub Git + CI adapters
+    cli/              # coreview-agent CLI
+  docker/             # entrypoint, opencode config
+  Dockerfile
   tests/
 frontend/
   src/
@@ -153,7 +162,7 @@ frontend/
     api/              # HTTP client + generated OpenAPI types
     hooks/            # TanStack Query hooks
     components/ui/    # shadcn components
-.agents/skills/       # Agent skills (agentskills.io)
+.agents/skills/       # IDE/dev agent skills (agentskills.io)
 docs/                 # Architecture diagrams
 ```
 

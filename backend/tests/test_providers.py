@@ -8,17 +8,14 @@ import pytest
 
 from app.config import CodeReviewSettings
 from app.providers.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
-from app.providers.llm.opencode import OpenCodeLLMProvider
+from app.providers.git.diff_lines import filter_inline_comments, parse_commentable_lines
 from app.providers.protocols import (
     InlineComment,
     InlineCommentsResult,
-    ReviewFinding,
     Workspace,
     WorkspaceSpec,
 )
-from app.providers.git.diff_lines import filter_inline_comments, parse_commentable_lines
 from app.providers.runtime.command_runner import DockerCommandRunner
-from app.services.review_format import split_findings
 
 
 def test_github_webhook_signature_valid() -> None:
@@ -228,62 +225,6 @@ def test_filter_inline_comments() -> None:
     assert len(skipped) == 1
 
 
-def test_opencode_parse_findings_from_json() -> None:
-    provider = OpenCodeLLMProvider(
-        server_url="http://localhost:4096",
-        username="opencode",
-        password="",
-        agent="code-reviewer",
-        model="anthropic/claude-sonnet-4-5",
-        timeout_seconds=60,
-    )
-    data = {
-        "findings": [
-            {
-                "severity": "warning",
-                "title": "Missing null check",
-                "body": "Variable may be None",
-                "file_path": "app/main.py",
-                "line_start": 10,
-            }
-        ]
-    }
-    findings = provider._parse_findings(data)
-    assert len(findings) == 1
-    assert findings[0].severity == "warning"
-    assert findings[0].file_path == "app/main.py"
-
-
-def test_opencode_slim_prompt_mentions_mcp() -> None:
-    from app.providers.protocols import PRContext, PRMetadata
-
-    provider = OpenCodeLLMProvider(
-        server_url="http://localhost:4096",
-        username="opencode",
-        password="",
-        agent="code-reviewer",
-        model="test/model",
-        timeout_seconds=60,
-    )
-    context = PRContext(
-        metadata=PRMetadata(
-            repo_full_name="org/repo",
-            pr_number=1,
-            title="Test",
-            author="dev",
-            head_sha="a" * 40,
-            base_sha="b" * 40,
-            head_ref="feature",
-            base_ref="main",
-            html_url="https://github.com/org/repo/pull/1",
-        ),
-        diff="diff content",
-    )
-    prompt = provider._build_prompt(context)
-    assert "coreview-git_fetch_pr_context" in prompt
-    assert "diff content" not in prompt
-
-
 def test_build_opencode_config_includes_mcp() -> None:
     from app.providers.opencode_config import build_opencode_config
 
@@ -336,7 +277,7 @@ def test_provider_factory_github_docker() -> None:
         )
     )
     assert providers.git is not None
-    assert providers.llm is not None
+    assert providers.runtime is not None
     with patch("app.providers.runtime.docker.get_docker_client") as get_client:
         get_client.return_value = MagicMock()
         assert providers.runtime.command_runner() is not None
@@ -347,28 +288,6 @@ def test_provider_factory_unsupported_git() -> None:
 
     with pytest.raises(NotImplementedError):
         build_providers(CodeReviewSettings(git_provider="gitlab"))
-
-
-def test_split_findings() -> None:
-    findings = [
-        ReviewFinding(
-            severity="warning",
-            title="Bug",
-            body="details",
-            file_path="a.py",
-            line_start=5,
-        ),
-        ReviewFinding(
-            severity="info",
-            title="Note",
-            body="general",
-        ),
-    ]
-    inline, summary = split_findings(findings)
-    assert len(inline) == 1
-    assert inline[0].path == "a.py"
-    assert len(summary) == 1
-    assert summary[0].title == "Note"
 
 
 def test_docker_command_runner_invokes_client() -> None:
@@ -407,17 +326,6 @@ def test_docker_client_uses_explicit_host() -> None:
     ctor.assert_called_once_with(base_url="unix:///custom.sock")
     docker_client.reset_docker_client()
 
-
-def test_mcp_server_registers_tools() -> None:
-    from app.mcp.server import create_mcp_server
-    from app.toolbase.context import build_tool_context
-
-    ctx = build_tool_context(CodeReviewSettings(github_token=""))
-    mcp = create_mcp_server(ctx)
-    tools = mcp._tool_manager.list_tools()
-    names = {tool.name for tool in tools}
-    assert "coreview-git_fetch_pr_context" in names
-    assert "coreview-ci_get_summary" in names
 
 
 def test_handled_webhook_actions() -> None:

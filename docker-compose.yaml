@@ -5,6 +5,10 @@
 # Production: explicit -f skips the override file
 #   docker compose -f docker-compose.yaml --profile prod up -d
 
+networks:
+  coreview:
+    name: coreview
+
 services:
   app:
     profiles: [prod]
@@ -20,7 +24,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
-      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
+    networks:
+      - coreview
     depends_on:
       db:
         condition: service_healthy
@@ -41,79 +46,36 @@ services:
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
       NEXO_COREVIEW_GITHUB_TOKEN: ${NEXO_COREVIEW_GITHUB_TOKEN:-}
       NEXO_COREVIEW_GITHUB_WEBHOOK_SECRET: ${NEXO_COREVIEW_GITHUB_WEBHOOK_SECRET:-}
-      NEXO_COREVIEW_OPENCODE_SERVER_URL: http://opencode-serve:4096
-      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
       NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
+      NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-nexo-coreview-agent:dev}
+      NEXO_COREVIEW_AGENT_NETWORK: coreview
+      NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
+      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
     volumes:
       - review_workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./opencode.generated.json:/config/opencode.generated.json:ro
+    networks:
+      - coreview
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
-      opencode-serve:
-        condition: service_started
-      mcp-serve:
-        condition: service_started
-    restart: unless-stopped
-
-  mcp-serve:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
-    command:
-      [
-        "code-review",
-        "mcp",
-        "serve",
-        "--transport",
-        "sse",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8001",
-      ]
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-      NEXO_COREVIEW_GITHUB_TOKEN: ${NEXO_COREVIEW_GITHUB_TOKEN:-}
-      NEXO_COREVIEW_MCP_SERVER_PORT: "8001"
-    ports:
-      - "${MCP_PORT:-8001}:8001"
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
       - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - coreview
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
-    restart: unless-stopped
-
-  opencode-serve:
-    image: ghcr.io/anomalyco/opencode:latest
-    command: ["serve", "--hostname", "0.0.0.0", "--port", "4096"]
-    environment:
-      OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
-      OPENCODE_CONFIG: /config/opencode.json
-    volumes:
-      - ./opencode.generated.json:/config/opencode.json:ro
-      - ./.agents/skills/code-review:/opencode/skills/code-review:ro
-      - review_workspaces:/workspaces
-    ports:
-      - "${OPENCODE_PORT:-4096}:4096"
-    depends_on:
-      mcp-serve:
-        condition: service_started
     restart: unless-stopped
 
   db:
@@ -126,6 +88,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-app}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - coreview
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}"]
       interval: 5s
@@ -140,6 +104,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
     volumes:
       - ./backend/migrations:/db/migrations
+    networks:
+      - coreview
     depends_on:
       db:
         condition: service_healthy

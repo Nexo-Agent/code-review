@@ -44,11 +44,3 @@ def format_summary_comment(
             f"{finding.body}\n"
         )
     return "\n".join(lines)
-
-
-def format_comment(
-    findings: list[ReviewFinding],
-    repo_full_name: str,
-    pr_number: int,
-) -> str:
-    return format_summary_comment(findings, repo_full_name, pr_number)

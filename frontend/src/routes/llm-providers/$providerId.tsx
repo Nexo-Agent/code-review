@@ -55,7 +55,7 @@ function LlmProviderDetailPage() {
       })
       setDraft(null)
       setApiToken("")
-      toast.success("LLM provider updated — restart opencode-serve to apply")
+      toast.success("LLM provider updated")
     } catch {
       toast.error("Failed to update LLM provider")
     }

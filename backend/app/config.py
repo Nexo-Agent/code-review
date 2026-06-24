@@ -52,6 +52,11 @@ class CodeReviewSettings(BaseSettings):
     opencode_server_password: str = ""
     opencode_server_username: str = "opencode"
     review_timeout_seconds: int = 600
+    agent_image: str = "nexo-coreview-agent:dev"
+    # Docker network for per-review agent containers (e.g. coreview in Compose).
+    # Empty = publish OpenCode port to host (native worker dev).
+    agent_network: str = ""
+    opencode_config_path: str = ""
 
     @property
     def resolved_opencode_model(self) -> str:

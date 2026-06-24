@@ -1,8 +1,8 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from app.config import CodeReviewSettings
+from app.config import AgentSettings
 from app.providers.protocols import PRContext, PRMetadata, ProviderBundle
 from app.toolbase import ci_tools, git_tools
 from app.toolbase.context import ToolContext
@@ -12,13 +12,8 @@ from app.toolbase.context import ToolContext
 def tool_context() -> ToolContext:
     git = AsyncMock()
     ci = AsyncMock()
-    providers = ProviderBundle(
-        git=git,
-        ci=ci,
-        runtime=MagicMock(),
-        llm=MagicMock(),
-    )
-    return ToolContext(infra=CodeReviewSettings(), providers=providers)
+    providers = ProviderBundle(git=git, ci=ci)
+    return ToolContext(infra=AgentSettings(), providers=providers)
 
 
 @pytest.mark.asyncio

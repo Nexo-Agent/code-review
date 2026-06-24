@@ -10,7 +10,8 @@ AI-powered pull request reviews for GitHub. Connect a repository, point a webhoo
 - **Structured findings** — Severity, file, line range, title, and description — browsable in the web UI
 - **Multiple LLM providers** — OpenAI-compatible endpoints; configure several profiles and override per repository
 - **Per-repo configuration** — Webhook secret, GitHub token, and optional LLM override for each repo (or a catch-all default)
-- **Isolated git workspaces** — Clones and diffs run in disposable Docker containers
+- **Ephemeral agent containers** — Each review spawns an OpenCode + MCP agent via Docker socket; no pre-provisioned agent pool
+- **Isolated git workspaces** — Repo clone and review run inside the per-review agent container
 - **MCP toolbase** — Agent can inspect git history and CI status through Nexo Co-Review MCP tools (`nexo-coreview`)
 - **Self-hosted** — Single Docker image ships the API and web UI together
 
@@ -58,7 +59,7 @@ When a PR is opened or updated, a review job is queued. Track progress on the **
 High-level diagrams: [`docs/architecture.svg`](docs/architecture.svg), [`docs/flow.svg`](docs/flow.svg).
 
 ```
-GitHub PR event → API webhook → Celery worker → OpenCode agent → findings → Postgres → Web UI
+GitHub PR event → API webhook → Celery worker → spawn agent container → OpenCode review → findings → Postgres → Web UI
 ```
 
 ## Documentation

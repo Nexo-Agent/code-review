@@ -1,0 +1,34 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "_note": "Default agent image config. Mount opencode.generated.json at /config/opencode.json for production LLM providers.",
+  "mcp": {
+    "coreview": {
+      "type": "remote",
+      "url": "http://127.0.0.1:8001/sse",
+      "enabled": true
+    }
+  },
+  "tools": {
+    "bash": false
+  },
+  "provider": {},
+  "agent": {
+    "code-reviewer": {
+      "description": "Reviews PR for bugs, security, and maintainability",
+      "mode": "subagent",
+      "tools": {
+        "coreview-git_*": true,
+        "coreview-ci_*": true
+      },
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "bash": {
+          "*": "deny"
+        }
+      },
+      "prompt": "You are a code reviewer. Use MCP tools to gather context before reviewing: call coreview-git_fetch_pr_context and coreview-ci_get_ci_summary with the repository and PR details from the prompt. Analyze the cloned workspace at the session directory. Return findings as JSON matching the outputFormat schema. For line-specific issues, use coreview-git_post_inline_comments. Focus on bugs, security issues, performance problems, and missing tests.",
+      "model": "openai-compat/gpt-4o"
+    }
+  }
+}
