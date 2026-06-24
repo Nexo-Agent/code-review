@@ -4,16 +4,35 @@ from uuid import UUID
 import asyncpg
 
 from app.config import get_settings
-from app.providers.factory import build_providers
-from app.providers.protocols import ProviderBundle, Workspace, WorkspaceSpec
-from app.repositories.reviews import ReviewRepository
-from app.services.integration_settings import (
-    build_providers_config,
-    get_integration_settings,
+from app.providers.protocols import (
+    InlineComment,
+    ProviderBundle,
+    ReviewFinding,
+    Workspace,
+    WorkspaceSpec,
 )
-from app.services.review_format import format_comment
+from app.repositories.reviews import ReviewRepository
+from app.services.provider_resolution import build_providers_for_review
+from app.services.review_format import format_summary_comment, split_findings
 
 logger = logging.getLogger(__name__)
+
+
+def _summary_findings(
+    findings: list[ReviewFinding],
+    posted_inline: tuple[InlineComment, ...],
+) -> list[ReviewFinding]:
+    """Findings for the PR summary comment (excludes successfully posted inline)."""
+    posted_keys = {(c.path, c.line) for c in posted_inline}
+    return [
+        finding
+        for finding in findings
+        if not (
+            finding.file_path
+            and finding.line_start
+            and (finding.file_path, finding.line_start) in posted_keys
+        )
+    ]
 
 
 async def execute_review_logic(review_id: str) -> None:
@@ -22,14 +41,17 @@ async def execute_review_logic(review_id: str) -> None:
     providers: ProviderBundle | None = None
     workspace: Workspace | None = None
     try:
-        integration = await get_integration_settings(conn)
-        providers = build_providers(build_providers_config(integration))
-
         repo = ReviewRepository(conn)
         review = await repo.get(UUID(review_id))
         if review is None:
             msg = f"Review not found: {review_id}"
             raise ValueError(msg)
+
+        providers, _, _ = await build_providers_for_review(
+            conn,
+            review.repo_integration_id,
+            review.repo_full_name,
+        )
 
         await repo.update_status(
             review.id, status="running", set_started=True
@@ -57,7 +79,13 @@ async def execute_review_logic(review_id: str) -> None:
             head_sha=review.head_sha,
         )
         workspace = await providers.runtime.prepare_workspace(spec)
-        findings = await providers.llm.run_review(workspace, pr_context)
+        await providers.git.clone_repository(
+            spec,
+            workspace,
+            providers.runtime.command_runner(),
+        )
+        repo_workspace = Workspace(path=workspace.path / "repo", spec=spec)
+        findings = await providers.llm.run_review(repo_workspace, pr_context)
 
         await repo.replace_findings(
             review.id,
@@ -73,19 +101,38 @@ async def execute_review_logic(review_id: str) -> None:
                 for f in findings
             ],
         )
-        await repo.update_status(
-            review.id, status="completed", set_completed=True
-        )
+        inline_comments, _ = split_findings(findings)
+        posted_inline: tuple[InlineComment, ...] = ()
+        if inline_comments:
+            inline_result = await providers.git.post_inline_comments(
+                review.repo_full_name,
+                review.pr_number,
+                review.head_sha,
+                inline_comments,
+                diff=pr_context.diff,
+            )
+            posted_inline = inline_result.posted
+            if inline_result.skipped:
+                logger.info(
+                    "Review %s: %d inline comment(s) moved to summary (not in diff)",
+                    review_id,
+                    len(inline_result.skipped),
+                )
 
-        comment = format_comment(
-            findings,
+        summary_findings = _summary_findings(findings, posted_inline)
+        summary = format_summary_comment(
+            summary_findings,
             review.repo_full_name,
             review.pr_number,
         )
         await providers.git.post_review_comment(
             review.repo_full_name,
             review.pr_number,
-            comment,
+            summary,
+        )
+
+        await repo.update_status(
+            review.id, status="completed", set_completed=True
         )
         logger.info("Review %s completed with %d findings", review_id, len(findings))
     except Exception as exc:

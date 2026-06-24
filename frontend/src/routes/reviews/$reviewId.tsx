@@ -38,7 +38,7 @@ function ReviewDetailPage() {
     <AppShell title="Review detail">
       <div className="mb-4">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/reviews">← Back to reviews</Link>
+          <Link to="/repositories">← Back</Link>
         </Button>
       </div>
 

@@ -64,7 +64,7 @@ async def test_openapi_schema(client: AsyncClient) -> None:
     response = await client.get("/openapi.json")
     assert response.status_code == 200
     schema = response.json()
-    assert schema["info"]["title"] == "Code Review API"
+    assert schema["info"]["title"] == "Nexo Co-Review API"
     assert "/api/v1/health" in schema["paths"]
     assert "/api/v1/reviews" in schema["paths"]
     assert "/api/v1/webhooks/github" in schema["paths"]

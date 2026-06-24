@@ -10,9 +10,9 @@ metadata:
   version: "0.1.0"
 ---
 
-# Code Review
+# Nexo Co-Review
 
-Structured PR review for the code-review pilot.
+Structured PR review for Nexo Co-Review (`nexo-coreview`).
 
 ## When to apply
 

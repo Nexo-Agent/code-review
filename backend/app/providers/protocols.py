@@ -47,14 +47,55 @@ class Workspace:
     spec: WorkspaceSpec
 
 
+@dataclass(frozen=True, slots=True)
+class WebhookEvent:
+    event_type: str
+    action: str
+    repo_full_name: str
+    pr_number: int
+    head_sha: str
+    delivery_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class InlineComment:
+    path: str
+    line: int
+    body: str
+    side: str = "RIGHT"
+
+
+@dataclass(frozen=True, slots=True)
+class InlineCommentsResult:
+    posted: tuple[InlineComment, ...]
+    skipped: tuple[InlineComment, ...]
+
+
+class CommandRunner(Protocol):
+    async def run(self, args: list[str], cwd: Path) -> None: ...
+
+
 class GitProvider(Protocol):
     def verify_webhook_signature(
         self, payload: bytes, signature: str | None, secret: str
     ) -> bool: ...
 
+    async def get_pr_metadata(
+        self, repo_full_name: str, pr_number: int
+    ) -> PRMetadata: ...
+
+    async def get_pr_diff(self, repo_full_name: str, pr_number: int) -> str: ...
+
     async def fetch_pr_context(
         self, repo_full_name: str, pr_number: int, head_sha: str
     ) -> PRContext: ...
+
+    async def clone_repository(
+        self,
+        spec: WorkspaceSpec,
+        workspace: Workspace,
+        runner: CommandRunner,
+    ) -> None: ...
 
     async def post_review_comment(
         self,
@@ -62,6 +103,20 @@ class GitProvider(Protocol):
         pr_number: int,
         body: str,
     ) -> None: ...
+
+    async def post_inline_comments(
+        self,
+        repo_full_name: str,
+        pr_number: int,
+        commit_id: str,
+        comments: list[InlineComment],
+        body: str = "",
+        diff: str | None = None,
+    ) -> InlineCommentsResult: ...
+
+    def parse_webhook(
+        self, headers: dict[str, str], body: bytes
+    ) -> WebhookEvent | None: ...
 
 
 class CIProvider(Protocol):
@@ -74,6 +129,8 @@ class RuntimeProvider(Protocol):
     async def prepare_workspace(self, spec: WorkspaceSpec) -> Workspace: ...
 
     async def cleanup_workspace(self, workspace: Workspace) -> None: ...
+
+    def command_runner(self) -> CommandRunner: ...
 
 
 class LLMProvider(Protocol):

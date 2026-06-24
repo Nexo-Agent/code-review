@@ -1,4 +1,4 @@
-.PHONY: dev-db dev-api dev-web dev dev-watch dev-down dev-migrate dev-worker migrate migrate-down openapi prod-up lint test render-opencode-config
+.PHONY: dev-db dev-api dev-web dev dev-watch dev-down dev-migrate dev-worker dev-mcp-serve migrate migrate-down openapi prod-up lint test render-opencode-config
 
 ifneq (,$(wildcard .env))
 include .env
@@ -24,7 +24,10 @@ dev-worker:
 	cd backend && uv run code-review job worker
 
 dev-opencode-serve: render-opencode-config
-	docker compose up -d opencode-serve
+	docker compose up -d mcp-serve opencode-serve
+
+dev-mcp-serve:
+	docker compose up -d mcp-serve
 
 render-opencode-config:
 	cd backend && uv run code-review config render-opencode -o ../opencode.generated.json

@@ -12,8 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
+import { Route as RepositoriesIndexRouteImport } from './routes/repositories/index'
+import { Route as LlmProvidersIndexRouteImport } from './routes/llm-providers/index'
 import { Route as ExamplesIndexRouteImport } from './routes/examples/index'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
+import { Route as RepositoriesRepoIdRouteImport } from './routes/repositories/$repoId'
+import { Route as LlmProvidersProviderIdRouteImport } from './routes/llm-providers/$providerId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +34,16 @@ const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
   path: '/reviews/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RepositoriesIndexRoute = RepositoriesIndexRouteImport.update({
+  id: '/repositories/',
+  path: '/repositories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmProvidersIndexRoute = LlmProvidersIndexRouteImport.update({
+  id: '/llm-providers/',
+  path: '/llm-providers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
   id: '/examples/',
   path: '/examples/',
@@ -40,26 +54,48 @@ const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
   path: '/reviews/$reviewId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RepositoriesRepoIdRoute = RepositoriesRepoIdRouteImport.update({
+  id: '/repositories/$repoId',
+  path: '/repositories/$repoId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmProvidersProviderIdRoute = LlmProvidersProviderIdRouteImport.update({
+  id: '/llm-providers/$providerId',
+  path: '/llm-providers/$providerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
+  '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/examples/': typeof ExamplesIndexRoute
+  '/llm-providers/': typeof LlmProvidersIndexRoute
+  '/repositories/': typeof RepositoriesIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
+  '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/examples': typeof ExamplesIndexRoute
+  '/llm-providers': typeof LlmProvidersIndexRoute
+  '/repositories': typeof RepositoriesIndexRoute
   '/reviews': typeof ReviewsIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
+  '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/examples/': typeof ExamplesIndexRoute
+  '/llm-providers/': typeof LlmProvidersIndexRoute
+  '/repositories/': typeof RepositoriesIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
@@ -67,25 +103,46 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/llm-providers/$providerId'
+    | '/repositories/$repoId'
     | '/reviews/$reviewId'
     | '/examples/'
+    | '/llm-providers/'
+    | '/repositories/'
     | '/reviews/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/reviews/$reviewId' | '/examples' | '/reviews' | '/settings'
+  to:
+    | '/'
+    | '/llm-providers/$providerId'
+    | '/repositories/$repoId'
+    | '/reviews/$reviewId'
+    | '/examples'
+    | '/llm-providers'
+    | '/repositories'
+    | '/reviews'
+    | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/llm-providers/$providerId'
+    | '/repositories/$repoId'
     | '/reviews/$reviewId'
     | '/examples/'
+    | '/llm-providers/'
+    | '/repositories/'
     | '/reviews/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LlmProvidersProviderIdRoute: typeof LlmProvidersProviderIdRoute
+  RepositoriesRepoIdRoute: typeof RepositoriesRepoIdRoute
   ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
   ExamplesIndexRoute: typeof ExamplesIndexRoute
+  LlmProvidersIndexRoute: typeof LlmProvidersIndexRoute
+  RepositoriesIndexRoute: typeof RepositoriesIndexRoute
   ReviewsIndexRoute: typeof ReviewsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -113,6 +170,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/repositories/': {
+      id: '/repositories/'
+      path: '/repositories'
+      fullPath: '/repositories/'
+      preLoaderRoute: typeof RepositoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llm-providers/': {
+      id: '/llm-providers/'
+      path: '/llm-providers'
+      fullPath: '/llm-providers/'
+      preLoaderRoute: typeof LlmProvidersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/examples/': {
       id: '/examples/'
       path: '/examples'
@@ -127,13 +198,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsReviewIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/repositories/$repoId': {
+      id: '/repositories/$repoId'
+      path: '/repositories/$repoId'
+      fullPath: '/repositories/$repoId'
+      preLoaderRoute: typeof RepositoriesRepoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llm-providers/$providerId': {
+      id: '/llm-providers/$providerId'
+      path: '/llm-providers/$providerId'
+      fullPath: '/llm-providers/$providerId'
+      preLoaderRoute: typeof LlmProvidersProviderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LlmProvidersProviderIdRoute: LlmProvidersProviderIdRoute,
+  RepositoriesRepoIdRoute: RepositoriesRepoIdRoute,
   ReviewsReviewIdRoute: ReviewsReviewIdRoute,
   ExamplesIndexRoute: ExamplesIndexRoute,
+  LlmProvidersIndexRoute: LlmProvidersIndexRoute,
+  RepositoriesIndexRoute: RepositoriesIndexRoute,
   ReviewsIndexRoute: ReviewsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }

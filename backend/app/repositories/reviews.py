@@ -14,6 +14,7 @@ class ReviewRow:
     head_sha: str
     status: str
     delivery_id: str | None
+    repo_integration_id: UUID | None
     error_message: str | None
     started_at: datetime | None
     completed_at: datetime | None
@@ -59,7 +60,8 @@ class ReviewRepository:
         args.extend([limit, offset])
         query = f"""
             SELECT id, provider, repo_full_name, pr_number, head_sha, status,
-                   delivery_id, error_message, started_at, completed_at, created_at
+                   delivery_id, repo_integration_id, error_message, started_at,
+                   completed_at, created_at
             FROM reviews
             WHERE {' AND '.join(clauses)}
             ORDER BY created_at DESC
@@ -72,7 +74,8 @@ class ReviewRepository:
         row = await self._conn.fetchrow(
             """
             SELECT id, provider, repo_full_name, pr_number, head_sha, status,
-                   delivery_id, error_message, started_at, completed_at, created_at
+                   delivery_id, repo_integration_id, error_message, started_at,
+                   completed_at, created_at
             FROM reviews WHERE id = $1
             """,
             review_id,
@@ -83,7 +86,8 @@ class ReviewRepository:
         row = await self._conn.fetchrow(
             """
             SELECT id, provider, repo_full_name, pr_number, head_sha, status,
-                   delivery_id, error_message, started_at, completed_at, created_at
+                   delivery_id, repo_integration_id, error_message, started_at,
+                   completed_at, created_at
             FROM reviews WHERE delivery_id = $1
             """,
             delivery_id,
@@ -98,21 +102,25 @@ class ReviewRepository:
         pr_number: int,
         head_sha: str,
         delivery_id: str | None,
+        repo_integration_id: UUID | None = None,
     ) -> ReviewRow:
         row = await self._conn.fetchrow(
             """
             INSERT INTO reviews (
-                provider, repo_full_name, pr_number, head_sha, status, delivery_id
+                provider, repo_full_name, pr_number, head_sha, status,
+                delivery_id, repo_integration_id
             )
-            VALUES ($1, $2, $3, $4, 'pending', $5)
+            VALUES ($1, $2, $3, $4, 'pending', $5, $6)
             RETURNING id, provider, repo_full_name, pr_number, head_sha, status,
-                      delivery_id, error_message, started_at, completed_at, created_at
+                      delivery_id, repo_integration_id, error_message, started_at,
+                      completed_at, created_at
             """,
             provider,
             repo_full_name,
             pr_number,
             head_sha,
             delivery_id,
+            repo_integration_id,
         )
         if row is None:
             existing = (
@@ -145,7 +153,8 @@ class ReviewRepository:
                 completed_at = CASE WHEN $5 THEN now() ELSE completed_at END
             WHERE id = $1
             RETURNING id, provider, repo_full_name, pr_number, head_sha, status,
-                      delivery_id, error_message, started_at, completed_at, created_at
+                      delivery_id, repo_integration_id, error_message, started_at,
+                      completed_at, created_at
             """,
             review_id,
             status,
@@ -165,7 +174,8 @@ class ReviewRepository:
                 completed_at = NULL
             WHERE id = $1
             RETURNING id, provider, repo_full_name, pr_number, head_sha, status,
-                      delivery_id, error_message, started_at, completed_at, created_at
+                      delivery_id, repo_integration_id, error_message, started_at,
+                      completed_at, created_at
             """,
             review_id,
         )
@@ -228,6 +238,7 @@ def _row_to_review(row: asyncpg.Record) -> ReviewRow:
         head_sha=row["head_sha"],
         status=row["status"],
         delivery_id=row["delivery_id"],
+        repo_integration_id=row["repo_integration_id"],
         error_message=row["error_message"],
         started_at=row["started_at"],
         completed_at=row["completed_at"],

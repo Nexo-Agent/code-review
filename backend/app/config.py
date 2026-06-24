@@ -36,6 +36,12 @@ class CodeReviewSettings(BaseSettings):
     runtime_provider: str = "docker"
     workspace_root: str = "/workspaces"
     workspace_image: str = ""
+    # Empty = auto-detect socket (macOS/Linux/Windows). See docker_client.py.
+    docker_host: str = ""
+    # Minimal git image for DockerCommandRunner; ENTRYPOINT is "git".
+    git_image: str = "alpine/git:latest"
+    mcp_server_url: str = "http://mcp-serve:8001/sse"
+    mcp_server_port: int = 8001
     llm_provider_id: str = "openai-compat"
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_token: str = ""

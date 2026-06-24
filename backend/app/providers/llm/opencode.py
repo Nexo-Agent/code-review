@@ -156,20 +156,18 @@ class OpenCodeLLMProvider:
 
     def _build_prompt(self, context: PRContext) -> str:
         meta = context.metadata
-        ci_block = (
-            f"\n\n## CI status\n{context.ci_summary}"
-            if context.ci_summary
-            else ""
-        )
         return (
             f"Review pull request #{meta.pr_number}: {meta.title}\n"
+            f"Repository: {meta.repo_full_name}\n"
             f"Author: {meta.author}\n"
             f"Base: {meta.base_ref} ({meta.base_sha[:7]})\n"
-            f"Head: {meta.head_ref} ({meta.head_sha[:7]})\n"
-            f"{ci_block}\n\n"
-            "## Diff\n"
-            f"{context.diff[:50000]}\n\n"
-            "Return findings as JSON matching the outputFormat schema. "
+            f"Head: {meta.head_ref} ({meta.head_sha[:7]})\n\n"
+            "Use MCP tools before reviewing:\n"
+            "- coreview-git_fetch_pr_context\n"
+            "- coreview-ci_get_summary\n\n"
+            "The cloned repository is available in the session workspace directory.\n"
+            "Return findings as JSON matching the outputFormat schema.\n"
+            "For line-specific issues you may use coreview-git_post_inline_comments.\n"
             "Focus on bugs, security, performance, and missing tests."
         )
 

@@ -14,7 +14,7 @@ from app.lifespan import lifespan
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="Code Review API",
+        title="Nexo Co-Review API",
         version=settings.app_version,
         lifespan=lifespan,
     )

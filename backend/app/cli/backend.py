@@ -15,7 +15,7 @@ def run(
     ),
     reload: bool = typer.Option(False, help="Enable auto-reload"),
 ) -> None:
-    """Start the Code Review API server."""
+    """Start the Nexo Co-Review API server."""
     uvicorn.run(
         "app.main:app",
         host=host,

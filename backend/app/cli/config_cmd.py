@@ -20,17 +20,13 @@ def render_opencode(
     import asyncpg
 
     from app.config import get_settings
-    from app.services.integration_settings import (
-        get_integration_settings,
-        sync_opencode_config,
-    )
+    from app.services.provider_resolution import sync_opencode_config_from_db
 
     async def _run() -> Path:
         settings = get_settings()
         conn = await asyncpg.connect(settings.database_url)
         try:
-            row = await get_integration_settings(conn)
-            return sync_opencode_config(row, output_path=output)
+            return await sync_opencode_config_from_db(conn, output_path=output)
         finally:
             await conn.close()
 
