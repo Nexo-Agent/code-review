@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,9 +9,31 @@ from app.providers.runtime.docker.provider import DockerRuntimeProvider
 from app.providers.runtime.review_job import (
     agent_database_url,
     build_docker_review_job_spec,
-    resolve_opencode_config_path,
 )
 from app.providers.runtime.specs import ReviewJobRequest
+
+
+def _sample_environment() -> dict[str, str]:
+    return {
+        "NEXO_COREVIEW_REPO_FULL_NAME": "org/repo",
+        "NEXO_COREVIEW_PR_NUMBER": "1",
+        "NEXO_COREVIEW_HEAD_SHA": "abc",
+        "NEXO_COREVIEW_GITHUB_TOKEN": "ghp_test",
+        "NEXO_COREVIEW_LLM_PROVIDER_ID": "openai-compat",
+        "NEXO_COREVIEW_LLM_BASE_URL": "https://api.example.com/v1",
+        "NEXO_COREVIEW_LLM_API_TOKEN": "sk-test",
+        "NEXO_COREVIEW_LLM_MODEL": "gpt-4o",
+        "NEXO_COREVIEW_OPENCODE_MODEL": "openai-compat/gpt-4o",
+        "NEXO_COREVIEW_OPENCODE_AGENT": "code-reviewer",
+        "NEXO_COREVIEW_REVIEW_TIMEOUT_SECONDS": "600",
+        "NEXO_COREVIEW_OPENCODE_LOG_LEVEL": "INFO",
+        "NEXO_COREVIEW_WORKSPACE_ROOT": "/workspaces",
+        "NEXO_COREVIEW_REVIEW_ID": "550e8400-e29b-41d4-a716-446655440000",
+        "NEXO_COREVIEW_CALLBACK_URL": "http://api:8000/api/v1/agent/review-events",
+        "NEXO_COREVIEW_CALLBACK_SECRET": "dev-callback-secret",
+        "NEXO_COREVIEW_CALLBACK_METADATA": "{}",
+        "PYTHONUNBUFFERED": "1",
+    }
 
 
 def test_agent_database_url_rewrites_localhost_for_host_gateway() -> None:
@@ -28,17 +49,11 @@ def test_agent_database_url_unchanged_on_compose_network() -> None:
     assert agent_database_url(url, network="coreview") == url
 
 
-def test_build_docker_review_job_spec_network_and_labels(tmp_path) -> None:
-    config_file = tmp_path / "opencode.generated.json"
-    config_file.write_text("{}\n", encoding="utf-8")
-
+def test_build_docker_review_job_spec_network_and_labels() -> None:
     spec = build_docker_review_job_spec(
         review_id="550e8400-e29b-41d4-a716-446655440000",
         agent_image="nexo-coreview-agent:test",
-        workspace_root="/workspaces",
-        database_url="postgresql://app:app@postgres:5432/app",
-        opencode_config_path=config_file,
-        opencode_config_host_path=None,
+        environment=_sample_environment(),
         agent_network="coreview",
     )
 
@@ -52,43 +67,31 @@ def test_build_docker_review_job_spec_network_and_labels(tmp_path) -> None:
     ]
     assert spec.network == "coreview"
     assert spec.extra_hosts is None
+    assert spec.volumes == ()
     assert (
         spec.labels["nexo.coreview.review_id"] == "550e8400-e29b-41d4-a716-446655440000"
     )
-    assert spec.environment["DATABASE_URL"] == "postgresql://app:app@postgres:5432/app"
+    assert spec.environment["NEXO_COREVIEW_GITHUB_TOKEN"] == "ghp_test"
 
 
-def test_build_docker_review_job_spec_extra_hosts_without_network(tmp_path) -> None:
-    config_file = tmp_path / "opencode.generated.json"
-    config_file.write_text("{}\n", encoding="utf-8")
-
+def test_build_docker_review_job_spec_extra_hosts_without_network() -> None:
     spec = build_docker_review_job_spec(
         review_id="r1",
         agent_image="img",
-        workspace_root="/workspaces",
-        database_url="postgresql://app:app@localhost:5432/app",
-        opencode_config_path=config_file,
-        opencode_config_host_path=None,
+        environment=_sample_environment(),
         agent_network=None,
     )
 
     assert spec.network is None
     assert spec.extra_hosts == {"host.docker.internal": "host-gateway"}
-    assert "@host.docker.internal:" in spec.environment["DATABASE_URL"]
 
 
 @pytest.mark.asyncio
-async def test_docker_job_executor_runs_container(tmp_path) -> None:
-    config_file = tmp_path / "opencode.generated.json"
-    config_file.write_text("{}\n", encoding="utf-8")
-
+async def test_docker_job_executor_runs_container() -> None:
     spec = build_docker_review_job_spec(
         review_id="550e8400-e29b-41d4-a716-446655440000",
         agent_image="nexo-coreview-agent:test",
-        workspace_root="/workspaces",
-        database_url="postgresql://app:app@postgres:5432/app",
-        opencode_config_path=config_file,
-        opencode_config_host_path=None,
+        environment=_sample_environment(),
         agent_network="coreview",
     )
 
@@ -120,15 +123,11 @@ async def test_docker_job_executor_runs_container(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_docker_runtime_provider_raises_on_nonzero_exit(tmp_path) -> None:
-    config_file = tmp_path / "opencode.generated.json"
-    config_file.write_text("{}\n", encoding="utf-8")
-
+async def test_docker_runtime_provider_raises_on_nonzero_exit() -> None:
     provider = DockerRuntimeProvider(
         workspace_root="/workspaces",
         agent_image="nexo-coreview-agent:test",
         agent_network="coreview",
-        opencode_config_path=str(config_file),
         database_url="postgresql://app:app@postgres:5432/app",
     )
 
@@ -139,12 +138,11 @@ async def test_docker_runtime_provider_raises_on_nonzero_exit(tmp_path) -> None:
     with patch.object(provider, "_get_job_executor", return_value=mock_executor):
         with pytest.raises(RuntimeError, match="exit 1"):
             await provider.run_review_job(
-                ReviewJobRequest(review_id="r1"),
+                ReviewJobRequest(
+                    review_id="r1",
+                    environment=_sample_environment(),
+                ),
             )
-
-
-def test_resolve_opencode_config_path_default() -> None:
-    assert resolve_opencode_config_path("") == Path("opencode.generated.json")
 
 
 @patch("app.providers.runtime.docker.provider.get_docker_client")

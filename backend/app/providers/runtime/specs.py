@@ -36,3 +36,4 @@ class JobResult:
 @dataclass(frozen=True, slots=True)
 class ReviewJobRequest:
     review_id: str
+    environment: dict[str, str]

@@ -14,13 +14,26 @@ Monorepo for an LLM-powered code review pilot (**Nexo Co-Review**, codename `nex
 
 Production ships as a single Docker image (API + bundled SPA). Architecture diagrams: `docs/architecture.svg`, `docs/flow.svg`.
 
+### Runtime architecture
+
+Three layers with clear boundaries:
+
+1. **Backend (API)** — Configuration management, webhooks, frontend API. Stores repo integrations and LLM providers in Postgres.
+2. **Job (Celery worker)** — Reads review + integration config from DB, builds a full `NEXO_COREVIEW_*` env dict, spawns a one-shot agent container via the Docker runtime provider.
+3. **Agent (stateless container)** — Receives all execution config via env (materializes ephemeral `opencode.json` locally). Runs clone → LLM review → GitHub post. Reports progress and findings via **HTTP callback** (schema v1, HMAC-signed); it does **not** connect to Postgres.
+
+The agent does **not** read `repo_integrations` or `llm_providers` from the database.
+
+### Review callback (schema v1)
+
+Agent posts `review.started`, `review.completed`, and `review.failed` events to `NEXO_COREVIEW_CALLBACK_URL` with `X-Review-Signature-256` HMAC auth. Spec: [`docs/review-callback-v1.schema.json`](docs/review-callback-v1.schema.json). Nexo backend receives them at `POST /api/v1/agent/review-events` and persists to Postgres. Third-party orchestrators can implement the same contract without Nexo schema.
+
 ### CLI modes
 
 ```bash
 cd backend && uv run code-review backend run   # FastAPI server
-cd backend && uv run code-review job worker    # Celery worker
-cd agent && uv run coreview-agent review run --review-id <uuid>
-cd agent && uv run coreview-agent review run --review-id <uuid>  # one-shot review (MCP via stdio)
+cd backend && uv run code-review job worker    # Celery worker (prepare env + spawn agent)
+cd agent && uv run coreview-agent review run --review-id <uuid>  # one-shot review (env injected by job)
 ```
 
 ### Provider abstractions

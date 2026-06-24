@@ -13,7 +13,9 @@ async def test_k8s_runtime_run_review_job_raises() -> None:
         database_url="postgresql://app:app@db:5432/app",
     )
     with pytest.raises(NotImplementedError, match="K8s runtime not implemented"):
-        await provider.run_review_job(ReviewJobRequest(review_id="r1"))
+        await provider.run_review_job(
+            ReviewJobRequest(review_id="r1", environment={"DATABASE_URL": "x"}),
+        )
 
 
 def test_k8s_runtime_command_runner_raises() -> None:

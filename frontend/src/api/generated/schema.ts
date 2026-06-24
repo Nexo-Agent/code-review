@@ -107,6 +107,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/llm-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Llm Providers */
+        get: operations["get_llm_providers_api_v1_settings_llm_providers_get"];
+        put?: never;
+        /** Post Llm Provider */
+        post: operations["post_llm_provider_api_v1_settings_llm_providers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/llm-providers/{provider_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Llm Provider */
+        put: operations["put_llm_provider_api_v1_settings_llm_providers__provider_id__put"];
+        post?: never;
+        /** Remove Llm Provider */
+        delete: operations["remove_llm_provider_api_v1_settings_llm_providers__provider_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Repo Integrations */
+        get: operations["get_repo_integrations_api_v1_settings_repos_get"];
+        put?: never;
+        /** Post Repo Integration */
+        post: operations["post_repo_integration_api_v1_settings_repos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/repos/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Repo Integration */
+        put: operations["put_repo_integration_api_v1_settings_repos__integration_id__put"];
+        post?: never;
+        /** Remove Repo Integration */
+        delete: operations["remove_repo_integration_api_v1_settings_repos__integration_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/integration": {
         parameters: {
             query?: never;
@@ -114,10 +186,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Settings */
-        get: operations["get_settings_api_v1_settings_integration_get"];
-        /** Put Settings */
-        put: operations["put_settings_api_v1_settings_integration_put"];
+        /**
+         * Get Settings Legacy
+         * @description Deprecated: use /settings/llm-providers and /settings/repos.
+         */
+        get: operations["get_settings_legacy_api_v1_settings_integration_get"];
+        /**
+         * Put Settings Legacy
+         * @description Deprecated: use /settings/llm-providers and /settings/repos.
+         */
+        put: operations["put_settings_legacy_api_v1_settings_integration_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -136,6 +214,23 @@ export interface paths {
         put?: never;
         /** Github Webhook */
         post: operations["github_webhook_api_v1_webhooks_github_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent/review-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Agent Review Events */
+        post: operations["agent_review_events_api_v1_agent_review_events_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -243,6 +338,187 @@ export interface components {
              * @description Optional override for OpenCode model ref
              */
             opencode_model?: string | null;
+        };
+        /** LlmProviderCreate */
+        LlmProviderCreate: {
+            /** Name */
+            name: string;
+            /** Provider Id */
+            provider_id: string;
+            /** Base Url */
+            base_url: string;
+            /**
+             * Api Token
+             * @default
+             */
+            api_token: string;
+            /** Model */
+            model: string;
+            /**
+             * Opencode Model
+             * @default
+             */
+            opencode_model: string;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+        };
+        /** LlmProviderResponse */
+        LlmProviderResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Provider Id */
+            provider_id: string;
+            /** Base Url */
+            base_url: string;
+            /** Model */
+            model: string;
+            /** Opencode Model */
+            opencode_model: string;
+            /** Resolved Opencode Model */
+            resolved_opencode_model: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Api Token Configured */
+            api_token_configured: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** LlmProviderUpdate */
+        LlmProviderUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Provider Id */
+            provider_id?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /**
+             * Api Token
+             * @description Omit to keep; empty string clears
+             */
+            api_token?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Opencode Model */
+            opencode_model?: string | null;
+            /** Is Default */
+            is_default?: boolean | null;
+        };
+        /** RepoIntegrationCreate */
+        RepoIntegrationCreate: {
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Git Provider
+             * @default github
+             */
+            git_provider: string;
+            /**
+             * Repo Full Name
+             * @description owner/repo — empty accepts all repositories
+             * @default
+             */
+            repo_full_name: string;
+            /**
+             * Github Webhook Secret
+             * @default
+             */
+            github_webhook_secret: string;
+            /**
+             * Github Token
+             * @default
+             */
+            github_token: string;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+        };
+        /** RepoIntegrationResponse */
+        RepoIntegrationResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Git Provider */
+            git_provider: string;
+            /** Repo Full Name */
+            repo_full_name: string;
+            /** Llm Provider Id */
+            llm_provider_id: string | null;
+            /** Llm Provider Name */
+            llm_provider_name: string | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Github Webhook Secret Configured */
+            github_webhook_secret_configured: boolean;
+            /** Github Token Configured */
+            github_token_configured: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** RepoIntegrationUpdate */
+        RepoIntegrationUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Git Provider */
+            git_provider?: string | null;
+            /**
+             * Repo Full Name
+             * @description owner/repo — empty accepts all repositories
+             */
+            repo_full_name?: string | null;
+            /**
+             * Github Webhook Secret
+             * @description Omit to keep; empty string clears
+             */
+            github_webhook_secret?: string | null;
+            /**
+             * Github Token
+             * @description Omit to keep; empty string clears
+             */
+            github_token?: string | null;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
+            /**
+             * Clear Llm Provider Id
+             * @default false
+             */
+            clear_llm_provider_id: boolean;
+            /** Enabled */
+            enabled?: boolean | null;
         };
         /** ReviewFindingResponse */
         ReviewFindingResponse: {
@@ -531,7 +807,241 @@ export interface operations {
             };
         };
     };
-    get_settings_api_v1_settings_integration_get: {
+    get_llm_providers_api_v1_settings_llm_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmProviderResponse"][];
+                };
+            };
+        };
+    };
+    post_llm_provider_api_v1_settings_llm_providers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmProviderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_llm_provider_api_v1_settings_llm_providers__provider_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmProviderUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_llm_provider_api_v1_settings_llm_providers__provider_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repo_integrations_api_v1_settings_repos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"][];
+                };
+            };
+        };
+    };
+    post_repo_integration_api_v1_settings_repos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoIntegrationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_repo_integration_api_v1_settings_repos__integration_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoIntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_repo_integration_api_v1_settings_repos__integration_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_legacy_api_v1_settings_integration_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -551,7 +1061,7 @@ export interface operations {
             };
         };
     };
-    put_settings_api_v1_settings_integration_put: {
+    put_settings_legacy_api_v1_settings_integration_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -605,6 +1115,35 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_review_events_api_v1_agent_review_events_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Review-Signature-256"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

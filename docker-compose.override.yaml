@@ -20,6 +20,8 @@ services:
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
       NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
       NEXO_COREVIEW_OPENCODE_CONFIG_HOST_PATH: ${NEXO_COREVIEW_PROJECT_DIR}/opencode.generated.json
+      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
+      NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
@@ -107,16 +109,15 @@ services:
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
       NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-nexo-coreview-agent:dev}
       NEXO_COREVIEW_AGENT_NETWORK: coreview
-      NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
-      NEXO_COREVIEW_OPENCODE_CONFIG_HOST_PATH: ${NEXO_COREVIEW_PROJECT_DIR}/opencode.generated.json
       NEXO_COREVIEW_OPENCODE_LOG_LEVEL: ${NEXO_COREVIEW_OPENCODE_LOG_LEVEL:-INFO}
       NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
+      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
+      NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
       - review_workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./opencode.generated.json:/config/opencode.generated.json:ro
     networks:
       - coreview
     depends_on: !reset
@@ -125,8 +126,6 @@ services:
       redis:
         condition: service_started
       migrate:
-        condition: service_completed_successfully
-      render-opencode:
         condition: service_completed_successfully
       agent-image:
         condition: service_completed_successfully

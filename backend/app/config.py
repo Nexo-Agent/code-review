@@ -66,6 +66,8 @@ class CodeReviewSettings(BaseSettings):
     k8s_kubeconfig_path: str = ""
     k8s_agent_config_configmap: str = "opencode-config"
     k8s_image_pull_secret: str = ""
+    agent_callback_url: str = "http://localhost:8000/api/v1/agent/review-events"
+    agent_callback_secret: str = ""
 
     @property
     def resolved_opencode_model(self) -> str:

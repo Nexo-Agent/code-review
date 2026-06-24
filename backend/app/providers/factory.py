@@ -40,10 +40,7 @@ def _build_runtime(
             git_image=git_image,
             agent_image=cfg.agent_image,
             agent_network=(cfg.agent_network or "").strip() or None,
-            opencode_config_path=cfg.opencode_config_path,
-            opencode_config_host_path=cfg.opencode_config_host_path or None,
             database_url=database_url,
-            opencode_log_level=cfg.opencode_log_level,
         )
 
     return K8sRuntimeProvider(
