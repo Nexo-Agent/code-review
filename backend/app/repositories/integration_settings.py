@@ -94,9 +94,7 @@ class IntegrationSettingsRepository:
             else github_token
             if github_token is not None
             else current.github_token,
-            llm_provider_id
-            if llm_provider_id is not None
-            else current.llm_provider_id,
+            llm_provider_id if llm_provider_id is not None else current.llm_provider_id,
             llm_base_url if llm_base_url is not None else current.llm_base_url,
             ""
             if clear_llm_api_token
@@ -104,9 +102,7 @@ class IntegrationSettingsRepository:
             if llm_api_token is not None
             else current.llm_api_token,
             llm_model if llm_model is not None else current.llm_model,
-            opencode_model
-            if opencode_model is not None
-            else current.opencode_model,
+            opencode_model if opencode_model is not None else current.opencode_model,
         )
         if row is None:
             msg = "Failed to update integration settings"

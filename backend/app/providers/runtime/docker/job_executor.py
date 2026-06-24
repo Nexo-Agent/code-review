@@ -96,9 +96,7 @@ class DockerJobExecutor:
             log_tail = ""
             if exit_code != 0:
                 log_tail = (
-                    container.logs(tail=30)
-                    .decode("utf-8", errors="replace")
-                    .strip()
+                    container.logs(tail=30).decode("utf-8", errors="replace").strip()
                 )
             return JobResult(exit_code=exit_code, log_tail=log_tail)
         finally:

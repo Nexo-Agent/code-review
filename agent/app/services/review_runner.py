@@ -84,9 +84,7 @@ async def execute_review_logic(review_id: str) -> None:
         )
         workspace = Workspace(path=workspace_root, spec=spec)
         logger.info("Review %s: cloning repository", review_id)
-        await providers.git.clone_repository(
-            spec, workspace, LocalCommandRunner()
-        )
+        await providers.git.clone_repository(spec, workspace, LocalCommandRunner())
 
         llm = OpenCodeLLMProvider(
             agent=infra.opencode_agent,

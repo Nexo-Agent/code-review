@@ -38,10 +38,7 @@ class GitHubProvider:
         return headers
 
     def _clone_url(self, repo_full_name: str) -> str:
-        return (
-            f"https://x-access-token:{self._token}"
-            f"@github.com/{repo_full_name}.git"
-        )
+        return f"https://x-access-token:{self._token}@github.com/{repo_full_name}.git"
 
     def verify_webhook_signature(
         self, payload: bytes, signature: str | None, secret: str
@@ -84,9 +81,7 @@ class GitHubProvider:
             delivery_id=normalized.get("x-github-delivery"),
         )
 
-    async def get_pr_metadata(
-        self, repo_full_name: str, pr_number: int
-    ) -> PRMetadata:
+    async def get_pr_metadata(self, repo_full_name: str, pr_number: int) -> PRMetadata:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{self.API_BASE}/repos/{repo_full_name}/pulls/{pr_number}",
@@ -239,13 +234,12 @@ class GitHubProvider:
                 if exc.response.status_code != 422:
                     raise
                 logger.warning(
-                    "Batch inline review returned 422, posting comments individually: %s",
+                    "Batch inline review returned 422, "
+                    "posting comments individually: %s",
                     exc.response.text,
                 )
                 for comment in to_post:
-                    single_payload = self._review_payload(
-                        commit_id, [comment], body
-                    )
+                    single_payload = self._review_payload(commit_id, [comment], body)
                     try:
                         await self._post_review(
                             client, repo_full_name, pr_number, single_payload

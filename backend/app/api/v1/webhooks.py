@@ -65,9 +65,7 @@ async def github_webhook(
             content={"detail": "no LLM provider configured"},
         )
 
-    providers = build_providers(
-        build_providers_config(repo_integration, llm_provider)
-    )
+    providers = build_providers(build_providers_config(repo_integration, llm_provider))
 
     if not providers.git.verify_webhook_signature(
         body,

@@ -40,7 +40,6 @@ def format_summary_comment(
                 loc += f":{finding.line_start}"
             loc += ")"
         lines.append(
-            f"### [{finding.severity.upper()}] {finding.title}{loc}\n"
-            f"{finding.body}\n"
+            f"### [{finding.severity.upper()}] {finding.title}{loc}\n{finding.body}\n"
         )
     return "\n".join(lines)

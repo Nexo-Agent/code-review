@@ -1,6 +1,7 @@
+from uuid import UUID
+
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
-from uuid import UUID
 
 from app.dependencies import get_conn
 from app.schemas.integration_settings import (

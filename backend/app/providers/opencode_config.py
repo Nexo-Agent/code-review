@@ -92,7 +92,10 @@ def build_opencode_config_from_llm_providers(
     else:
         agent_cfg["model"] = infra.resolved_opencode_model
 
-    provider_blocks = merge_llm_provider_blocks(providers) if providers else build_opencode_config(infra)["provider"]
+    if providers:
+        provider_blocks = merge_llm_provider_blocks(providers)
+    else:
+        provider_blocks = build_opencode_config(infra)["provider"]
 
     return {
         "$schema": "https://opencode.ai/config.json",

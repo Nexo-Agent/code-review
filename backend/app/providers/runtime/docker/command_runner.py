@@ -7,6 +7,7 @@ API instead of requiring git on the host or in the worker image.
 That image sets ENTRYPOINT to ``git``, so callers pass ``["git", "clone", ...]``
 and we forward only the subcommand to the container entrypoint.
 """
+
 import asyncio
 import logging
 from pathlib import Path
@@ -57,9 +58,7 @@ class DockerCommandRunner:
         else:
             command = args
 
-        logger.debug(
-            "docker run %s %s (workdir=%s)", self._git_image, command, workdir
-        )
+        logger.debug("docker run %s %s (workdir=%s)", self._git_image, command, workdir)
         try:
             self._client.containers.run(
                 self._git_image,

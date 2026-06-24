@@ -63,7 +63,7 @@ class ReviewRepository:
                    delivery_id, repo_integration_id, error_message, started_at,
                    completed_at, created_at
             FROM reviews
-            WHERE {' AND '.join(clauses)}
+            WHERE {" AND ".join(clauses)}
             ORDER BY created_at DESC
             LIMIT ${idx} OFFSET ${idx + 1}
         """

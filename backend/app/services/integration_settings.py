@@ -57,7 +57,6 @@ async def _legacy_row_from_multi(conn) -> IntegrationSettingsRow | None:
     if default_llm is None or repo is None:
         return None
 
-
     now = max(
         default_llm.updated_at,
         repo.updated_at if repo else default_llm.updated_at,
@@ -104,9 +103,7 @@ async def update_integration_settings(
             is_default=True,
         )
     else:
-        clear_llm_api_token = (
-            "llm_api_token" in data and data["llm_api_token"] == ""
-        )
+        clear_llm_api_token = "llm_api_token" in data and data["llm_api_token"] == ""
         default_llm = await llm_repo.update(
             default_llm.id,
             provider_id_key=data.get("llm_provider_id"),

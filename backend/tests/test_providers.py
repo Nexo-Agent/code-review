@@ -7,8 +7,8 @@ import httpx
 import pytest
 
 from app.config import CodeReviewSettings
-from app.providers.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
 from app.providers.git.diff_lines import filter_inline_comments, parse_commentable_lines
+from app.providers.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
 from app.providers.protocols import (
     InlineComment,
     InlineCommentsResult,
@@ -22,8 +22,7 @@ def test_github_webhook_signature_valid() -> None:
     secret = "test-secret"
     payload = b'{"action":"opened"}'
     signature = (
-        "sha256="
-        + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+        "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
     )
     provider = GitHubProvider(token="")
     assert provider.verify_webhook_signature(payload, signature, secret)
@@ -31,9 +30,7 @@ def test_github_webhook_signature_valid() -> None:
 
 def test_github_webhook_signature_invalid() -> None:
     provider = GitHubProvider(token="")
-    assert not provider.verify_webhook_signature(
-        b"{}", "sha256=deadbeef", "secret"
-    )
+    assert not provider.verify_webhook_signature(b"{}", "sha256=deadbeef", "secret")
     assert not provider.verify_webhook_signature(b"{}", None, "secret")
     assert not provider.verify_webhook_signature(b"{}", "sha256=abc", "")
 
@@ -331,7 +328,6 @@ def test_docker_client_uses_explicit_host() -> None:
     assert client is mock_client
     ctor.assert_called_once_with(base_url="unix:///custom.sock")
     docker_client.reset_docker_client()
-
 
 
 def test_handled_webhook_actions() -> None:

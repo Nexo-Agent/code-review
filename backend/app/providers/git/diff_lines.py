@@ -60,10 +60,7 @@ def is_commentable(
     commentable: set[tuple[str, int, str]],
 ) -> bool:
     normalized = _normalize_path(path)
-    return (
-        (path, line, side) in commentable
-        or (normalized, line, side) in commentable
-    )
+    return (path, line, side) in commentable or (normalized, line, side) in commentable
 
 
 def filter_inline_comments(

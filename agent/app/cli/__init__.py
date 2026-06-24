@@ -56,9 +56,7 @@ def serve(
     async def _run() -> None:
         ctx = await _resolve_tool_context()
         if port is not None:
-            infra = AgentSettings(
-                **{**ctx.infra.model_dump(), "mcp_server_port": port}
-            )
+            infra = AgentSettings(**{**ctx.infra.model_dump(), "mcp_server_port": port})
             ctx = ToolContext(infra=infra, pool=ctx.pool, providers=ctx.providers)
         mcp = create_mcp_server(ctx)
         bind_host = host if host is not None else ctx.infra.mcp_bind_host

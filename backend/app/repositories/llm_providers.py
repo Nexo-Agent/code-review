@@ -92,7 +92,8 @@ class LlmProviderRepository:
         row = await self._conn.fetchrow(
             """
             INSERT INTO llm_providers (
-                name, provider_id, base_url, api_token, model, opencode_model, is_default
+                name, provider_id, base_url, api_token, model,
+                opencode_model, is_default
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id, name, provider_id, base_url, api_token, model,

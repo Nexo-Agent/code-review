@@ -56,9 +56,7 @@ def create_mcp_server(ctx: ToolContext) -> FastMCP:
         body: str,
     ) -> dict[str, str]:
         """Post a summary comment on the pull request."""
-        return await git_tools.post_review_comment(
-            ctx, repo_full_name, pr_number, body
-        )
+        return await git_tools.post_review_comment(ctx, repo_full_name, pr_number, body)
 
     @mcp.tool(name="coreview-git_post_inline_comments")
     async def git_post_inline_comments(

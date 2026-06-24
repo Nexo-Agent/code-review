@@ -63,10 +63,7 @@ def _repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
 
 
 def _sign_payload(payload: bytes, secret: str) -> str:
-    return (
-        "sha256="
-        + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-    )
+    return "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
 
 @pytest.mark.asyncio

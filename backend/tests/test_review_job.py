@@ -53,8 +53,7 @@ def test_build_docker_review_job_spec_network_and_labels(tmp_path) -> None:
     assert spec.network == "coreview"
     assert spec.extra_hosts is None
     assert (
-        spec.labels["nexo.coreview.review_id"]
-        == "550e8400-e29b-41d4-a716-446655440000"
+        spec.labels["nexo.coreview.review_id"] == "550e8400-e29b-41d4-a716-446655440000"
     )
     assert spec.environment["DATABASE_URL"] == "postgresql://app:app@postgres:5432/app"
 
@@ -135,9 +134,7 @@ async def test_docker_runtime_provider_raises_on_nonzero_exit(tmp_path) -> None:
 
     mock_executor = AsyncMock()
     mock_executor.cleanup_stale = AsyncMock()
-    mock_executor.run = AsyncMock(
-        return_value=MagicMock(exit_code=1, log_tail="boom")
-    )
+    mock_executor.run = AsyncMock(return_value=MagicMock(exit_code=1, log_tail="boom"))
 
     with patch.object(provider, "_get_job_executor", return_value=mock_executor):
         with pytest.raises(RuntimeError, match="exit 1"):
