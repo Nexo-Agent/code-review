@@ -1,0 +1,81 @@
+# Development override — merged automatically with docker-compose.yaml
+# https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/
+#
+#   docker compose up --build   # db + api + web
+#   docker compose watch        # + Compose Watch (HMR / uvicorn reload)
+#
+# Not loaded when deploying production:
+#   docker compose -f docker-compose.yaml --profile prod up -d
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: api
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
+      CORS_ORIGINS: '["http://localhost:5173"]'
+    volumes:
+      - ./backend:/app
+      - backend_venv:/app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend/uv.lock
+        - action: sync+restart
+          path: ./backend/pyproject.toml
+          target: /app/pyproject.toml
+        - action: sync
+          path: ./backend/app
+          target: /app/app
+          ignore:
+            - "**/__pycache__/"
+            - "**/*.pyc"
+
+  web:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: web
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-false}
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - api
+    develop:
+      watch:
+        - action: rebuild
+          path: ./frontend/yarn.lock
+        - action: sync+restart
+          path: ./frontend/package.json
+          target: /app/package.json
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: sync
+          path: ./frontend/index.html
+          target: /app/index.html
+        - action: sync
+          path: ./frontend/vite.config.ts
+          target: /app/vite.config.ts
+        - action: sync
+          path: ./frontend/tsconfig.json
+          target: /app/tsconfig.json
+        - action: sync
+          path: ./frontend/tsconfig.app.json
+          target: /app/tsconfig.app.json
+
+volumes:
+  backend_venv:
+  frontend_node_modules:

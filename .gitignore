@@ -1,0 +1,14 @@
+.env
+.venv
+**/.venv
+node_modules
+**/node_modules
+dist
+**/dist
+__pycache__
+**/__pycache__
+*.py[cod]
+.openapi.json
+openapi.json
+.idea
+.vscode

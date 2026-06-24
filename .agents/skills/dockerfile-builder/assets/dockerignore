@@ -1,0 +1,100 @@
+# Copy this file to the Docker build context root as `.dockerignore`.
+# Remove sections that do not apply to your project type.
+# See references/common.md for rationale.
+
+# =============================================================================
+# Version control
+# =============================================================================
+.git
+.gitignore
+.gitattributes
+
+# =============================================================================
+# Python / uv  (required for python & python-vite-react-bundler)
+# =============================================================================
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+.eggs
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+.tox
+.hypothesis
+
+# =============================================================================
+# Node / frontend  (required for vite-react, nextjs, python-vite-react-bundler)
+# =============================================================================
+node_modules
+**/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs — rebuilt inside the image; never copy from host
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+.turbo
+**/.turbo
+.parcel-cache
+
+# =============================================================================
+# Environment & secrets — never bake into images
+# =============================================================================
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# =============================================================================
+# IDE / OS
+# =============================================================================
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Docker / local dev (keep Dockerfile — it is not sent as context anyway,
+# but excluding compose/dev files shrinks context and avoids cache busts)
+# =============================================================================
+docker-compose*.yml
+docker-compose*.yaml
+compose*.yml
+compose*.yaml
+.docker
+
+# =============================================================================
+# Docs, tests, CI — not needed at runtime (uncomment if present and large)
+# =============================================================================
+# docs/
+# **/tests/
+# **/test/
+# .github/
+# .gitlab-ci.yml
+
+# =============================================================================
+# Misc caches & artifacts
+# =============================================================================
+*.log
+*.tmp
+.cache
+**/.cache
+coverage
+.nyc_output
+storybook-static

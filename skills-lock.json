@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "dockerfile-builder": {
+      "source": "skills.nkthanh.dev",
+      "sourceType": "well-known",
+      "computedHash": "6df7af8b998770c27cfa81a8a9bf992b0d27db9ed62c1142047e9536afbd2cad"
+    }
+  }
+}
