@@ -1,6 +1,6 @@
 [project]
 name = "agent"
-version = "0.1.1"
+version = "0.1.2"
 description = "Nexo Co-Review agent — OpenCode runtime and MCP Git/CI tools"
 readme = "README.md"
 requires-python = ">=3.11"
