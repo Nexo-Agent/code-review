@@ -18,7 +18,7 @@ members = [
 
 [[package]]
 name = "agent"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "agent" }
 dependencies = [
     { name = "coreview-shared" },
@@ -166,7 +166,7 @@ wheels = [
 
 [[package]]
 name = "backend"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "backend" }
 dependencies = [
     { name = "asyncpg" },
@@ -475,7 +475,7 @@ wheels = [
 
 [[package]]
 name = "coreview-shared"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "shared" }
 dependencies = [
     { name = "httpx" },
@@ -754,7 +754,7 @@ wheels = [
 
 [[package]]
 name = "nexo-coreview"
-version = "0.1.4"
+version = "0.1.5"
 source = { virtual = "." }
 
 [[package]]
