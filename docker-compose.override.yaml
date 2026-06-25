@@ -4,7 +4,7 @@
 #   docker compose watch        # + Compose Watch (HMR / uvicorn reload)
 #
 # Not loaded when deploying production:
-#   docker compose -f docker-compose.yaml --profile prod up -d
+#   docker compose -f docker-compose.yaml up -d
 
 services:
   api:
@@ -107,7 +107,6 @@ services:
           target: /app/tsconfig.app.json
 
   worker:
-    profiles: !reset []
     build:
       context: .
       dockerfile: dev.Dockerfile
@@ -152,6 +151,8 @@ services:
       dockerfile: dev.Dockerfile
       target: api
     user: "0:0"
+    volumes:
+      - ./opencode.generated.json:/config/opencode.generated.json
     command:
       [
         "uv",
@@ -164,6 +165,14 @@ services:
       ]
 
   agent-image:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+    image: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
     pull_policy: never
 
 volumes:

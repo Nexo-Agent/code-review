@@ -1,19 +1,26 @@
-# Base stack: Postgres, Redis, init jobs (migrate, opencode config, agent image),
-# production app (profile: prod), and manual tools (profile: tools).
+# Nexo Co-Review production stack (GHCR images — no local source or build).
+#
+# Long-running services: api, worker, db, redis.
+# Review agent containers are spawned on demand by the worker when a PR arrives.
+#
+# Deploy:
+#   cp .env.example .env
+#   docker compose -f docker-compose.yaml pull
+#   docker compose -f docker-compose.yaml up -d
+#
+# Development merges docker-compose.override.yaml (HMR, local agent image build):
+#   docker compose up --build
 #
 # Resource limits target EC2 t2.medium (2 vCPU, 4 GiB RAM): one review at a time
 # (worker --concurrency 1) plus a capped agent container (~768 MiB).
-#
-# Development (auto-merges docker-compose.override.yaml):
-#   docker compose up --build
-#   docker compose watch
-#
-# Production (skips override):
-#   docker compose -f docker-compose.yaml --profile prod up --build -d
 
 networks:
   coreview:
     name: coreview
+
+x-coreview-image: &coreview-image
+  image: ${NEXO_COREVIEW_IMAGE:-ghcr.io/nexo-agent/nexo-coreview:latest}
+  pull_policy: missing
 
 x-db-resources: &db-resources
   deploy:
@@ -34,21 +41,14 @@ x-redis-resources: &redis-resources
         memory: 32M
 
 services:
-  app:
-    profiles: [prod]
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
-        BUILD_DATE: ${BUILD_DATE:-}
-        VCS_REF: ${VCS_REF:-}
+  api:
+    <<: *coreview-image
     ports:
       - "${APP_PORT:-8000}:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
-      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://app:8000/api/v1/agent/review-events
+      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
       NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
       DB_POOL_MIN_SIZE: 1
       DB_POOL_MAX_SIZE: 4
@@ -68,30 +68,21 @@ services:
         condition: service_started
       migrate:
         condition: service_completed_successfully
-      render-opencode:
-        condition: service_completed_successfully
-      agent-image:
-        condition: service_completed_successfully
     restart: unless-stopped
 
   worker:
-    profiles: [prod]
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
+    <<: *coreview-image
     command: ["code-review", "job", "worker", "--concurrency", "1"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
       NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
-      NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
+      NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-ghcr.io/nexo-agent/nexo-coreview-agent:latest}
       NEXO_COREVIEW_AGENT_NETWORK: coreview
       NEXO_COREVIEW_AGENT_MEM_LIMIT: ${NEXO_COREVIEW_AGENT_MEM_LIMIT:-768m}
       NEXO_COREVIEW_AGENT_CPUS: ${NEXO_COREVIEW_AGENT_CPUS:-1.0}
-      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://app:8000/api/v1/agent/review-events
+      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
       NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
       DB_POOL_MIN_SIZE: 1
       DB_POOL_MAX_SIZE: 4
@@ -114,9 +105,7 @@ services:
         condition: service_started
       migrate:
         condition: service_completed_successfully
-      agent-image:
-        condition: service_completed_successfully
-      app:
+      api:
         condition: service_started
     restart: unless-stopped
 
@@ -156,58 +145,32 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # --- One-shot init (not part of the runtime stack) ---
+
+  migrations-export:
+    <<: *coreview-image
+    user: "0:0"
+    restart: "no"
+    volumes:
+      - migrations_data:/migrations
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp -r /app/migrations/. /migrations/"]
+
   migrate:
     image: ghcr.io/amacneil/dbmate:2
     restart: "no"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
     volumes:
-      - ./backend/migrations:/db/migrations
+      - migrations_data:/db/migrations
     networks:
       - coreview
     depends_on:
       db:
         condition: service_healthy
-    command: ["-d", "/db/migrations", "--wait", "up"]
-
-  render-opencode:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
-    user: "0:0"
-    restart: "no"
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-    volumes:
-      - ./opencode.generated.json:/config/opencode.generated.json
-    networks:
-      - coreview
-    depends_on:
-      migrate:
+      migrations-export:
         condition: service_completed_successfully
-    command:
-      [
-        "code-review",
-        "config",
-        "render-opencode",
-        "-o",
-        "/config/opencode.generated.json",
-      ]
-
-  agent-image:
-    build:
-      context: .
-      dockerfile: agent/Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
-        BUILD_DATE: ${BUILD_DATE:-}
-        VCS_REF: ${VCS_REF:-}
-    image: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
-    pull_policy: never
-    restart: "no"
-    entrypoint: ["/bin/true"]
+    command: ["-d", "/db/migrations", "--wait", "up"]
 
   migrate-down:
     profiles: [tools]
@@ -215,14 +178,17 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
     volumes:
-      - ./backend/migrations:/db/migrations
+      - migrations_data:/db/migrations
     networks:
       - coreview
     depends_on:
       db:
         condition: service_healthy
+      migrations-export:
+        condition: service_completed_successfully
     command: ["-d", "/db/migrations", "down"]
 
 volumes:
   postgres_data:
   review_workspaces:
+  migrations_data:

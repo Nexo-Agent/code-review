@@ -49,7 +49,7 @@ On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if H
 
 ```bash
 cp .env.example .env
-make prod-up   # docker compose -f docker-compose.yaml --profile prod up --build -d --wait
+make prod-up   # docker compose -f docker-compose.yaml pull && up -d --wait
 ```
 
 Production uses only the base compose file; `docker-compose.override.yaml` is not merged. Init jobs (migrate, opencode config, agent image) run automatically before `app` and `worker` start.
@@ -58,7 +58,7 @@ Production uses only the base compose file; `docker-compose.override.yaml` is no
 
 | File | Purpose |
 |------|---------|
-| [`docker-compose.yaml`](docker-compose.yaml) | Base: `db`, `redis`, init jobs (`migrate`, `render-opencode`, `agent-image`), `app`/`worker` (profile `prod`) |
+| [`docker-compose.yaml`](docker-compose.yaml) | `api`, `worker`, `db`, `redis` (+ one-shot `migrate`); GHCR images; agent spawned by worker |
 | [`docker-compose.override.yaml`](docker-compose.override.yaml) | Dev: `api`, `web`, `worker`, Compose Watch |
 | [`dev.Dockerfile`](dev.Dockerfile) | Multi-stage dev images (`target: api` / `target: web`) |
 | [`Dockerfile`](Dockerfile) | Production bundle (API + static SPA) |
@@ -221,7 +221,7 @@ cd backend && uv run pytest tests/api/test_reviews.py -k webhook
 | `make dev-watch` | Docker dev with Compose Watch |
 | `make dev` | Docker dev without watch |
 | `make dev-down` / `make down` | Stop Docker stack |
-| `make prod-up` / `make up` | Production stack (auto migrate + opencode config + agent build) |
+| `make prod-up` / `make up` | Production stack (pull GHCR images, auto migrate) |
 | `make migrate` / `make migrate-down` | dbmate up / down via Compose |
 | `make render-opencode-config` | Regenerate `opencode.generated.json` via Compose |
 | `make build-agent` | Build agent image via Compose |

@@ -73,7 +73,8 @@ WORKDIR /workspace
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
-    UV_PYTHON_DOWNLOADS=0
+    UV_PYTHON_DOWNLOADS=0 \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
 COPY pyproject.toml uv.lock ./
 COPY shared/ shared/
@@ -119,7 +120,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN groupadd --system --gid 999 app \
  && useradd --system --gid 999 --uid 999 --create-home app
 
-COPY --from=python-builder --chown=app:app /workspace/.venv /app/.venv
+COPY --from=python-builder --chown=app:app /app/.venv /app/.venv
 COPY --from=python-builder --chown=app:app /workspace/backend /app
 COPY --from=frontend-builder --chown=app:app /app/dist /app/static
 

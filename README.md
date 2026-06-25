@@ -22,12 +22,16 @@ AI-powered pull request reviews for GitHub. Connect a repository, point a webhoo
 
 ## Quick start
 
-**Requirements:** Docker and Docker Compose.
+**Requirements:** Docker and Docker Compose. Copy `docker-compose.yaml` and `.env.example` to your server (or clone the repo).
 
 ```bash
 cp .env.example .env
-make prod-up
+# Edit .env: set NEXO_COREVIEW_AGENT_CALLBACK_SECRET and pin image tags if needed
+docker compose -f docker-compose.yaml pull
+docker compose -f docker-compose.yaml up -d
 ```
+
+Or from a full clone: `make prod-up`.
 
 Open the app (default port from `APP_PORT`, usually `8000`). Go to **Settings** to add an LLM provider and register your GitHub repository.
 
@@ -40,9 +44,10 @@ docker pull ghcr.io/nexo-agent/nexo-coreview:latest
 docker pull ghcr.io/nexo-agent/nexo-coreview-agent:latest
 ```
 
-Set in `.env` for production:
+Set in `.env` for production (defaults in `.env.example`):
 
 ```bash
+NEXO_COREVIEW_IMAGE=ghcr.io/nexo-agent/nexo-coreview:latest
 NEXO_COREVIEW_AGENT_IMAGE=ghcr.io/nexo-agent/nexo-coreview-agent:latest
 ```
 

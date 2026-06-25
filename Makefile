@@ -24,8 +24,9 @@ dev-down: down
 
 up: prod-up
 
-prod-up: ensure-opencode-config
-	$(COMPOSE_PROD) --profile prod up --build -d --wait
+prod-up:
+	$(COMPOSE_PROD) pull
+	$(COMPOSE_PROD) up -d --wait
 
 down:
 	$(COMPOSE) down

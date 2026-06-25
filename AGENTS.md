@@ -68,7 +68,7 @@ make dev-watch
 # Or without watch:
 make dev
 
-# Production (base compose only, profile prod):
+# Production (base compose only):
 make prod-up
 ```
 
@@ -78,7 +78,7 @@ make prod-up
 | http://localhost:8000/docs | OpenAPI / Swagger |
 | http://localhost:8000/api/v1/health | Health check |
 
-On `make dev` / `make prod-up`, Compose automatically runs **dbmate migrate**, **render opencode config**, and **build agent image** before starting app services.
+On `make prod-up`, Compose pulls GHCR images and runs **dbmate migrate** before `app` and `worker` start. OpenCode config is synced on API startup from Postgres.
 
 On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if HMR misses file changes.
 
