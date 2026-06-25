@@ -49,7 +49,7 @@ Protocols, GitHub Git/CI implementations, runtime specs (Docker/K8s), OpenCode L
 
 Backend-specific: `backend/app/providers/factory.py`, `opencode_config.py` (multi-provider DB merge). Agent-specific: `agent/app/providers/factory.py`, MCP toolbase in `agent/app/toolbase/`.
 
-Agent skills bundled into the Docker image live in `agent/skills/` (OpenCode). IDE/dev skills remain in `.agents/skills/`. MCP tools are in `agent/app/toolbase/`.
+Agent skills bundled into the Docker image live in `agent/skills/code-reviewer/` (OpenCode). IDE/dev skills remain in `.agents/skills/`. MCP tools are in `agent/app/toolbase/`.
 
 ## Prerequisites
 
@@ -110,7 +110,7 @@ backend/
   migrations/         # dbmate SQL (-- migrate:up / migrate:down)
   tests/
 agent/
-  skills/             # OpenCode skills (bundled in agent image)
+  skills/code-reviewer/  # OpenCode review skill (bundled in agent image)
   app/
     mcp/              # MCP server (FastMCP)
     toolbase/         # Git/CI MCP tool handlers

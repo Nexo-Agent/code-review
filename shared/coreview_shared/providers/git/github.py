@@ -79,6 +79,7 @@ class GitHubProvider:
             pr_number=pr["number"],
             head_sha=pr["head"]["sha"],
             delivery_id=normalized.get("x-github-delivery"),
+            pr_title=pr.get("title") or "",
         )
 
     async def get_pr_metadata(self, repo_full_name: str, pr_number: int) -> PRMetadata:

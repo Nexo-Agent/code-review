@@ -220,6 +220,10 @@ class OpenCodeLLMProvider:
         return []
 
     def _build_prompt(self, context: PRContext) -> str:
+        """User message for this review run (PR context + output schema only).
+
+        Behavioral instructions live in the agent system prompt (opencode.json).
+        """
         meta = context.metadata
         return (
             f"Review pull request #{meta.pr_number}: {meta.title}\n"
@@ -227,13 +231,8 @@ class OpenCodeLLMProvider:
             f"Author: {meta.author}\n"
             f"Base: {meta.base_ref} ({meta.base_sha[:7]})\n"
             f"Head: {meta.head_ref} ({meta.head_sha[:7]})\n\n"
-            "Use MCP tools before reviewing:\n"
-            "- coreview-git_fetch_pr_context\n"
-            "- coreview-ci_get_summary\n\n"
             "The cloned repository is available in the session workspace directory.\n"
-            "Do not post GitHub comments via MCP — return findings only.\n"
-            f"Return JSON with this schema: {json.dumps(FINDINGS_JSON_SCHEMA)}\n"
-            "Focus on bugs, security, performance, and missing tests."
+            f"Return JSON with this schema: {json.dumps(FINDINGS_JSON_SCHEMA)}"
         )
 
     def _parse_findings(self, data: dict[str, Any]) -> list[ReviewFinding]:

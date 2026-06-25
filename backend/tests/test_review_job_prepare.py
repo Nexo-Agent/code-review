@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -16,6 +17,7 @@ def _review_row() -> ReviewRow:
         provider="github",
         repo_full_name="org/repo",
         pr_number=42,
+        pr_title="Fix login bug",
         head_sha="abc123",
         status="pending",
         delivery_id="del-1",
@@ -37,6 +39,7 @@ def _repo_integration() -> RepoIntegrationRow:
         github_webhook_secret="secret",
         github_token="ghp_test",
         llm_provider_id=UUID("22222222-2222-2222-2222-222222222222"),
+        system_prompt="Focus on security only.",
         enabled=True,
         created_at=now,
         updated_at=now,
@@ -98,6 +101,37 @@ def test_build_agent_environment_includes_review_and_credentials() -> None:
     metadata = json.loads(env["NEXO_COREVIEW_CALLBACK_METADATA"])
     assert metadata["delivery_id"] == "del-1"
     assert metadata["repo_integration_id"] == str(review.repo_integration_id)
+
+
+def test_build_agent_environment_includes_custom_system_prompt() -> None:
+    env = build_agent_environment(
+        review_id=str(_review_row().id),
+        review=_review_row(),
+        repo_integration=_repo_integration(),
+        llm_provider=_llm_provider(),
+        infra=CodeReviewSettings(
+            agent_callback_url="http://api:8000/api/v1/agent/review-events",
+            agent_callback_secret="shared-secret",
+        ),
+    )
+
+    assert env["NEXO_COREVIEW_SYSTEM_PROMPT"] == "Focus on security only."
+
+
+def test_build_agent_environment_omits_system_prompt_when_default() -> None:
+    repo = replace(_repo_integration(), system_prompt="")
+    env = build_agent_environment(
+        review_id=str(_review_row().id),
+        review=_review_row(),
+        repo_integration=repo,
+        llm_provider=_llm_provider(),
+        infra=CodeReviewSettings(
+            agent_callback_url="http://api:8000/api/v1/agent/review-events",
+            agent_callback_secret="shared-secret",
+        ),
+    )
+
+    assert "NEXO_COREVIEW_SYSTEM_PROMPT" not in env
 
 
 def test_build_agent_environment_requires_callback_config() -> None:

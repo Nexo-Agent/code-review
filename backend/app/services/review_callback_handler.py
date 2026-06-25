@@ -16,6 +16,9 @@ async def handle_review_callback(conn, event: ReviewCallbackEvent) -> None:
         msg = f"Review not found: {event.review_id}"
         raise LookupError(msg)
 
+    if event.request.pr_title:
+        await repo.update_pr_title(review_id, event.request.pr_title)
+
     if event.event == "review.started":
         await repo.update_status(review_id, status="running", set_started=True)
         logger.info("Review %s marked running via callback", event.review_id)

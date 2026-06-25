@@ -50,7 +50,7 @@ def test_opencode_build_command_includes_log_flags() -> None:
     assert cmd[cmd.index("--format") + 1] == "json"
 
 
-def test_opencode_slim_prompt_mentions_mcp() -> None:
+def test_opencode_slim_prompt_includes_pr_context_and_schema() -> None:
     provider = OpenCodeLLMProvider(
         agent="code-reviewer",
         model="test/model",
@@ -71,9 +71,11 @@ def test_opencode_slim_prompt_mentions_mcp() -> None:
         diff="diff content",
     )
     prompt = provider._build_prompt(context)
-    assert "coreview-git_fetch_pr_context" in prompt
-    assert "Do not post GitHub comments via MCP" in prompt
+    assert "Review pull request #1: Test" in prompt
+    assert "org/repo" in prompt
+    assert '"findings"' in prompt
     assert "diff content" not in prompt
+    assert "Focus on bugs, security, performance" not in prompt
 
 
 def test_opencode_parse_ndjson_stream_ignores_tool_events() -> None:

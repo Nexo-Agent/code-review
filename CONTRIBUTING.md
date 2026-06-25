@@ -139,7 +139,7 @@ backend/
   migrations/         # dbmate SQL (-- migrate:up / migrate:down)
   tests/
 agent/
-  skills/             # OpenCode skills (bundled in agent image)
+  skills/code-reviewer/  # OpenCode review skill (bundled in agent image)
   app/
     mcp/              # MCP server
     toolbase/         # MCP Git/CI tools

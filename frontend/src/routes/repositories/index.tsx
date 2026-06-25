@@ -72,37 +72,32 @@ function RepositoriesPage() {
   }
 
   return (
-    <AppShell title="Repository">
-      <p className="text-muted-foreground mb-6 text-sm">
-        Manage GitHub repository integrations. Webhook URL:{" "}
-        <code className="text-xs">POST /api/v1/webhooks/github</code>
-      </p>
-
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <p className="text-muted-foreground text-sm">
-          {repoList.length} repositor{repoList.length === 1 ? "y" : "ies"}
-        </p>
+    <AppShell
+      title="Repositories"
+      description={`${repoList.length} integration${repoList.length === 1 ? "" : "s"} · Webhook POST /api/v1/webhooks/github`}
+      actions={
         <Button
           type="button"
+          size="sm"
           variant={showAddForm ? "outline" : "default"}
           onClick={() => setShowAddForm((v) => !v)}
         >
           {showAddForm ? "Cancel" : "Add repository"}
         </Button>
-      </div>
-
+      }
+    >
       {showAddForm ? (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Add repository</CardTitle>
+        <Card className="mb-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Add repository</CardTitle>
             <CardDescription>
               Map a GitHub repo to webhook credentials and an optional LLM
               provider.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="flex flex-col gap-4" onSubmit={handleCreateRepo}>
-              <div className="grid gap-4 md:grid-cols-2">
+            <form className="flex flex-col gap-3" onSubmit={handleCreateRepo}>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Display name">
                   <Input
                     value={newRepo.name ?? ""}
@@ -175,7 +170,7 @@ function RepositoriesPage() {
                 </Field>
               </div>
               <div>
-                <Button type="submit" disabled={createRepo.isPending}>
+                <Button type="submit" size="sm" disabled={createRepo.isPending}>
                   Create repository
                 </Button>
               </div>
@@ -184,111 +179,106 @@ function RepositoriesPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Repositories</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : repos.isError ? (
-            <p className="text-destructive text-sm">
-              Could not load repositories. Run{" "}
-              <code className="text-xs">make dev</code> first.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Repository</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>LLM</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {repoList.length ? (
-                  repoList.map((repo) => (
-                    <TableRow key={repo.id}>
-                      <TableCell>
-                        <Link
-                          to="/repositories/$repoId"
-                          params={{ repoId: repo.id }}
-                          className="font-medium hover:underline"
-                        >
-                          {repo.repo_full_name || "All repositories"}
-                        </Link>
-                        {repo.name ? (
-                          <p className="text-muted-foreground text-xs">
-                            {repo.name}
-                          </p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {repo.git_provider}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {repo.llm_provider_name ?? "Default"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={
-                            repo.enabled
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                              : ""
+      <div className="rounded-lg border">
+        {loading ? (
+          <div className="flex flex-col gap-1.5 p-3">
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-7 w-full" />
+          </div>
+        ) : repos.isError ? (
+          <p className="text-destructive p-3 text-sm">
+            Could not load repositories. Run{" "}
+            <code className="text-xs">make dev</code> first.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Repository</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>LLM</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-20" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {repoList.length ? (
+                repoList.map((repo) => (
+                  <TableRow key={repo.id}>
+                    <TableCell>
+                      <Link
+                        to="/repositories/$repoId"
+                        params={{ repoId: repo.id }}
+                        className="font-medium hover:underline"
+                      >
+                        {repo.repo_full_name || "All repositories"}
+                      </Link>
+                      {repo.name ? (
+                        <p className="text-muted-foreground text-xs">
+                          {repo.name}
+                        </p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {repo.git_provider}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {repo.llm_provider_name ?? "Default"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          repo.enabled
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                            : ""
+                        }
+                      >
+                        {repo.enabled ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive h-7 px-2"
+                        onClick={async () => {
+                          if (
+                            !confirm(
+                              `Delete repository "${repo.repo_full_name || "All repositories"}"?`,
+                            )
+                          ) {
+                            return
                           }
-                        >
-                          {repo.enabled ? "Enabled" : "Disabled"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          onClick={async () => {
-                            if (
-                              !confirm(
-                                `Delete repository "${repo.repo_full_name || "All repositories"}"?`,
-                              )
-                            ) {
-                              return
-                            }
-                            try {
-                              await deleteRepo.mutateAsync(repo.id)
-                              toast.success("Repository deleted")
-                            } catch {
-                              toast.error("Failed to delete repository")
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-muted-foreground h-16 text-center"
-                    >
-                      No repositories yet. Click &quot;Add repository&quot; to
-                      get started.
+                          try {
+                            await deleteRepo.mutateAsync(repo.id)
+                            toast.success("Repository deleted")
+                          } catch {
+                            toast.error("Failed to delete repository")
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-muted-foreground h-12 text-center"
+                  >
+                    No repositories yet. Click &quot;Add repository&quot; to get
+                    started.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </div>
     </AppShell>
   )
 }

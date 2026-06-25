@@ -40,6 +40,7 @@ class AgentSettings(BaseSettings):
     mcp_server_port: int = 8001
     mcp_bind_host: str = "127.0.0.1"
     opencode_agent: str = "code-reviewer"
+    system_prompt: str = ""
     opencode_log_level: str = "INFO"
     review_timeout_seconds: int = 600
     workspace_root: str = "/workspaces"

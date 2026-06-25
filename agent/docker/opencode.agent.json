@@ -9,7 +9,33 @@
     }
   },
   "tools": {
-    "bash": false
+    "question": false
+  },
+  "permission": {
+    "read": "allow",
+    "grep": "allow",
+    "glob": "allow",
+    "list": "allow",
+    "bash": {
+      "*": "allow"
+    },
+    "task": "allow",
+    "todowrite": "allow",
+    "skill": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "lsp": "allow",
+    "external_directory": "deny",
+    "question": "deny",
+    "doom_loop": "deny",
+    "plan_enter": "deny",
+    "plan_exit": "deny",
+    "ask_exit": "deny",
+    "terminal_start": "deny",
+    "terminal_stop": "deny",
+    "pty_start": "deny",
+    "pty_exec": "deny",
+    "pty_stop": "deny"
   },
   "provider": {},
   "agent": {
@@ -18,14 +44,36 @@
       "mode": "subagent",
       "tools": {
         "coreview-git_fetch_pr_context": true,
-        "coreview-ci_get_summary": true
+        "coreview-ci_get_summary": true,
+        "question": false
       },
       "permission": {
         "edit": "deny",
         "write": "deny",
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "list": "allow",
         "bash": {
-          "*": "deny"
-        }
+          "*": "allow"
+        },
+        "task": "allow",
+        "todowrite": "allow",
+        "skill": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "lsp": "allow",
+        "external_directory": "deny",
+        "question": "deny",
+        "doom_loop": "deny",
+        "plan_enter": "deny",
+        "plan_exit": "deny",
+        "ask_exit": "deny",
+        "terminal_start": "deny",
+        "terminal_stop": "deny",
+        "pty_start": "deny",
+        "pty_exec": "deny",
+        "pty_stop": "deny"
       },
       "prompt": "You are a code reviewer. Use MCP tools to gather context before reviewing: call coreview-git_fetch_pr_context and coreview-ci_get_summary with the repository and PR details from the prompt. Analyze the cloned workspace at the session directory. Do not post GitHub comments via MCP. Return findings as JSON matching the outputFormat schema in your final response. Focus on bugs, security issues, performance problems, and missing tests.",
       "model": "openai-compat/gpt-4o"

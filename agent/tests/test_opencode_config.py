@@ -35,6 +35,22 @@ def test_build_opencode_config_from_settings() -> None:
     assert "openai-compat" in config["provider"]
     assert config["agent"]["code-reviewer"]["model"] == "openai-compat/gpt-4o"
     assert config["mcp"]["coreview"]["enabled"] is True
+    assert config["tools"] == {"question": False}
+    assert config["permission"]["question"] == "deny"
+    assert config["permission"]["plan_enter"] == "deny"
+    assert config["permission"]["plan_exit"] == "deny"
+    agent = config["agent"]["code-reviewer"]
+    assert agent["permission"]["bash"] == {"*": "allow"}
+    assert agent["permission"]["task"] == "allow"
+    assert agent["permission"]["question"] == "deny"
+    assert agent["permission"]["doom_loop"] == "deny"
+    assert agent["permission"]["plan_enter"] == "deny"
+
+
+def test_build_opencode_config_uses_custom_system_prompt() -> None:
+    settings = _full_settings(system_prompt="Review only Go files.")
+    config = build_opencode_config(settings)
+    assert config["agent"]["code-reviewer"]["prompt"] == "Review only Go files."
 
 
 def test_materialize_opencode_config_writes_file() -> None:

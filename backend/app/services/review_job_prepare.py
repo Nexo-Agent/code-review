@@ -56,7 +56,7 @@ def build_agent_environment(
         msg = "NEXO_COREVIEW_AGENT_CALLBACK_SECRET is not configured"
         raise ValueError(msg)
 
-    return {
+    env: dict[str, str] = {
         "NEXO_COREVIEW_REPO_FULL_NAME": review.repo_full_name,
         "NEXO_COREVIEW_PR_NUMBER": str(review.pr_number),
         "NEXO_COREVIEW_HEAD_SHA": review.head_sha,
@@ -77,6 +77,9 @@ def build_agent_environment(
         "NEXO_COREVIEW_CALLBACK_METADATA": _callback_metadata(review),
         "PYTHONUNBUFFERED": "1",
     }
+    if repo_integration.system_prompt.strip():
+        env["NEXO_COREVIEW_SYSTEM_PROMPT"] = repo_integration.system_prompt
+    return env
 
 
 async def prepare_review_job(

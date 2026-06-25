@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import type { Review, ReviewList } from "@/api/types"
@@ -31,6 +31,18 @@ export function useReview(reviewId: string) {
     refetchInterval: (query) => {
       const status = query.state.data?.status
       return status === "pending" || status === "running" ? 5000 : false
+    },
+  })
+}
+
+export function useRereviewReview() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (reviewId: string) =>
+      api<Review>(`/reviews/${reviewId}/retry`, { method: "POST" }),
+    onSuccess: (review) => {
+      queryClient.invalidateQueries({ queryKey: ["reviews"] })
+      queryClient.setQueryData(["reviews", review.id], review)
     },
   })
 }

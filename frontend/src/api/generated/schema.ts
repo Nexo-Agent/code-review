@@ -307,6 +307,12 @@ export interface components {
             /** Llm Provider Id */
             llm_provider_id?: string | null;
             /**
+             * System Prompt
+             * @description Custom OpenCode agent system prompt; empty uses the default
+             * @default
+             */
+            system_prompt: string;
+            /**
              * Enabled
              * @default true
              */
@@ -329,6 +335,8 @@ export interface components {
             llm_provider_id: string | null;
             /** Llm Provider Name */
             llm_provider_name: string | null;
+            /** System Prompt */
+            system_prompt: string;
             /** Enabled */
             enabled: boolean;
             /** Github Webhook Secret Configured */
@@ -374,6 +382,11 @@ export interface components {
              * @default false
              */
             clear_llm_provider_id: boolean;
+            /**
+             * System Prompt
+             * @description Custom OpenCode agent system prompt; empty string resets to default
+             */
+            system_prompt?: string | null;
             /** Enabled */
             enabled?: boolean | null;
         };
@@ -422,6 +435,11 @@ export interface components {
             repo_full_name: string;
             /** Pr Number */
             pr_number: number;
+            /**
+             * Pr Title
+             * @default
+             */
+            pr_title: string;
             /** Head Sha */
             head_sha: string;
             /** Status */
@@ -439,6 +457,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Findings Count
+             * @default 0
+             */
+            findings_count: number;
             /** Findings */
             findings?: components["schemas"]["ReviewFindingResponse"][];
         };

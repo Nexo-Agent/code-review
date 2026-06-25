@@ -20,6 +20,7 @@ class ReviewResponse(BaseModel):
     provider: str
     repo_full_name: str
     pr_number: int
+    pr_title: str = ""
     head_sha: str
     status: str
     delivery_id: str | None
@@ -27,6 +28,7 @@ class ReviewResponse(BaseModel):
     started_at: datetime | None
     completed_at: datetime | None
     created_at: datetime
+    findings_count: int = 0
     findings: list[ReviewFindingResponse] = Field(default_factory=list)
 
 

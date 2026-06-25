@@ -10,7 +10,6 @@ import { useMemo } from "react"
 import type { Review } from "@/api/types"
 import { AppShell } from "@/components/layout/AppShell"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -42,6 +41,7 @@ function statusClass(status: string) {
 
 function ReviewsPage() {
   const reviews = useReviews()
+  const count = reviews.data?.items.length ?? 0
 
   const columns = useMemo<ColumnDef<Review>[]>(
     () => [
@@ -74,8 +74,11 @@ function ReviewsPage() {
       {
         accessorKey: "created_at",
         header: "Created",
-        cell: ({ row }) =>
-          new Date(row.original.created_at).toLocaleString(),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground text-xs">
+            {new Date(row.original.created_at).toLocaleString()}
+          </span>
+        ),
       },
     ],
     [],
@@ -88,70 +91,68 @@ function ReviewsPage() {
   })
 
   return (
-    <AppShell title="Reviews">
-      <Card>
-        <CardHeader>
-          <CardTitle>Pull request reviews</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {reviews.isPending ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : reviews.isError ? (
-            <p className="text-destructive text-sm">
-              Could not load reviews. Run migrations with{" "}
-              <code className="text-xs">make migrate</code>.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
+    <AppShell
+      title="Reviews"
+      description={`${count} pull request review${count === 1 ? "" : "s"}`}
+    >
+      <div className="rounded-lg border">
+        {reviews.isPending ? (
+          <div className="flex flex-col gap-1.5 p-3">
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-7 w-full" />
+          </div>
+        ) : reviews.isError ? (
+          <p className="text-destructive p-3 text-sm">
+            Could not load reviews. Run migrations with{" "}
+            <code className="text-xs">make migrate</code>.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
                     ))}
                   </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="text-muted-foreground h-16 text-center"
-                    >
-                      No reviews yet — configure a GitHub webhook to{" "}
-                      <code className="text-xs">/api/v1/webhooks/github</code>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="text-muted-foreground h-12 text-center"
+                  >
+                    No reviews yet — configure a GitHub webhook to{" "}
+                    <code className="text-xs">/api/v1/webhooks/github</code>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </div>
     </AppShell>
   )
 }

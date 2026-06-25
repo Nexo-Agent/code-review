@@ -237,11 +237,26 @@ def test_build_opencode_config_includes_mcp() -> None:
         "--transport",
         "stdio",
     ]
-    assert config["tools"]["bash"] is False
+    assert config["tools"] == {"question": False}
+    assert config["permission"]["question"] == "deny"
+    assert config["permission"]["doom_loop"] == "deny"
+    assert config["permission"]["plan_enter"] == "deny"
+    assert config["permission"]["plan_exit"] == "deny"
+    assert config["permission"]["external_directory"] == "deny"
+    assert config["permission"]["bash"] == {"*": "allow"}
+    assert config["permission"]["task"] == "allow"
     agent = config["agent"]["code-reviewer"]
     assert agent["tools"]["coreview-git_fetch_pr_context"] is True
     assert agent["tools"]["coreview-ci_get_summary"] is True
-    assert agent["permission"]["bash"]["*"] == "deny"
+    assert agent["tools"]["question"] is False
+    assert agent["permission"]["bash"] == {"*": "allow"}
+    assert agent["permission"]["task"] == "allow"
+    assert agent["permission"]["todowrite"] == "allow"
+    assert agent["permission"]["edit"] == "deny"
+    assert agent["permission"]["question"] == "deny"
+    assert agent["permission"]["doom_loop"] == "deny"
+    assert agent["permission"]["plan_enter"] == "deny"
+    assert agent["permission"]["plan_exit"] == "deny"
 
 
 def test_build_opencode_config_uses_openai_compatible_provider() -> None:

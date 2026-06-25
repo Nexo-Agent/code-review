@@ -23,17 +23,17 @@ function DashboardPage() {
 
   return (
     <AppShell title="Dashboard">
-      <div className="grid max-w-4xl gap-6 md:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>System status</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">System status</CardTitle>
             <CardDescription>API and database connectivity</CardDescription>
           </CardHeader>
           <CardContent>
             {health.isPending ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-48" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-3.5 w-48" />
               </div>
             ) : health.isError ? (
               <p className="text-destructive text-sm">
@@ -41,7 +41,7 @@ function DashboardPage() {
                 <code className="text-xs">make dev</code>.
               </p>
             ) : (
-              <dl className="grid gap-2 text-sm">
+              <dl className="grid gap-1.5 text-sm">
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">Status</dt>
                   <dd className="font-medium">{health.data.status}</dd>
@@ -60,18 +60,18 @@ function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Overview</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Overview</CardTitle>
             <CardDescription>Configured resources</CardDescription>
           </CardHeader>
           <CardContent>
             {repos.isPending || llmProviders.isPending ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-32" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-3.5 w-32" />
               </div>
             ) : (
-              <dl className="grid gap-3 text-sm">
+              <dl className="grid gap-1.5 text-sm">
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-muted-foreground">Repositories</dt>
                   <dd>

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -76,29 +76,26 @@ function LlmProviderDetailPage() {
   }
 
   return (
-    <AppShell title={provider?.name ?? "LLM Provider"}>
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/llm-providers">← Back to LLM providers</Link>
-        </Button>
-      </div>
-
+    <AppShell
+      title={provider?.name ?? "LLM Provider"}
+      description={provider?.resolved_opencode_model}
+      backTo={{ to: "/llm-providers", label: "LLM Providers" }}
+    >
       {providerQuery.isPending ? (
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-48 w-full" />
       ) : providerQuery.isError || !provider ? (
         <p className="text-destructive text-sm">LLM provider not found.</p>
       ) : editing ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Provider configuration</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Provider configuration</CardTitle>
             <CardDescription>
-              Update model endpoint settings. Leave API token blank to keep the
-              current value.
+              Leave API token blank to keep the current value.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Name">
                   <Input
                     value={editing.name}
@@ -169,12 +166,10 @@ function LlmProviderDetailPage() {
                 />
                 Default LLM provider
               </label>
-              <p className="text-muted-foreground text-xs">
-                Resolved model: {provider.resolved_opencode_model}
-              </p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
+                  size="sm"
                   onClick={handleSave}
                   disabled={updateLlm.isPending}
                 >
@@ -183,6 +178,7 @@ function LlmProviderDetailPage() {
                 {draft ? (
                   <Button
                     type="button"
+                    size="sm"
                     variant="outline"
                     onClick={() => {
                       setDraft(null)
@@ -194,6 +190,7 @@ function LlmProviderDetailPage() {
                 ) : null}
                 <Button
                   type="button"
+                  size="sm"
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={deleteLlm.isPending}

@@ -11,6 +11,7 @@ class RepoIntegrationResponse(BaseModel):
     repo_full_name: str
     llm_provider_id: UUID | None
     llm_provider_name: str | None
+    system_prompt: str
     enabled: bool
     github_webhook_secret_configured: bool
     github_token_configured: bool
@@ -28,6 +29,11 @@ class RepoIntegrationCreate(BaseModel):
     github_webhook_secret: str = Field(default="", max_length=512)
     github_token: str = Field(default="", max_length=512)
     llm_provider_id: UUID | None = None
+    system_prompt: str = Field(
+        default="",
+        max_length=16384,
+        description="Custom OpenCode agent system prompt; empty uses the default",
+    )
     enabled: bool = True
 
 
@@ -48,4 +54,11 @@ class RepoIntegrationUpdate(BaseModel):
     )
     llm_provider_id: UUID | None = None
     clear_llm_provider_id: bool = False
+    system_prompt: str | None = Field(
+        default=None,
+        max_length=16384,
+        description=(
+            "Custom OpenCode agent system prompt; empty string resets to default"
+        ),
+    )
     enabled: bool | None = None

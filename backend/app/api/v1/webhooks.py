@@ -100,6 +100,7 @@ async def github_webhook(
         head_sha=event.head_sha,
         delivery_id=event.delivery_id,
         repo_integration_id=repo_integration.id,
+        pr_title=event.pr_title,
     )
 
     run_review.delay(str(review.id))

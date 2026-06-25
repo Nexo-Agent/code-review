@@ -12,7 +12,9 @@ Inside the container, `opencode run` reads the review prompt from **stdin**. Wit
 
 MCP tools are started as a local stdio subprocess (`coreview-agent serve --transport stdio`), not as HTTP servers.
 
-Review skills for OpenCode live in `skills/` and are copied into the image at `/opencode/skills/`.
+Review skills for OpenCode live in `skills/code-reviewer/` and are copied into the
+image at `/opencode/skills/`. The skill name matches the OpenCode agent id
+(`code-reviewer`).
 
 ## Callback-only reporting
 

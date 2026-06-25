@@ -45,6 +45,7 @@ def _review_row(review_id: UUID | None = None) -> ReviewRow:
         provider="github",
         repo_full_name="org/repo",
         pr_number=42,
+        pr_title="",
         head_sha="abc123",
         status="pending",
         delivery_id="del-1",

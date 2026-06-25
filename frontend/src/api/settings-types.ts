@@ -39,6 +39,7 @@ export interface RepoIntegration {
   repo_full_name: string
   llm_provider_id: string | null
   llm_provider_name: string | null
+  system_prompt: string
   enabled: boolean
   github_webhook_secret_configured: boolean
   github_token_configured: boolean
@@ -53,6 +54,7 @@ export interface RepoIntegrationCreate {
   github_webhook_secret?: string
   github_token?: string
   llm_provider_id?: string | null
+  system_prompt?: string
   enabled?: boolean
 }
 
@@ -64,5 +66,6 @@ export interface RepoIntegrationUpdate {
   github_token?: string
   llm_provider_id?: string | null
   clear_llm_provider_id?: boolean
+  system_prompt?: string
   enabled?: boolean
 }

@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
   TableBody,
@@ -60,6 +61,12 @@ function statusClass(status: string) {
   }
 }
 
+function lastRunAt(review: Review): string {
+  const ts = review.completed_at ?? review.started_at
+  if (!ts) return "—"
+  return new Date(ts).toLocaleString()
+}
+
 function RepositoryDetailPage() {
   const { repoId } = Route.useParams()
   const navigate = useNavigate()
@@ -88,6 +95,7 @@ function RepositoryDetailPage() {
       repo_full_name: editing.repo_full_name,
       enabled: editing.enabled,
       llm_provider_id: editing.llm_provider_id,
+      system_prompt: editing.system_prompt,
     }
     if (webhookSecret) payload.github_webhook_secret = webhookSecret
     if (githubToken) payload.github_token = githubToken
@@ -136,6 +144,26 @@ function RepositoryDetailPage() {
         ),
       },
       {
+        accessorKey: "pr_title",
+        header: "PR name",
+        cell: ({ row }) => {
+          const title = row.original.pr_title.trim()
+          if (!title) {
+            return <span className="text-muted-foreground">—</span>
+          }
+          return (
+            <Link
+              to="/reviews/$reviewId"
+              params={{ reviewId: row.original.id }}
+              className="hover:underline"
+              title={title}
+            >
+              <span className="line-clamp-1">{title}</span>
+            </Link>
+          )
+        },
+      },
+      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
@@ -148,10 +176,30 @@ function RepositoryDetailPage() {
         ),
       },
       {
-        accessorKey: "created_at",
-        header: "Created",
-        cell: ({ row }) =>
-          new Date(row.original.created_at).toLocaleString(),
+        accessorKey: "findings_count",
+        header: "Findings",
+        cell: ({ row }) => {
+          const count = row.original.findings_count
+          return (
+            <span
+              className={cn(
+                "tabular-nums",
+                count === 0 && "text-muted-foreground",
+              )}
+            >
+              {count}
+            </span>
+          )
+        },
+      },
+      {
+        id: "last_run",
+        header: "Last run",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground whitespace-nowrap text-xs">
+            {lastRunAt(row.original)}
+          </span>
+        ),
       },
     ],
     [],
@@ -168,106 +216,97 @@ function RepositoryDetailPage() {
     : "Repository"
 
   return (
-    <AppShell title={title}>
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/repositories">← Back to repositories</Link>
-        </Button>
-      </div>
-
+    <AppShell
+      title={title}
+      description={repo?.name || undefined}
+      backTo={{ to: "/repositories", label: "Repositories" }}
+    >
       {repoQuery.isPending ? (
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-48 w-full" />
       ) : repoQuery.isError || !repo ? (
         <p className="text-destructive text-sm">Repository not found.</p>
       ) : (
-        <Tabs defaultValue="reviews">
-          <TabsList>
-            <TabsTrigger value="reviews">Review</TabsTrigger>
-            <TabsTrigger value="settings">Setting</TabsTrigger>
+        <Tabs defaultValue="reviews" className="gap-3">
+          <TabsList className="h-8">
+            <TabsTrigger value="reviews" className="px-3 text-xs">
+              Reviews
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="px-3 text-xs">
+              Settings
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="reviews" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pull request reviews</CardTitle>
-                <CardDescription>
-                  Reviews for{" "}
-                  <code className="text-xs">
-                    {repo.repo_full_name || "all repositories"}
-                  </code>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {reviews.isPending ? (
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                ) : reviews.isError ? (
-                  <p className="text-destructive text-sm">
-                    Could not load reviews.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      {reviewTable.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                          {headerGroup.headers.map((header) => (
-                            <TableHead key={header.id}>
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext(),
-                                  )}
-                            </TableHead>
+          <TabsContent value="reviews" className="mt-0">
+            <div className="rounded-lg border">
+              {reviews.isPending ? (
+                <div className="flex flex-col gap-1.5 p-3">
+                  <Skeleton className="h-7 w-full" />
+                  <Skeleton className="h-7 w-full" />
+                </div>
+              ) : reviews.isError ? (
+                <p className="text-destructive p-3 text-sm">
+                  Could not load reviews.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    {reviewTable.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {reviewTable.getRowModel().rows.length ? (
+                      reviewTable.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
                           ))}
                         </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {reviewTable.getRowModel().rows.length ? (
-                        reviewTable.getRowModel().rows.map((row) => (
-                          <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
-                                {flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext(),
-                                )}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={reviewColumns.length}
-                            className="text-muted-foreground h-16 text-center"
-                          >
-                            No reviews yet for this repository.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={reviewColumns.length}
+                          className="text-muted-foreground h-12 text-center"
+                        >
+                          No reviews yet for this repository.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
           </TabsContent>
 
-          <TabsContent value="settings" className="mt-4">
+          <TabsContent value="settings" className="mt-0">
             <Card>
-              <CardHeader>
-                <CardTitle>Repository settings</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Repository settings</CardTitle>
                 <CardDescription>
-                  Webhook credentials and LLM mapping for this integration.
+                  Webhook credentials, LLM mapping, and review prompt.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {editing ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="grid gap-4 md:grid-cols-2">
+                  <div className="flex flex-col gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <Field label="Display name">
                         <Input
                           value={editing.name}
@@ -348,6 +387,19 @@ function RepositoryDetailPage() {
                         />
                       </Field>
                     </div>
+                    <Field label="System prompt">
+                      <Textarea
+                        rows={6}
+                        value={editing.system_prompt}
+                        onChange={(e) =>
+                          setDraft({
+                            ...editing,
+                            system_prompt: e.target.value,
+                          })
+                        }
+                        placeholder="Leave empty to use the default code-review prompt"
+                      />
+                    </Field>
                     <label className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
@@ -361,6 +413,7 @@ function RepositoryDetailPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
+                        size="sm"
                         onClick={handleSaveSettings}
                         disabled={updateRepo.isPending}
                       >
@@ -369,6 +422,7 @@ function RepositoryDetailPage() {
                       {draft ? (
                         <Button
                           type="button"
+                          size="sm"
                           variant="outline"
                           onClick={() => {
                             setDraft(null)
@@ -381,6 +435,7 @@ function RepositoryDetailPage() {
                       ) : null}
                       <Button
                         type="button"
+                        size="sm"
                         variant="destructive"
                         onClick={handleDelete}
                         disabled={deleteRepo.isPending}

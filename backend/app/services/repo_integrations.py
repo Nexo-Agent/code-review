@@ -34,6 +34,7 @@ def to_repo_integration_response(
         repo_full_name=row.repo_full_name,
         llm_provider_id=row.llm_provider_id,
         llm_provider_name=llm_provider_name,
+        system_prompt=row.system_prompt,
         enabled=row.enabled,
         github_webhook_secret_configured=bool(row.github_webhook_secret),
         github_token_configured=bool(row.github_token),
@@ -64,6 +65,7 @@ async def create_repo_integration(
         github_webhook_secret=payload.github_webhook_secret,
         github_token=payload.github_token,
         llm_provider_id=payload.llm_provider_id,
+        system_prompt=payload.system_prompt,
         enabled=payload.enabled,
     )
     await sync_opencode_config_from_db(conn)
@@ -92,6 +94,7 @@ async def update_repo_integration(
         github_token=data.get("github_token"),
         llm_provider_id=data.get("llm_provider_id"),
         clear_llm_provider_id=data.get("clear_llm_provider_id", False),
+        system_prompt=data.get("system_prompt"),
         enabled=data.get("enabled"),
         clear_webhook_secret=clear_webhook_secret,
         clear_github_token=clear_github_token,

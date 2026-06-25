@@ -11,6 +11,11 @@ from app.schemas.review import (
     ReviewListResponse,
     ReviewResponse,
 )
+from app.services.review_rereview import (
+    ReviewInProgressError,
+    ReviewNotFoundError,
+    prepare_rereview,
+)
 
 router = APIRouter()
 
@@ -32,11 +37,14 @@ def _to_review_response(
     row: ReviewRow,
     findings: list[ReviewFindingRow] | None = None,
 ) -> ReviewResponse:
+    finding_rows = findings or []
+    findings_count = len(finding_rows) if findings is not None else row.findings_count
     return ReviewResponse(
         id=row.id,
         provider=row.provider,
         repo_full_name=row.repo_full_name,
         pr_number=row.pr_number,
+        pr_title=row.pr_title,
         head_sha=row.head_sha,
         status=row.status,
         delivery_id=row.delivery_id,
@@ -44,7 +52,8 @@ def _to_review_response(
         started_at=row.started_at,
         completed_at=row.completed_at,
         created_at=row.created_at,
-        findings=[_to_finding_response(f) for f in (findings or [])],
+        findings_count=findings_count,
+        findings=[_to_finding_response(f) for f in finding_rows],
     )
 
 
@@ -87,17 +96,14 @@ async def retry_review(
     review_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
 ) -> ReviewResponse:
-    repo_db = ReviewRepository(conn)
-    row = await repo_db.get(review_id)
-    if row is None:
+    try:
+        review = await prepare_rereview(conn, review_id)
+    except ReviewNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    if row.status not in {"failed", "completed"}:
+    except ReviewInProgressError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Review is not retryable",
+            detail=str(exc),
         )
-    updated = await repo_db.reset_for_retry(review_id)
-    if updated is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    run_review.delay(str(review_id))
-    return _to_review_response(updated)
+    run_review.delay(str(review.id))
+    return _to_review_response(review)
