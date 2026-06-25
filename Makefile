@@ -1,4 +1,4 @@
-.PHONY: dev dev-watch dev-down up down prod-up migrate migrate-down openapi lint test test-unit build-agent render-opencode-config ensure-opencode-config
+.PHONY: dev dev-watch dev-down up down prod-up migrate migrate-down openapi lint test test-unit build-agent render-opencode-config
 
 ifneq (,$(wildcard .env))
 include .env
@@ -7,17 +7,14 @@ endif
 
 COMPOSE := docker compose
 COMPOSE_PROD := docker compose -f docker-compose.yaml
-
-# Bind-mount target; avoid Docker creating a directory on first boot.
-ensure-opencode-config:
-	@test -f opencode.generated.json || touch opencode.generated.json
+AGENT_IMAGE ?= $(or $(NEXO_COREVIEW_AGENT_IMAGE),code-review-agent:dev)
 
 # --- Stack lifecycle (Docker Compose only) ---
 
-dev: ensure-opencode-config
+dev: build-agent
 	$(COMPOSE) up --build
 
-dev-watch: ensure-opencode-config
+dev-watch: build-agent
 	$(COMPOSE) watch
 
 dev-down: down
@@ -39,11 +36,16 @@ migrate:
 migrate-down:
 	$(COMPOSE) --profile tools run --rm migrate-down
 
-render-opencode-config: migrate ensure-opencode-config
-	$(COMPOSE) run --rm render-opencode
+render-opencode-config: migrate
+	cd backend && uv run code-review config render-opencode
 
 build-agent:
-	$(COMPOSE) build agent-image
+	docker build -f agent/Dockerfile \
+		--build-arg VERSION=$(or $(VERSION),dev) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg VCS_REF=$(VCS_REF) \
+		-t $(AGENT_IMAGE) \
+		.
 
 # --- Developer tooling (host uv/yarn; not part of runtime stack) ---
 

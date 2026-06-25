@@ -141,7 +141,7 @@ class LlmProviderRepository:
             SET name = $2,
                 provider_id = $3,
                 base_url = $4,
-                api_token = CASE WHEN $10 THEN '' ELSE COALESCE($5, api_token) END,
+                api_token = CASE WHEN $9 THEN '' ELSE COALESCE($5, api_token) END,
                 model = $6,
                 opencode_model = $7,
                 is_default = $8,

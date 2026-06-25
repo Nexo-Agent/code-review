@@ -12,6 +12,7 @@ ARG AGENT_DIR=agent
 ARG FRONTEND_DIR=frontend
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+FROM ghcr.io/amacneil/dbmate:2 AS dbmate
 
 # =============================================================================
 # Stage: api — Python + uv + uvicorn --reload (source bind-mounted at runtime)
@@ -43,6 +44,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY shared/ /workspace/shared/
 COPY ${BACKEND_DIR}/ /workspace/${BACKEND_DIR}/
 COPY docker/dev-api-entrypoint.sh /usr/local/bin/dev-api-entrypoint.sh
+COPY --from=dbmate /usr/local/bin/dbmate /usr/local/bin/dbmate
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --all-groups \

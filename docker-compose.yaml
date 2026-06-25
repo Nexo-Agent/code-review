@@ -1,6 +1,6 @@
 # Nexo Co-Review stack — production uses GHCR images; dev merges docker-compose.override.yaml.
 #
-# Runtime: api, worker, db, redis (+ one-shot migrate, render-opencode).
+# Runtime: api, worker, db, redis (+ one-shot migrate).
 # Agent review containers are spawned on demand by the worker.
 #
 # Deploy (copy this file + .env.example only):
@@ -51,8 +51,6 @@ services:
       - "${APP_PORT:-8000}:8000"
     environment:
       <<: *api-environment
-    volumes:
-      - opencode_config:/config
     deploy:
       resources:
         limits:
@@ -68,8 +66,6 @@ services:
       redis:
         condition: service_started
       migrate:
-        condition: service_completed_successfully
-      render-opencode:
         condition: service_completed_successfully
     restart: unless-stopped
 
@@ -143,71 +139,33 @@ services:
       retries: 5
     restart: unless-stopped
 
-  migrations-export:
-    <<: *coreview-image
-    user: "0:0"
-    restart: "no"
-    volumes:
-      - migrations_data:/migrations
-    entrypoint: ["/bin/sh", "-c"]
-    command: ["cp -r /app/migrations/. /migrations/"]
-
   migrate:
-    image: ghcr.io/amacneil/dbmate:2
+    <<: *coreview-image
     restart: "no"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-    volumes:
-      - migrations_data:/db/migrations
     networks:
       - coreview
     depends_on:
       db:
         condition: service_healthy
-      migrations-export:
-        condition: service_completed_successfully
-    command: ["-d", "/db/migrations", "--wait", "up"]
-
-  render-opencode:
-    <<: *coreview-image
-    user: "0:0"
-    restart: "no"
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-    volumes:
-      - opencode_config:/config
-    networks:
-      - coreview
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-    command:
-      [
-        "code-review",
-        "config",
-        "render-opencode",
-        "-o",
-        "/config/opencode.generated.json",
-      ]
+    entrypoint: ["dbmate"]
+    command: ["-d", "/app/migrations", "--wait", "up"]
 
   migrate-down:
     profiles: [tools]
-    image: ghcr.io/amacneil/dbmate:2
+    <<: *coreview-image
+    restart: "no"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-    volumes:
-      - migrations_data:/db/migrations
     networks:
       - coreview
     depends_on:
       db:
         condition: service_healthy
-      migrations-export:
-        condition: service_completed_successfully
-    command: ["-d", "/db/migrations", "down"]
+    entrypoint: ["dbmate"]
+    command: ["-d", "/app/migrations", "down"]
 
 volumes:
   postgres_data:
   review_workspaces:
-  migrations_data:
-  opencode_config:

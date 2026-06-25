@@ -1,4 +1,4 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "_note": "opencode.generated.json is generated automatically on compose up (render-opencode service) and when LLM settings change in the API."
+  "_note": "opencode.generated.json is optional debug output from `make render-opencode-config` or API settings sync. Agent containers materialize ephemeral opencode.json from NEXO_COREVIEW_* env at review time."
 }

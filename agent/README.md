@@ -60,5 +60,5 @@ Docker image (OpenCode + MCP + git):
 Built automatically on `make dev` / `make prod-up`, or manually:
 
 ```bash
-make build-agent   # docker compose build agent-image
+make build-agent   # docker build -f agent/Dockerfile -t code-review-agent:dev .
 ```

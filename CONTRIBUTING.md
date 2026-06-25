@@ -63,7 +63,7 @@ Production uses only the base compose file; `docker-compose.override.yaml` is no
 | [`dev.Dockerfile`](dev.Dockerfile) | Multi-stage dev images (`target: api` / `target: web`) |
 | [`Dockerfile`](Dockerfile) | Production bundle (API + static SPA) |
 
-Docker dev stack services: `api`, `worker`, `redis`, `db`. The worker mounts `/var/run/docker.sock`, loads review config from Postgres, injects `NEXO_COREVIEW_*` env vars, and spawns a per-review agent container built locally as `code-review-agent:dev` (`agent-image` service, `pull_policy: never` — no registry pull).
+Docker dev stack services: `api`, `web`, `worker`, `redis`, `db`. `make dev` / `make dev-watch` build the agent image locally (`code-review-agent:dev`) first; the worker mounts `/var/run/docker.sock` and spawns a one-shot agent container per review via `docker run` when a PR arrives.
 
 ## Review execution flow
 
@@ -72,7 +72,7 @@ Docker dev stack services: `api`, `worker`, `redis`, `db`. The worker mounts `/v
 3. Docker runtime starts `coreview-agent review run --review-id <uuid>` with that env.
 4. Agent materializes OpenCode config from env, executes the review, and POSTs lifecycle events + findings to the callback URL (`NEXO_COREVIEW_CALLBACK_*`). The API persists them via `POST /api/v1/agent/review-events`.
 
-`opencode.generated.json` is still regenerated at a fixed path (repo root on host, `/config/opencode.generated.json` in Compose) for the Settings UI and API startup sync; agent containers build ephemeral config from injected env instead.
+Agent containers materialize ephemeral OpenCode config from `NEXO_COREVIEW_*` env at review time ([`agent/app/services/opencode_config.py`](agent/app/services/opencode_config.py)). Optional `opencode.generated.json` on the host is debug output from `make render-opencode-config` or API settings sync.
 
 ## Environment variables
 
@@ -112,7 +112,7 @@ Configured via **Settings** (`/settings`) or the API:
 - **LLM providers** — `GET/POST /api/v1/settings/llm-providers`, `PUT/DELETE .../{id}`
 - **Repositories** — `GET/POST /api/v1/settings/repos`, `PUT/DELETE .../{id}`
 
-Saving LLM providers regenerates `opencode.generated.json` for the backend; the job worker injects per-review LLM credentials into agent containers via env at spawn time.
+Saving LLM providers may regenerate `opencode.generated.json` on the API host for debugging; the job worker injects per-review LLM credentials into agent containers via env at spawn time.
 
 ## CLI modes
 
@@ -223,8 +223,8 @@ cd backend && uv run pytest tests/api/test_reviews.py -k webhook
 | `make dev-down` / `make down` | Stop Docker stack |
 | `make prod-up` / `make up` | Production stack (pull GHCR images, auto migrate) |
 | `make migrate` / `make migrate-down` | dbmate up / down via Compose |
-| `make render-opencode-config` | Regenerate `opencode.generated.json` via Compose |
-| `make build-agent` | Build agent image via Compose |
+| `make render-opencode-config` | Regenerate `opencode.generated.json` on host (optional debug) |
+| `make build-agent` | Build agent image locally (`docker build`) |
 
 ## Pull requests
 

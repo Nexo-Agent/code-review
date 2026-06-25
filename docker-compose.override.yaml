@@ -1,12 +1,20 @@
-# Development override — merged automatically with docker-compose.yaml
-#
-#   docker compose up --build   # db + init + api + web + worker
-#   docker compose watch        # + Compose Watch (HMR / uvicorn reload)
-#
-# Not loaded when deploying production:
-#   docker compose -f docker-compose.yaml up -d
-
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: api
+    volumes: !override
+      - ./backend/migrations:/app/migrations:ro
+
+  migrate-down:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+      target: api
+    volumes: !override
+      - ./backend/migrations:/app/migrations:ro
+
   api:
     build:
       context: .
@@ -23,7 +31,6 @@ services:
       - ./uv.lock:/workspace/uv.lock
       - backend_venv:/workspace/.venv
       - review_workspaces:/workspaces
-      - ./opencode.generated.json:/config/opencode.generated.json
     working_dir: /workspace/backend
     networks:
       - coreview
@@ -33,10 +40,6 @@ services:
       redis:
         condition: service_started
       migrate:
-        condition: service_completed_successfully
-      render-opencode:
-        condition: service_completed_successfully
-      agent-image:
         condition: service_completed_successfully
     develop:
       watch:
@@ -132,40 +135,8 @@ services:
         condition: service_started
       migrate:
         condition: service_completed_successfully
-      agent-image:
-        condition: service_completed_successfully
       api:
         condition: service_started
-
-  render-opencode:
-    build:
-      context: .
-      dockerfile: dev.Dockerfile
-      target: api
-    user: "0:0"
-    volumes:
-      - ./opencode.generated.json:/config/opencode.generated.json
-    command:
-      [
-        "uv",
-        "run",
-        "code-review",
-        "config",
-        "render-opencode",
-        "-o",
-        "/config/opencode.generated.json",
-      ]
-
-  agent-image:
-    build:
-      context: .
-      dockerfile: agent/Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
-        BUILD_DATE: ${BUILD_DATE:-}
-        VCS_REF: ${VCS_REF:-}
-    image: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
-    pull_policy: never
 
 volumes:
   backend_venv:

@@ -17,6 +17,7 @@ ARG BACKEND_DIR=backend
 ARG FRONTEND_DIR=frontend
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+FROM ghcr.io/amacneil/dbmate:2 AS dbmate
 
 # =============================================================================
 # Stage: frontend-builder — build Vite React SPA
@@ -122,6 +123,7 @@ COPY --from=python-builder --chown=app:app /app/.venv /app/.venv
 COPY --from=python-builder --chown=app:app /workspace/backend /app
 COPY --from=frontend-builder --chown=app:app /app/dist /app/static
 COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
+COPY --from=dbmate /usr/local/bin/dbmate /usr/local/bin/dbmate
 
 RUN chmod +x /usr/local/bin/api-entrypoint.sh \
  && mkdir -p /config /app/data \
