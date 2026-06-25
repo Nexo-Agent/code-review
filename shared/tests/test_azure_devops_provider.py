@@ -1,0 +1,198 @@
+import base64
+import json
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from coreview_shared.protocols import InlineComment, Workspace, WorkspaceSpec
+from coreview_shared.providers.git.azure_devops import (
+    AzureDevOpsProvider,
+    parse_repo_full_name,
+)
+
+
+def test_parse_repo_full_name_three_segments() -> None:
+    assert parse_repo_full_name("fabrikam/MyProject/Repo") == (
+        "fabrikam",
+        "MyProject",
+        "Repo",
+    )
+
+
+def test_parse_repo_full_name_with_defaults() -> None:
+    assert parse_repo_full_name(
+        "Repo",
+        organization="fabrikam",
+        project="MyProject",
+    ) == ("fabrikam", "MyProject", "Repo")
+
+
+def test_ado_webhook_basic_auth_valid() -> None:
+    secret = "hook-user:hook-pass"
+    token = base64.b64encode(b"hook-user:hook-pass").decode()
+    provider = AzureDevOpsProvider(pat="")
+    assert provider.verify_webhook_signature(b"{}", f"Basic {token}", secret)
+
+
+def test_ado_webhook_basic_auth_invalid() -> None:
+    provider = AzureDevOpsProvider(pat="")
+    assert not provider.verify_webhook_signature(b"{}", "Basic abc", "user:pass")
+    assert not provider.verify_webhook_signature(b"{}", None, "user:pass")
+    assert not provider.verify_webhook_signature(b"{}", "Basic abc", "")
+
+
+def test_ado_parse_webhook_valid() -> None:
+    provider = AzureDevOpsProvider(pat="")
+    body = json.dumps(
+        {
+            "id": "delivery-1",
+            "eventType": "git.pullrequest.created",
+            "resource": {
+                "repository": {
+                    "id": "repo-guid",
+                    "name": "Fabrikam",
+                    "project": {"name": "MyProject"},
+                },
+                "pullRequestId": 42,
+                "status": "active",
+                "lastMergeSourceCommit": {"commitId": "abc123"},
+            },
+            "resourceContainers": {
+                "account": {"baseUrl": "https://dev.azure.com/fabrikam/"}
+            },
+        }
+    ).encode()
+    event = provider.parse_webhook({}, body)
+    assert event is not None
+    assert event.repo_full_name == "fabrikam/MyProject/Fabrikam"
+    assert event.pr_number == 42
+    assert event.head_sha == "abc123"
+    assert event.delivery_id == "delivery-1"
+
+
+def test_ado_parse_webhook_ignores_completed() -> None:
+    provider = AzureDevOpsProvider(pat="")
+    body = json.dumps(
+        {
+            "eventType": "git.pullrequest.updated",
+            "resource": {
+                "repository": {
+                    "name": "Fabrikam",
+                    "project": {"name": "MyProject"},
+                },
+                "pullRequestId": 1,
+                "status": "completed",
+                "lastMergeSourceCommit": {"commitId": "abc"},
+            },
+            "resourceContainers": {
+                "account": {"baseUrl": "https://dev.azure.com/fabrikam/"}
+            },
+        }
+    ).encode()
+    assert provider.parse_webhook({}, body) is None
+
+
+@pytest.mark.asyncio
+async def test_ado_get_pr_metadata() -> None:
+    provider = AzureDevOpsProvider(
+        pat="pat",
+        organization="fabrikam",
+        project="MyProject",
+    )
+    with patch("httpx.AsyncClient") as client_cls:
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        client.get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {
+                "title": "My PR",
+                "createdBy": {"displayName": "Alice"},
+                "lastMergeSourceCommit": {"commitId": "head-sha"},
+                "lastMergeTargetCommit": {"commitId": "base-sha"},
+                "sourceRefName": "refs/heads/feature",
+                "targetRefName": "refs/heads/main",
+                "url": "https://dev.azure.com/fabrikam/pull/1",
+                "repository": {"id": "repo-guid"},
+            },
+        )
+        client.get.return_value.raise_for_status = MagicMock()
+        client_cls.return_value = client
+
+        metadata = await provider.get_pr_metadata("fabrikam/MyProject/Repo", 1)
+
+    assert metadata.title == "My PR"
+    assert metadata.author == "Alice"
+    assert metadata.head_sha == "head-sha"
+    assert metadata.base_sha == "base-sha"
+    assert metadata.head_ref == "feature"
+    assert metadata.base_ref == "main"
+
+
+@pytest.mark.asyncio
+async def test_ado_clone_repository() -> None:
+    provider = AzureDevOpsProvider(pat="pat")
+    runner = AsyncMock()
+    spec = WorkspaceSpec(
+        review_id="r1",
+        repo_full_name="fabrikam/MyProject/Repo",
+        pr_number=1,
+        head_sha="deadbeef",
+    )
+    workspace = Workspace(path=Path("/workspaces/r1"), spec=spec)
+    await provider.clone_repository(spec, workspace, runner)
+
+    assert runner.run.await_count == 3
+    clone_args = runner.run.await_args_list[0].args[0]
+    assert clone_args[0] == "git"
+    assert "dev.azure.com/fabrikam/MyProject/_git/Repo" in clone_args[-2]
+
+
+@pytest.mark.asyncio
+async def test_ado_post_review_comment() -> None:
+    provider = AzureDevOpsProvider(pat="pat")
+    with patch("httpx.AsyncClient") as client_cls:
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        client.get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"id": "repo-guid"},
+        )
+        client.get.return_value.raise_for_status = MagicMock()
+        client.post.return_value = MagicMock(status_code=200)
+        client.post.return_value.raise_for_status = MagicMock()
+        client_cls.return_value = client
+
+        await provider.post_review_comment("fabrikam/MyProject/Repo", 1, "Summary")
+
+        client.post.assert_awaited_once()
+        assert "threads" in client.post.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_ado_post_inline_comments_stub() -> None:
+    provider = AzureDevOpsProvider(pat="pat")
+    comments = [InlineComment(path="a.py", line=1, body="issue")]
+    result = await provider.post_inline_comments(
+        "fabrikam/MyProject/Repo",
+        1,
+        "sha",
+        comments,
+    )
+    assert result.posted == ()
+    assert result.skipped == tuple(comments)
+
+
+@pytest.mark.asyncio
+async def test_ado_build_diff_from_workspace(tmp_path: Path) -> None:
+    provider = AzureDevOpsProvider(pat="pat")
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    with patch("asyncio.to_thread", new=AsyncMock(return_value="diff text")):
+        diff = await provider.build_diff_from_workspace(
+            AsyncMock(),
+            repo_path,
+            "base",
+            "head",
+        )
+    assert diff == "diff text"

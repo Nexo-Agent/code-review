@@ -2,6 +2,7 @@ import type { LlmProviderCreate, RepoIntegrationCreate } from "@/api/settings-ty
 
 export const GIT_PROVIDER_OPTIONS = [
   { value: "github", label: "GitHub" },
+  { value: "azure-devops", label: "Azure DevOps" },
   { value: "gitlab", label: "GitLab (coming soon)", disabled: true },
 ] as const
 
@@ -45,6 +46,11 @@ export function emptyRepoForm(): RepoIntegrationCreate {
     repo_full_name: "",
     github_webhook_secret: "",
     github_token: "",
+    ado_organization: "",
+    ado_project: "",
+    ado_pat: "",
+    ado_webhook_username: "",
+    ado_webhook_password: "",
     llm_provider_id: null,
     enabled: true,
   }

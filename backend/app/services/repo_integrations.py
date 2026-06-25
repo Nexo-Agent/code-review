@@ -38,6 +38,12 @@ def to_repo_integration_response(
         enabled=row.enabled,
         github_webhook_secret_configured=bool(row.github_webhook_secret),
         github_token_configured=bool(row.github_token),
+        ado_organization=row.ado_organization,
+        ado_project=row.ado_project,
+        ado_pat_configured=bool(row.ado_pat),
+        ado_webhook_configured=bool(
+            row.ado_webhook_username and row.ado_webhook_password
+        ),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -67,6 +73,11 @@ async def create_repo_integration(
         llm_provider_id=payload.llm_provider_id,
         system_prompt=payload.system_prompt,
         enabled=payload.enabled,
+        ado_organization=payload.ado_organization,
+        ado_project=payload.ado_project,
+        ado_pat=payload.ado_pat,
+        ado_webhook_username=payload.ado_webhook_username,
+        ado_webhook_password=payload.ado_webhook_password,
     )
     await sync_opencode_config_from_db(conn)
     llm_name = await _llm_provider_name(conn, row.llm_provider_id)
@@ -85,6 +96,10 @@ async def update_repo_integration(
         "github_webhook_secret" in data and data["github_webhook_secret"] == ""
     )
     clear_github_token = "github_token" in data and data["github_token"] == ""
+    clear_ado_pat = "ado_pat" in data and data["ado_pat"] == ""
+    clear_ado_webhook_password = (
+        "ado_webhook_password" in data and data["ado_webhook_password"] == ""
+    )
     row = await repo.update(
         integration_id,
         name=data.get("name"),
@@ -98,6 +113,13 @@ async def update_repo_integration(
         enabled=data.get("enabled"),
         clear_webhook_secret=clear_webhook_secret,
         clear_github_token=clear_github_token,
+        ado_organization=data.get("ado_organization"),
+        ado_project=data.get("ado_project"),
+        ado_pat=data.get("ado_pat"),
+        ado_webhook_username=data.get("ado_webhook_username"),
+        ado_webhook_password=data.get("ado_webhook_password"),
+        clear_ado_pat=clear_ado_pat,
+        clear_ado_webhook_password=clear_ado_webhook_password,
     )
     await sync_opencode_config_from_db(conn)
     llm_name = await _llm_provider_name(conn, row.llm_provider_id)

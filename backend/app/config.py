@@ -32,6 +32,11 @@ class ReviewRuntimeConfig:
     llm_api_token: str
     llm_model: str
     opencode_model: str = ""
+    ado_organization: str = ""
+    ado_project: str = ""
+    ado_pat: str = ""
+    ado_webhook_username: str = ""
+    ado_webhook_password: str = ""
 
     @property
     def resolved_opencode_model(self) -> str:

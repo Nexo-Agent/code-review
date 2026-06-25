@@ -3,19 +3,23 @@ name: code-reviewer
 description: >-
   Structured pull-request code reviews for Nexo Co-Review (`nexo-coreview`).
   Use when reviewing PR diffs for bugs, security, performance, missing tests, or
-  API breaking changes. Output must be JSON with a findings array; each finding
-  body must follow the PR review message template. Respond in the language the
-  user requests; default to English when none is specified.
+  API breaking changes. Run lint, typecheck, and unit tests via bash when
+  available. Output must be JSON with a findings array; each finding body must
+  follow the PR review message template. Respond in the language the user
+  requests; default to English when none is specified.
 license: MIT
 metadata:
   author: Nexo
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Code Reviewer (Nexo Co-Review)
 
 Professional PR review for Nexo Co-Review. Runs headless inside the agent
 container — no interactive prompts, plan mode, or GitHub comment posting via MCP.
+
+The **bash** tool is enabled: use it to run lint, typecheck, and unit tests in
+the cloned repository workspace.
 
 ## When to apply
 
@@ -27,13 +31,22 @@ container — no interactive prompts, plan mode, or GitHub comment posting via M
 1. **Gather context** — Call MCP tools before reviewing:
    - `coreview-git_fetch_pr_context`
    - `coreview-ci_get_summary`
-2. **Analyze** — Inspect the cloned workspace at the session directory (read,
-   grep, glob as needed). Do not run shell commands unless required for analysis.
-3. **Return findings** — Respond with JSON only (see Output format). Nexo posts
-   to GitHub; do not post comments via MCP.
+2. **Map impact** — Beyond the diff hunks, trace blast radius (callers, exports,
+   cross-layer contracts). See
+   [references/impact-analysis.md](references/impact-analysis.md).
+3. **Validate with commands** — Use **bash** in the workspace root:
+   - Discover commands from `AGENTS.md`, `Makefile`, `package.json`, CI workflows
+   - Install deps if needed (`uv sync`, `npm ci`, etc.)
+   - Run lint, typecheck, and targeted unit tests for changed areas
+   - See [references/validation-commands.md](references/validation-commands.md)
+4. **Analyze** — Combine diff inspection (read, grep, glob, lsp), impact tracing,
+   and command output. Treat failing checks as strong evidence for findings.
+5. **Return findings** — Respond with JSON only (see Output format). Nexo posts
+   to the remote; do not post comments via MCP.
 
-Do **not** enter plan mode, ask the user questions, spawn subagents, or run
-`gh pr checkout` — the repository is already cloned and the run is unattended.
+Do **not** enter plan mode, ask the user questions, spawn subagents, edit files,
+commit, or run `gh pr checkout` — the repository is already cloned and the run is
+unattended.
 
 ## Response language (required)
 
@@ -58,8 +71,10 @@ Analyze changes across these pillars:
 2. **Security** — injection, auth bypass, secrets in code, unsafe deserialization
 3. **Performance** — N+1 queries, unbounded loops, missing indexes
 4. **Maintainability** — clarity, structure, adherence to project patterns
-5. **Tests** — missing coverage for changed behavior
+5. **Tests** — missing coverage for changed behavior; failing tests from bash runs
 6. **API contracts** — breaking changes without migration path
+7. **Blast radius** — unchanged call sites, layers, or deploy config that break
+8. **Tooling evidence** — lint/typecheck/test failures surfaced during review
 
 ## Output format (required)
 
@@ -102,3 +117,4 @@ See [references/severity.md](references/severity.md).
 - Be constructive, professional, and precise.
 - Explain *why* a change is requested in **Impact** and *how* to fix in
   **Recommendation**.
+- Cite validation command output when it supports a finding.

@@ -35,6 +35,11 @@ def _repo_row(llm_id) -> RepoIntegrationRow:
         llm_provider_id=llm_id,
         system_prompt="",
         enabled=True,
+        ado_organization="",
+        ado_project="",
+        ado_pat="",
+        ado_webhook_username="",
+        ado_webhook_password="",
         created_at=now,
         updated_at=now,
     )
@@ -96,6 +101,11 @@ def test_repo_integration_matches_repo() -> None:
         llm_provider_id=llm.id,
         system_prompt="",
         enabled=True,
+        ado_organization="",
+        ado_project="",
+        ado_pat="",
+        ado_webhook_username="",
+        ado_webhook_password="",
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )

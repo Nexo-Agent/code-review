@@ -93,11 +93,15 @@ DEFAULT_CODE_REVIEWER_PROMPT = (
     "before reviewing: call coreview-git_fetch_pr_context and "
     "coreview-ci_get_summary with the repository and PR details "
     "from the prompt. Analyze the cloned workspace at the session "
-    "directory. Do not post GitHub comments via MCP. Return findings "
-    "as JSON matching the outputFormat schema in your final response. "
-    "Focus on bugs, security issues, performance problems, and "
-    "missing tests. Do not enter plan mode or ask the user questions — "
-    "complete the review autonomously."
+    "directory. Use the bash tool to run project lint, typecheck, and "
+    "unit tests (see AGENTS.md, Makefile, package.json, CI workflows). "
+    "Trace blast radius: grep for callers and cross-layer impact beyond "
+    "the diff. Do not modify files or post remote comments via MCP. "
+    "Return findings as JSON matching the outputFormat schema in your "
+    "final response. Focus on bugs, security issues, performance "
+    "problems, missing tests, and failures from validation commands. "
+    "Do not enter plan mode or ask the user questions — complete the "
+    "review autonomously."
 )
 
 # Bundled into the agent image at agent/Dockerfile COPY agent/skills/ /opencode/skills/

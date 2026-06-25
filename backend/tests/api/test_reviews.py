@@ -58,6 +58,11 @@ def _repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
         llm_provider_id=llm.id,
         system_prompt="",
         enabled=True,
+        ado_organization="",
+        ado_project="",
+        ado_pat="",
+        ado_webhook_username="",
+        ado_webhook_password="",
         created_at=now,
         updated_at=now,
     )

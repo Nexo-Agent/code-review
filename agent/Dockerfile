@@ -79,7 +79,12 @@ RUN apk add --no-cache \
     wget \
     netcat-openbsd \
     libstdc++ \
-    libgcc
+    libgcc \
+    make \
+    nodejs \
+    npm
+
+COPY --from=uv /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 
 COPY --from=opencode-base /usr/local/bin/opencode /usr/local/bin/opencode
 

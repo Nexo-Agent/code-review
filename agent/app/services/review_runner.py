@@ -5,10 +5,12 @@ from pathlib import Path
 from coreview_shared.llm.opencode import OpenCodeLLMProvider
 from coreview_shared.protocols import (
     InlineComment,
+    PRContext,
     ReviewFinding,
     Workspace,
     WorkspaceSpec,
 )
+from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
 from coreview_shared.runtime.command_runner import LocalCommandRunner
 from coreview_shared.schemas.review_callback import (
     ReviewCallbackError,
@@ -94,7 +96,23 @@ async def execute_review_logic(review_id: str) -> None:
         )
         workspace = Workspace(path=workspace_root, spec=spec)
         logger.info("Review %s: cloning repository", review_id)
-        await providers.git.clone_repository(spec, workspace, LocalCommandRunner())
+        runner = LocalCommandRunner()
+        await providers.git.clone_repository(spec, workspace, runner)
+
+        if infra.git_provider == "azure-devops" and isinstance(
+            providers.git, AzureDevOpsProvider
+        ):
+            diff = await providers.git.build_diff_from_workspace(
+                runner,
+                workspace_root / "repo",
+                pr_context.metadata.base_sha,
+                pr_context.metadata.head_sha,
+            )
+            pr_context = PRContext(
+                metadata=pr_context.metadata,
+                diff=diff,
+                ci_summary=pr_context.ci_summary,
+            )
 
         config_path = materialize_opencode_config(infra, review_id=review_id)
         llm = OpenCodeLLMProvider(
@@ -109,7 +127,9 @@ async def execute_review_logic(review_id: str) -> None:
         findings = await llm.run_review(repo_workspace, pr_context)
 
         logger.info(
-            "Review %s: posting %d finding(s) to GitHub", review_id, len(findings)
+            "Review %s: posting %d finding(s) to remote",
+            review_id,
+            len(findings),
         )
         inline_comments, _ = split_findings(findings)
         posted_inline: tuple[InlineComment, ...] = ()

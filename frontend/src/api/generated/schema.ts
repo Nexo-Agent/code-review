@@ -161,6 +161,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/azure-devops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Azure Devops Webhook */
+        post: operations["azure_devops_webhook_api_v1_webhooks_azure_devops_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent/review-events": {
         parameters: {
             query?: never;
@@ -290,7 +307,7 @@ export interface components {
             git_provider: string;
             /**
              * Repo Full Name
-             * @description owner/repo — empty accepts all repositories
+             * @description owner/repo or org/project/repo — empty accepts all repositories
              * @default
              */
             repo_full_name: string;
@@ -304,6 +321,31 @@ export interface components {
              * @default
              */
             github_token: string;
+            /**
+             * Ado Organization
+             * @default
+             */
+            ado_organization: string;
+            /**
+             * Ado Project
+             * @default
+             */
+            ado_project: string;
+            /**
+             * Ado Pat
+             * @default
+             */
+            ado_pat: string;
+            /**
+             * Ado Webhook Username
+             * @default
+             */
+            ado_webhook_username: string;
+            /**
+             * Ado Webhook Password
+             * @default
+             */
+            ado_webhook_password: string;
             /** Llm Provider Id */
             llm_provider_id?: string | null;
             /**
@@ -343,6 +385,14 @@ export interface components {
             github_webhook_secret_configured: boolean;
             /** Github Token Configured */
             github_token_configured: boolean;
+            /** Ado Organization */
+            ado_organization: string;
+            /** Ado Project */
+            ado_project: string;
+            /** Ado Pat Configured */
+            ado_pat_configured: boolean;
+            /** Ado Webhook Configured */
+            ado_webhook_configured: boolean;
             /**
              * Created At
              * Format: date-time
@@ -362,7 +412,7 @@ export interface components {
             git_provider?: string | null;
             /**
              * Repo Full Name
-             * @description owner/repo — empty accepts all repositories
+             * @description owner/repo or org/project/repo — empty accepts all repositories
              */
             repo_full_name?: string | null;
             /**
@@ -375,6 +425,22 @@ export interface components {
              * @description Omit to keep; empty string clears
              */
             github_token?: string | null;
+            /** Ado Organization */
+            ado_organization?: string | null;
+            /** Ado Project */
+            ado_project?: string | null;
+            /**
+             * Ado Pat
+             * @description Omit to keep; empty string clears
+             */
+            ado_pat?: string | null;
+            /** Ado Webhook Username */
+            ado_webhook_username?: string | null;
+            /**
+             * Ado Webhook Password
+             * @description Omit to keep; empty string clears
+             */
+            ado_webhook_password?: string | null;
             /** Llm Provider Id */
             llm_provider_id?: string | null;
             /**
@@ -844,6 +910,37 @@ export interface operations {
                 "X-GitHub-Event"?: string | null;
                 "X-GitHub-Delivery"?: string | null;
                 "X-Hub-Signature-256"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    azure_devops_webhook_api_v1_webhooks_azure_devops_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
             };
             path?: never;
             cookie?: never;

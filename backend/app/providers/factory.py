@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from coreview_shared.protocols import ProviderBundle, RuntimeProvider
 from coreview_shared.providers.ci.github import GitHubCIProvider
+from coreview_shared.providers.ci.noop import NoOpCIProvider
+from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
 from coreview_shared.providers.git.github import GitHubProvider
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
 from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
@@ -14,14 +16,36 @@ from app.config import (
     get_settings,
 )
 
-_GIT_PROVIDERS: dict[str, type[GitHubProvider]] = {
+_GIT_PROVIDERS: dict[str, type] = {
     "github": GitHubProvider,
+    "azure-devops": AzureDevOpsProvider,
 }
 
 _RUNTIME_PROVIDERS: dict[str, type] = {
     "docker": DockerRuntimeProvider,
     "k8s": K8sRuntimeProvider,
 }
+
+
+def _build_git_provider(runtime: ReviewRuntimeConfig):
+    git_cls = _GIT_PROVIDERS.get(runtime.git_provider)
+    if git_cls is None:
+        msg = f"Unsupported git provider: {runtime.git_provider}"
+        raise NotImplementedError(msg)
+
+    if git_cls is GitHubProvider:
+        return GitHubProvider(token=runtime.github_token)
+    return AzureDevOpsProvider(
+        pat=runtime.ado_pat,
+        organization=runtime.ado_organization,
+        project=runtime.ado_project,
+    )
+
+
+def _build_ci_provider(runtime: ReviewRuntimeConfig):
+    if runtime.git_provider == "github":
+        return GitHubCIProvider(token=runtime.github_token)
+    return NoOpCIProvider()
 
 
 def _build_runtime(
@@ -75,13 +99,8 @@ def build_providers(
     cfg = infra or get_code_review_settings()
     db_settings = app_settings or get_settings()
 
-    git_cls = _GIT_PROVIDERS.get(runtime.git_provider)
-    if git_cls is None:
-        msg = f"Unsupported git provider: {runtime.git_provider}"
-        raise NotImplementedError(msg)
-
-    git = git_cls(token=runtime.github_token)
-    ci = GitHubCIProvider(token=runtime.github_token)
+    git = _build_git_provider(runtime)
+    ci = _build_ci_provider(runtime)
     runtime_provider = _build_runtime(cfg, db_settings.database_url)
     return ProviderBundle(git=git, ci=ci, runtime=runtime_provider)
 

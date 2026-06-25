@@ -43,6 +43,10 @@ export interface RepoIntegration {
   enabled: boolean
   github_webhook_secret_configured: boolean
   github_token_configured: boolean
+  ado_organization: string
+  ado_project: string
+  ado_pat_configured: boolean
+  ado_webhook_configured: boolean
   created_at: string
   updated_at: string
 }
@@ -53,6 +57,11 @@ export interface RepoIntegrationCreate {
   repo_full_name?: string
   github_webhook_secret?: string
   github_token?: string
+  ado_organization?: string
+  ado_project?: string
+  ado_pat?: string
+  ado_webhook_username?: string
+  ado_webhook_password?: string
   llm_provider_id?: string | null
   system_prompt?: string
   enabled?: boolean
@@ -64,6 +73,11 @@ export interface RepoIntegrationUpdate {
   repo_full_name?: string
   github_webhook_secret?: string
   github_token?: string
+  ado_organization?: string
+  ado_project?: string
+  ado_pat?: string
+  ado_webhook_username?: string
+  ado_webhook_password?: string
   llm_provider_id?: string | null
   clear_llm_provider_id?: boolean
   system_prompt?: string
