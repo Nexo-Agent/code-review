@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import lru_cache
 
 from pydantic import Field
@@ -19,7 +20,29 @@ class Settings(BaseSettings):
     db_pool_max_size: int = 10
 
 
+@dataclass(frozen=True, slots=True)
+class ReviewRuntimeConfig:
+    """Per-repo review credentials loaded from Postgres, not from env."""
+
+    git_provider: str
+    github_webhook_secret: str
+    github_token: str
+    llm_provider_id: str
+    llm_base_url: str
+    llm_api_token: str
+    llm_model: str
+    opencode_model: str = ""
+
+    @property
+    def resolved_opencode_model(self) -> str:
+        if self.opencode_model.strip():
+            return self.opencode_model.strip()
+        return f"{self.llm_provider_id}/{self.llm_model}"
+
+
 class CodeReviewSettings(BaseSettings):
+    """Infrastructure settings from NEXO_COREVIEW_* env vars."""
+
     model_config = SettingsConfigDict(
         env_prefix="NEXO_COREVIEW_",
         env_file=("../.env", ".env"),
@@ -27,11 +50,6 @@ class CodeReviewSettings(BaseSettings):
         extra="ignore",
     )
 
-    git_provider: str = "github"
-    github_webhook_secret: str = ""
-    github_token: str = ""
-    github_app_id: str = ""
-    github_private_key: str = ""
     celery_broker_url: str = "redis://localhost:6379/0"
     runtime_provider: str = "docker"
     workspace_root: str = "/workspaces"
@@ -42,25 +60,13 @@ class CodeReviewSettings(BaseSettings):
     git_image: str = "alpine/git:latest"
     mcp_server_url: str = "http://mcp-serve:8001/sse"
     mcp_server_port: int = 8001
-    llm_provider_id: str = "openai-compat"
-    llm_base_url: str = "https://api.openai.com/v1"
-    llm_api_token: str = ""
-    llm_model: str = "gpt-4o"
     opencode_agent: str = "code-reviewer"
     opencode_log_level: str = "INFO"
-    opencode_model: str = ""
-    opencode_server_url: str = "http://localhost:4096"
-    opencode_server_password: str = ""
-    opencode_server_username: str = "opencode"
     review_timeout_seconds: int = 600
     agent_image: str = "nexo-coreview-agent:dev"
     # Docker network for per-review agent containers (e.g. coreview in Compose).
     # Empty = publish OpenCode port to host (native worker dev).
     agent_network: str = ""
-    opencode_config_path: str = ""
-    # Host path for opencode.generated.json when worker spawns agent containers
-    # via Docker socket (required in Compose; path must exist on the Docker host).
-    opencode_config_host_path: str = ""
     # K8s runtime (stub — not implemented yet)
     k8s_namespace: str = "coreview"
     k8s_kubeconfig_path: str = ""
@@ -68,12 +74,6 @@ class CodeReviewSettings(BaseSettings):
     k8s_image_pull_secret: str = ""
     agent_callback_url: str = "http://localhost:8000/api/v1/agent/review-events"
     agent_callback_secret: str = ""
-
-    @property
-    def resolved_opencode_model(self) -> str:
-        if self.opencode_model:
-            return self.opencode_model
-        return f"{self.llm_provider_id}/{self.llm_model}"
 
 
 @lru_cache

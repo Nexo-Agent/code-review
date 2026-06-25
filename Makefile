@@ -5,8 +5,6 @@ include .env
 export
 endif
 
-export NEXO_COREVIEW_PROJECT_DIR ?= $(CURDIR)
-
 COMPOSE := docker compose
 COMPOSE_PROD := docker compose -f docker-compose.yaml
 

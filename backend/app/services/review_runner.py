@@ -3,7 +3,7 @@ import logging
 import asyncpg
 
 from app.config import get_settings
-from app.providers.factory import get_providers
+from app.providers.factory import get_runtime_provider
 from app.services.review_job_prepare import prepare_review_job
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,6 @@ async def dispatch_review_job(review_id: str) -> None:
     finally:
         await conn.close()
 
-    runtime = get_providers().runtime
+    runtime = get_runtime_provider()
     await runtime.run_review_job(request)
     logger.info("Review %s finished in agent container", review_id)

@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from app.config import ReviewRuntimeConfig
 from app.providers.opencode_config import build_opencode_config_from_llm_providers
 from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.repo_integrations import RepoIntegrationRow
-from app.services.provider_resolution import build_providers_config
 
 
 def _llm_row() -> LlmProviderRow:
@@ -47,13 +47,36 @@ def test_build_opencode_config_from_llm_providers_literals() -> None:
     assert provider["options"]["apiKey"] == "sk-abc"
 
 
-def test_build_providers_config_overlay() -> None:
+def test_review_runtime_config_overlay() -> None:
     llm = _llm_row()
     repo = _repo_row(llm.id)
-    cfg = build_providers_config(repo, llm)
+    cfg = ReviewRuntimeConfig(
+        git_provider=repo.git_provider,
+        github_webhook_secret=repo.github_webhook_secret,
+        github_token=repo.github_token,
+        llm_provider_id=llm.provider_id,
+        llm_base_url=llm.base_url,
+        llm_api_token=llm.api_token,
+        llm_model=llm.model,
+        opencode_model=llm.opencode_model,
+    )
     assert cfg.github_token == "token"
     assert cfg.llm_base_url == "https://llm.example.com/v1"
     assert cfg.resolved_opencode_model == "openai-compat/my-model"
+
+
+def test_review_runtime_config_resolved_opencode_model_override() -> None:
+    cfg = ReviewRuntimeConfig(
+        git_provider="github",
+        github_webhook_secret="",
+        github_token="",
+        llm_provider_id="openai-compat",
+        llm_base_url="https://api.openai.com/v1",
+        llm_api_token="",
+        llm_model="gpt-4o",
+        opencode_model="custom/other",
+    )
+    assert cfg.resolved_opencode_model == "custom/other"
 
 
 def test_repo_integration_matches_repo() -> None:

@@ -61,7 +61,6 @@ Agent skills bundled into the Docker image live in `agent/skills/` (OpenCode). I
 
 ```bash
 cp .env.example .env
-# Set NEXO_COREVIEW_PROJECT_DIR in .env to this repo's absolute path
 
 # Docker dev (recommended): HMR + Uvicorn reload + Compose Watch
 make dev-watch

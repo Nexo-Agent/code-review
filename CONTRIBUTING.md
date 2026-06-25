@@ -26,7 +26,6 @@ Full stack with Vite HMR, Uvicorn `--reload`, and Docker Compose Watch. Migratio
 
 ```bash
 cp .env.example .env
-# Set NEXO_COREVIEW_PROJECT_DIR in .env to this repo's absolute path
 make dev-watch
 ```
 
@@ -73,7 +72,7 @@ Docker dev stack services: `api`, `worker`, `redis`, `db`. The worker mounts `/v
 3. Docker runtime starts `coreview-agent review run --review-id <uuid>` with that env.
 4. Agent materializes OpenCode config from env, executes the review, and POSTs lifecycle events + findings to the callback URL (`NEXO_COREVIEW_CALLBACK_*`). The API persists them via `POST /api/v1/agent/review-events`.
 
-`opencode.generated.json` is still regenerated for the backend Settings UI and API startup sync; agent containers no longer mount it.
+`opencode.generated.json` is still regenerated at a fixed path (repo root on host, `/config/opencode.generated.json` in Compose) for the Settings UI and API startup sync; agent containers build ephemeral config from injected env instead.
 
 ## Environment variables
 
@@ -97,8 +96,6 @@ These are infrastructure-only. Repo credentials and LLM profiles are stored in P
 | Variable | Description |
 |----------|-------------|
 | `NEXO_COREVIEW_CELERY_BROKER_URL` | Redis broker URL |
-| `NEXO_COREVIEW_OPENCODE_SERVER_URL` | OpenCode `serve` base URL |
-| `NEXO_COREVIEW_OPENCODE_CONFIG_PATH` | Path to generated OpenCode config |
 | `NEXO_COREVIEW_DOCKER_HOST` | Docker Engine URL; empty = auto-detect per platform |
 | `NEXO_COREVIEW_GIT_IMAGE` | Minimal git image (default `alpine/git:latest`) |
 | `NEXO_COREVIEW_AGENT_CALLBACK_URL` | URL agent containers POST review events to (Compose: `http://api:8000/api/v1/agent/review-events`) |
@@ -106,7 +103,7 @@ These are infrastructure-only. Repo credentials and LLM profiles are stored in P
 | `NEXO_COREVIEW_MCP_SERVER_URL` | MCP SSE URL (default `http://mcp-serve:8001/sse`) |
 | `MCP_PORT` | Host port for MCP server (default `8001`) |
 
-Optional one-time bootstrap vars (`NEXO_COREVIEW_GITHUB_*`, `NEXO_COREVIEW_LLM_*`) seed the database on first load if settings are empty.
+GitHub tokens, webhook secrets, and LLM provider credentials are **not** infrastructure env vars — configure them in Postgres via **Settings** (`/settings`).
 
 ### Dynamic settings (database)
 

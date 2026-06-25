@@ -10,7 +10,7 @@ from coreview_shared.runtime.review_job import (
 from coreview_shared.runtime.specs import ReviewJobRequest
 
 from app.config import CodeReviewSettings, Settings
-from app.providers.factory import build_providers
+from app.providers.factory import build_runtime_provider
 
 
 def _sample_environment() -> dict[str, str]:
@@ -148,11 +148,8 @@ async def test_docker_runtime_provider_raises_on_nonzero_exit() -> None:
 @patch("coreview_shared.runtime.docker.provider.get_docker_client")
 def test_build_providers_docker_runtime(mock_get_client: MagicMock) -> None:
     mock_get_client.return_value = MagicMock()
-    providers = build_providers(
-        CodeReviewSettings(
-            git_provider="github",
-            runtime_provider="docker",
-        ),
+    runtime = build_runtime_provider(
+        infra=CodeReviewSettings(runtime_provider="docker"),
         app_settings=Settings(),
     )
-    assert providers.runtime.command_runner() is not None
+    assert runtime.command_runner() is not None

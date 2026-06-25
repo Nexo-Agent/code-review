@@ -39,11 +39,6 @@ class AgentSettings(BaseSettings):
     mcp_server_url: str = "http://127.0.0.1:8001/sse"
     mcp_server_port: int = 8001
     mcp_bind_host: str = "127.0.0.1"
-    opencode_server_url: str = "http://localhost:4096"
-    opencode_server_password: str = ""
-    opencode_server_username: str = "opencode"
-    opencode_bind_host: str = "0.0.0.0"
-    opencode_port: int = 4096
     opencode_agent: str = "code-reviewer"
     opencode_log_level: str = "INFO"
     review_timeout_seconds: int = 600

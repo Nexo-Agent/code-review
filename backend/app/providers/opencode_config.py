@@ -11,30 +11,6 @@ from coreview_shared.opencode.config import (
 from app.config import CodeReviewSettings, get_code_review_settings
 
 
-def build_opencode_config(settings: CodeReviewSettings | None = None) -> dict[str, Any]:
-    cfg = settings or get_code_review_settings()
-    agent_name = cfg.opencode_agent
-    agent_cfg = build_code_reviewer_agent_config(agent_name)
-    agent_cfg["model"] = cfg.resolved_opencode_model
-
-    return {
-        "$schema": "https://opencode.ai/config.json",
-        "mcp": build_mcp_config(),
-        "tools": {
-            "bash": False,
-        },
-        "provider": llm_provider_block(
-            cfg.llm_provider_id,
-            cfg.llm_model,
-            base_url="{env:NEXO_COREVIEW_LLM_BASE_URL}",
-            api_key="{env:NEXO_COREVIEW_LLM_API_TOKEN}",
-        ),
-        "agent": {
-            agent_name: agent_cfg,
-        },
-    }
-
-
 def merge_llm_provider_blocks(
     providers: list[Any],
 ) -> dict[str, Any]:
@@ -68,12 +44,9 @@ def build_opencode_config_from_llm_providers(
     elif providers:
         agent_cfg["model"] = providers[0].resolved_opencode_model
     else:
-        agent_cfg["model"] = infra.resolved_opencode_model
+        agent_cfg["model"] = f"{agent_name}/default"
 
-    if providers:
-        provider_blocks = merge_llm_provider_blocks(providers)
-    else:
-        provider_blocks = build_opencode_config(infra)["provider"]
+    provider_blocks = merge_llm_provider_blocks(providers) if providers else {}
 
     return {
         "$schema": "https://opencode.ai/config.json",
@@ -90,12 +63,11 @@ def build_opencode_config_from_llm_providers(
 
 def render_opencode_config(
     output_path: Path,
-    settings: CodeReviewSettings | None = None,
+    providers: list[Any],
+    default: Any | None = None,
+    infra: CodeReviewSettings | None = None,
 ) -> Path:
-    if settings is None:
-        settings = get_code_review_settings()
-
-    config = build_opencode_config(settings)
+    config = build_opencode_config_from_llm_providers(providers, default, infra)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     return output_path

@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from coreview_shared.protocols import ProviderBundle
+from coreview_shared.protocols import ProviderBundle, RuntimeProvider
 from coreview_shared.providers.ci.github import GitHubCIProvider
 from coreview_shared.providers.git.github import GitHubProvider
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
@@ -8,6 +8,7 @@ from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
 
 from app.config import (
     CodeReviewSettings,
+    ReviewRuntimeConfig,
     Settings,
     get_code_review_settings,
     get_settings,
@@ -53,25 +54,36 @@ def _build_runtime(
     )
 
 
-def build_providers(
-    settings: CodeReviewSettings | None = None,
+def build_runtime_provider(
+    infra: CodeReviewSettings | None = None,
     *,
     app_settings: Settings | None = None,
+) -> RuntimeProvider:
+    cfg = infra or get_code_review_settings()
+    db_settings = app_settings or get_settings()
+    return _build_runtime(cfg, db_settings.database_url)
+
+
+def build_providers(
+    runtime: ReviewRuntimeConfig,
+    *,
+    infra: CodeReviewSettings | None = None,
+    app_settings: Settings | None = None,
 ) -> ProviderBundle:
-    cfg = settings or get_code_review_settings()
+    cfg = infra or get_code_review_settings()
     db_settings = app_settings or get_settings()
 
-    git_cls = _GIT_PROVIDERS.get(cfg.git_provider)
+    git_cls = _GIT_PROVIDERS.get(runtime.git_provider)
     if git_cls is None:
-        msg = f"Unsupported git provider: {cfg.git_provider}"
+        msg = f"Unsupported git provider: {runtime.git_provider}"
         raise NotImplementedError(msg)
 
-    git = git_cls(token=cfg.github_token)
-    ci = GitHubCIProvider(token=cfg.github_token)
-    runtime = _build_runtime(cfg, db_settings.database_url)
-    return ProviderBundle(git=git, ci=ci, runtime=runtime)
+    git = git_cls(token=runtime.github_token)
+    ci = GitHubCIProvider(token=runtime.github_token)
+    runtime_provider = _build_runtime(cfg, db_settings.database_url)
+    return ProviderBundle(git=git, ci=ci, runtime=runtime_provider)
 
 
 @lru_cache
-def get_providers() -> ProviderBundle:
-    return build_providers()
+def get_runtime_provider() -> RuntimeProvider:
+    return build_runtime_provider()
