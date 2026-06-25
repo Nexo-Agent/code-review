@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from coreview_shared.opencode.config import DEFAULT_CODE_REVIEWER_PROMPT
 
 from app.config import AgentSettings
 from app.services.opencode_config import (
@@ -33,6 +34,7 @@ def test_build_opencode_config_from_settings() -> None:
     settings = _full_settings()
     config = build_opencode_config(settings)
     assert "openai-compat" in config["provider"]
+    assert config["skills"]["paths"] == ["/opencode/skills"]
     assert config["agent"]["code-reviewer"]["model"] == "openai-compat/gpt-4o"
     assert config["mcp"]["coreview"]["enabled"] is True
     assert config["tools"] == {"question": False}
@@ -40,6 +42,7 @@ def test_build_opencode_config_from_settings() -> None:
     assert config["permission"]["plan_enter"] == "deny"
     assert config["permission"]["plan_exit"] == "deny"
     agent = config["agent"]["code-reviewer"]
+    assert agent["mode"] == "primary"
     assert agent["permission"]["bash"] == {"*": "allow"}
     assert agent["permission"]["task"] == "allow"
     assert agent["permission"]["question"] == "deny"
@@ -50,7 +53,9 @@ def test_build_opencode_config_from_settings() -> None:
 def test_build_opencode_config_uses_custom_system_prompt() -> None:
     settings = _full_settings(system_prompt="Review only Go files.")
     config = build_opencode_config(settings)
-    assert config["agent"]["code-reviewer"]["prompt"] == "Review only Go files."
+    prompt = config["agent"]["code-reviewer"]["prompt"]
+    assert DEFAULT_CODE_REVIEWER_PROMPT in prompt
+    assert "Review only Go files." in prompt
 
 
 def test_materialize_opencode_config_writes_file() -> None:

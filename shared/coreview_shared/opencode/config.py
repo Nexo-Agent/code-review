@@ -100,19 +100,30 @@ DEFAULT_CODE_REVIEWER_PROMPT = (
     "complete the review autonomously."
 )
 
+# Bundled into the agent image at agent/Dockerfile COPY agent/skills/ /opencode/skills/
+CODE_REVIEWER_SKILLS_PATH = "/opencode/skills"
+
+
+def build_review_skills_config() -> dict[str, Any]:
+    """Register bundled review skills for OpenCode discovery."""
+    return {
+        "paths": [CODE_REVIEWER_SKILLS_PATH],
+    }
+
 
 def build_code_reviewer_agent_config(
     agent_name: str,
     *,
     prompt: str | None = None,
 ) -> dict[str, Any]:
-    resolved_prompt = prompt.strip() if prompt else ""
-    if not resolved_prompt:
-        resolved_prompt = DEFAULT_CODE_REVIEWER_PROMPT
+    custom = prompt.strip() if prompt else ""
+    resolved_prompt = DEFAULT_CODE_REVIEWER_PROMPT
+    if custom:
+        resolved_prompt = f"{DEFAULT_CODE_REVIEWER_PROMPT}\n\n{custom}"
 
     return {
         "description": "Reviews PR for bugs, security, and maintainability",
-        "mode": "subagent",
+        "mode": "primary",
         "tools": build_review_agent_tools(),
         "permission": build_review_agent_permissions(),
         "prompt": resolved_prompt,

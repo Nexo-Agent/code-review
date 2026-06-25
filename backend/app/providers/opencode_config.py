@@ -7,6 +7,7 @@ from coreview_shared.opencode.config import (
     build_headless_opencode_permissions,
     build_headless_opencode_tools,
     build_mcp_config,
+    build_review_skills_config,
     llm_provider_block,
 )
 
@@ -53,6 +54,7 @@ def build_opencode_config_from_llm_providers(
     return {
         "$schema": "https://opencode.ai/config.json",
         "mcp": build_mcp_config(),
+        "skills": build_review_skills_config(),
         "tools": build_headless_opencode_tools(),
         "permission": build_headless_opencode_permissions(),
         "provider": provider_blocks,

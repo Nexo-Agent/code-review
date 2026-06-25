@@ -81,11 +81,11 @@ def test_build_docker_review_job_spec_resource_limits() -> None:
         agent_image="img",
         environment=_sample_environment(),
         agent_network="coreview",
-        agent_mem_limit="768m",
+        agent_mem_limit="1g",
         agent_cpus=1.0,
     )
 
-    assert spec.mem_limit == "768m"
+    assert spec.mem_limit == "1g"
     assert spec.nano_cpus == agent_nano_cpus(1.0)
 
 
@@ -122,7 +122,7 @@ async def test_docker_job_executor_runs_container() -> None:
         agent_image="nexo-coreview-agent:test",
         environment=_sample_environment(),
         agent_network="coreview",
-        agent_mem_limit="768m",
+        agent_mem_limit="1g",
         agent_cpus=1.0,
     )
 
@@ -149,8 +149,8 @@ async def test_docker_job_executor_runs_container() -> None:
     assert run_kwargs["network"] == "coreview"
     assert run_kwargs["detach"] is True
     assert run_kwargs["remove"] is False
-    assert run_kwargs["mem_limit"] == "768m"
-    assert run_kwargs["memswap_limit"] == "768m"
+    assert run_kwargs["mem_limit"] == "1g"
+    assert run_kwargs["memswap_limit"] == "1g"
     assert run_kwargs["nano_cpus"] == agent_nano_cpus(1.0)
     mock_container.wait.assert_called_once()
     mock_container.remove.assert_called_once_with(force=True)

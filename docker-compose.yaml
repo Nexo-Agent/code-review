@@ -78,7 +78,7 @@ services:
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
       NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-ghcr.io/nexo-agent/nexo-coreview-agent:latest}
       NEXO_COREVIEW_AGENT_NETWORK: coreview
-      NEXO_COREVIEW_AGENT_MEM_LIMIT: ${NEXO_COREVIEW_AGENT_MEM_LIMIT:-768m}
+      NEXO_COREVIEW_AGENT_MEM_LIMIT: ${NEXO_COREVIEW_AGENT_MEM_LIMIT:-1g}
       NEXO_COREVIEW_AGENT_CPUS: ${NEXO_COREVIEW_AGENT_CPUS:-1.0}
     deploy:
       resources:
