@@ -32,10 +32,8 @@ WORKDIR /app
 
 COPY ${FRONTEND_DIR}/package.json ${FRONTEND_DIR}/yarn.lock* ${FRONTEND_DIR}/package-lock.json* ${FRONTEND_DIR}/pnpm-lock.yaml* ./
 
-RUN --mount=type=cache,target=/root/.npm \
-    --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    --mount=type=cache,target=/root/.local/share/pnpm/store \
-    if [ -f package-lock.json ]; then \
+# No BuildKit cache mounts here: shared yarn cache races across multi-arch builds.
+RUN if [ -f package-lock.json ]; then \
       npm ci --no-audit --no-fund; \
     elif [ -f yarn.lock ]; then \
       corepack enable yarn && yarn install --frozen-lockfile; \
