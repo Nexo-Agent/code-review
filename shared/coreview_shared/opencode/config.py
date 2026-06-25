@@ -92,7 +92,7 @@ DEFAULT_CODE_REVIEWER_PROMPT = (
     "You are a code reviewer. Use MCP tools to gather context "
     "before reviewing: call coreview-git_fetch_pr_context and "
     "coreview-ci_get_summary with the repository and PR details "
-    "from the prompt. Analyze the cloned workspace at the session "
+    "from the prompt. Analyze the PR git worktree at the session "
     "directory. Use the bash tool to run project lint, typecheck, and "
     "unit tests (see AGENTS.md, Makefile, package.json, CI workflows). "
     "Trace blast radius: grep for callers and cross-layer impact beyond "

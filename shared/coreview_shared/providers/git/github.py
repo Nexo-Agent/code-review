@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+from pathlib import Path
 
 import httpx
 
@@ -12,10 +13,11 @@ from coreview_shared.protocols import (
     PRContext,
     PRMetadata,
     WebhookEvent,
-    Workspace,
     WorkspaceSpec,
 )
 from coreview_shared.providers.git.diff_lines import filter_inline_comments
+from coreview_shared.workspace.git_worktree import prepare_repo_worktree
+from coreview_shared.workspace.paths import mirror_dir
 
 logger = logging.getLogger(__name__)
 
@@ -126,25 +128,20 @@ class GitHubProvider:
             )
         return PRContext(metadata=metadata, diff=diff)
 
-    async def clone_repository(
+    async def ensure_worktree(
         self,
         spec: WorkspaceSpec,
-        workspace: Workspace,
+        repo_base: Path,
         runner: CommandRunner,
-    ) -> None:
+    ) -> Path:
         clone_url = self._clone_url(spec.repo_full_name)
-        await runner.run(
-            ["git", "clone", "--depth", "1", clone_url, "repo"],
-            cwd=workspace.path,
-        )
-        repo_path = workspace.path / "repo"
-        await runner.run(
-            ["git", "fetch", "origin", spec.head_sha],
-            cwd=repo_path,
-        )
-        await runner.run(
-            ["git", "checkout", spec.head_sha],
-            cwd=repo_path,
+        return await prepare_repo_worktree(
+            runner,
+            repo_base,
+            mirror_dir(repo_base),
+            clone_url,
+            spec.pr_number,
+            spec.head_sha,
         )
 
     async def post_review_comment(

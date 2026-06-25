@@ -17,8 +17,11 @@ logger = logging.getLogger(__name__)
 def _volumes_to_docker(volumes: tuple[VolumeMount, ...]) -> dict[str, dict[str, str]]:
     docker_volumes: dict[str, dict[str, str]] = {}
     for mount in volumes:
-        if mount.kind != "bind":
-            msg = f"Docker runtime only supports bind mounts, got {mount.kind!r}"
+        if mount.kind not in {"bind", "named"}:
+            msg = (
+                "Docker runtime only supports bind and named mounts, "
+                f"got {mount.kind!r}"
+            )
             raise ValueError(msg)
         docker_volumes[mount.source] = {
             "bind": mount.target,

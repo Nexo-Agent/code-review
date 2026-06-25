@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from coreview_shared.protocols import InlineComment, Workspace, WorkspaceSpec
+from coreview_shared.protocols import InlineComment, WorkspaceSpec
 from coreview_shared.providers.git.azure_devops import (
     AzureDevOpsProvider,
     parse_repo_full_name,
@@ -130,22 +130,28 @@ async def test_ado_get_pr_metadata() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ado_clone_repository() -> None:
+async def test_ado_ensure_worktree() -> None:
     provider = AzureDevOpsProvider(pat="pat")
     runner = AsyncMock()
     spec = WorkspaceSpec(
         review_id="r1",
         repo_full_name="fabrikam/MyProject/Repo",
         pr_number=1,
-        head_sha="deadbeef",
+        head_sha="deadbeef0123456789deadbeef0123456789",
     )
-    workspace = Workspace(path=Path("/workspaces/r1"), spec=spec)
-    await provider.clone_repository(spec, workspace, runner)
+    repo_base = Path("/workspaces/azure-devops/fabrikam__myproject__repo")
+    expected = repo_base / "worktrees" / "pr-1-deadbee"
 
-    assert runner.run.await_count == 3
-    clone_args = runner.run.await_args_list[0].args[0]
-    assert clone_args[0] == "git"
-    assert "dev.azure.com/fabrikam/MyProject/_git/Repo" in clone_args[-2]
+    with patch(
+        "coreview_shared.providers.git.azure_devops.prepare_repo_worktree",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_prepare:
+        path = await provider.ensure_worktree(spec, repo_base, runner)
+
+    assert path == expected
+    mock_prepare.assert_awaited_once()
+    assert mock_prepare.await_args.kwargs["auth_args"] == provider._git_auth_args()
 
 
 @pytest.mark.asyncio

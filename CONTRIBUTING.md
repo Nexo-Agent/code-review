@@ -71,7 +71,15 @@ Docker dev stack services: `api`, `web`, `worker`, `redis`, `db`. `make dev` / `
 1. Webhook or retry enqueues `review.run` with a `review_id`.
 2. Celery worker calls `prepare_review_job` ([`backend/app/services/review_job_prepare.py`](backend/app/services/review_job_prepare.py)) to resolve repo integration + LLM provider and build the agent env dict.
 3. Docker runtime starts `coreview-agent review run --review-id <uuid>` with that env.
-4. Agent materializes OpenCode config from env, executes the review, and POSTs lifecycle events + findings to the callback URL (`NEXO_COREVIEW_CALLBACK_*`). The API persists them via `POST /api/v1/agent/review-events`.
+4. Agent materializes OpenCode config from env, ensures a git worktree from the shared repo mirror, executes the review, and POSTs lifecycle events + findings to the callback URL (`NEXO_COREVIEW_CALLBACK_*`). The API persists them via `POST /api/v1/agent/review-events`.
+
+**Workspace layout** (named volume `review_workspaces`, mounted at `/workspaces`):
+
+```
+/workspaces/<git-provider>/<owner__repo>/
+  mirror/                         # bare repo — shared across PRs
+  worktrees/pr-<N>-<sha7>/        # per-review checkout (removed after review)
+```
 
 Agent containers materialize ephemeral OpenCode config from `NEXO_COREVIEW_*` env at review time ([`agent/app/services/opencode_config.py`](agent/app/services/opencode_config.py)). Optional `opencode.generated.json` on the host is debug output from `make render-opencode-config` or API settings sync.
 

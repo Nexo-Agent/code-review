@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-VolumeKind = Literal["bind", "configmap", "secret", "empty_dir"]
+VolumeKind = Literal["bind", "named", "configmap", "secret", "empty_dir"]
 
 
 @dataclass(frozen=True, slots=True)

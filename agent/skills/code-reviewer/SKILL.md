@@ -19,7 +19,7 @@ Professional PR review for Nexo Co-Review. Runs headless inside the agent
 container — no interactive prompts, plan mode, or GitHub comment posting via MCP.
 
 The **bash** tool is enabled: use it to run lint, typecheck, and unit tests in
-the cloned repository workspace.
+the PR git worktree (session workspace directory).
 
 ## When to apply
 
@@ -45,7 +45,8 @@ the cloned repository workspace.
    to the remote; do not post comments via MCP.
 
 Do **not** enter plan mode, ask the user questions, spawn subagents, edit files,
-commit, or run `gh pr checkout` — the repository is already cloned and the run is
+commit, or run `gh pr checkout` — the PR head is already checked out in the
+session worktree and the run is
 unattended.
 
 ## Response language (required)

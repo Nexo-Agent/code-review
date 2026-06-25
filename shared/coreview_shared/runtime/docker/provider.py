@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import shutil
 from pathlib import Path
 
 from coreview_shared.protocols import CommandRunner, Workspace, WorkspaceSpec
@@ -68,6 +67,7 @@ class DockerRuntimeProvider:
             agent_network=self._agent_network,
             agent_mem_limit=self._agent_mem_limit,
             agent_cpus=self._agent_cpus,
+            workspace_mount_path=str(self._workspace_root),
         )
         executor = self._get_job_executor()
         await executor.cleanup_stale(spec.labels)
@@ -83,13 +83,9 @@ class DockerRuntimeProvider:
         )
 
     def _prepare_workspace_sync(self, spec: WorkspaceSpec) -> Workspace:
-        path = self._workspace_root / spec.review_id
-        if path.exists():
-            shutil.rmtree(path)
-        path.mkdir(parents=True, exist_ok=True)
-        return Workspace(path=path, spec=spec)
+        self._workspace_root.mkdir(parents=True, exist_ok=True)
+        return Workspace(path=self._workspace_root, spec=spec)
 
     def _cleanup_sync(self, path: Path) -> None:
-        parent = path.parent if path.name == "repo" else path
-        if parent.exists() and parent.is_dir():
-            shutil.rmtree(parent, ignore_errors=True)
+        # Mirrors persist; agent removes per-review worktrees after each run.
+        del path

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Protocol
 
 from coreview_shared.protocols.common import (
@@ -7,7 +8,6 @@ from coreview_shared.protocols.common import (
     PRContext,
     PRMetadata,
     WebhookEvent,
-    Workspace,
     WorkspaceSpec,
 )
 
@@ -27,12 +27,12 @@ class GitProvider(Protocol):
         self, repo_full_name: str, pr_number: int, head_sha: str
     ) -> PRContext: ...
 
-    async def clone_repository(
+    async def ensure_worktree(
         self,
         spec: WorkspaceSpec,
-        workspace: Workspace,
+        repo_base: Path,
         runner: CommandRunner,
-    ) -> None: ...
+    ) -> Path: ...
 
     async def post_review_comment(
         self,

@@ -8,7 +8,6 @@ import pytest
 from coreview_shared.protocols import (
     InlineComment,
     InlineCommentsResult,
-    Workspace,
     WorkspaceSpec,
 )
 from coreview_shared.providers.git.diff_lines import (
@@ -69,24 +68,32 @@ def test_github_parse_webhook_ignored_event() -> None:
 
 
 @pytest.mark.asyncio
-async def test_github_clone_repository() -> None:
+async def test_github_ensure_worktree() -> None:
+    from pathlib import Path
+
     provider = GitHubProvider(token="tok")
     runner = AsyncMock()
     spec = WorkspaceSpec(
         review_id="r1",
         repo_full_name="org/repo",
         pr_number=1,
-        head_sha="deadbeef",
+        head_sha="deadbeef0123456789deadbeef0123456789",
     )
-    from pathlib import Path
+    repo_base = Path("/workspaces/github/org__repo")
+    expected = repo_base / "worktrees" / "pr-1-deadbee"
 
-    workspace = Workspace(path=Path("/workspaces/r1"), spec=spec)
-    await provider.clone_repository(spec, workspace, runner)
+    with patch(
+        "coreview_shared.providers.git.github.prepare_repo_worktree",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_prepare:
+        path = await provider.ensure_worktree(spec, repo_base, runner)
 
-    assert runner.run.await_count == 3
-    clone_args = runner.run.await_args_list[0].args[0]
-    assert "github.com/org/repo.git" in clone_args[4]
-    assert clone_args[0] == "git"
+    assert path == expected
+    mock_prepare.assert_awaited_once()
+    assert mock_prepare.await_args.args[3] == (
+        "https://x-access-token:tok@github.com/org/repo.git"
+    )
 
 
 @pytest.mark.asyncio

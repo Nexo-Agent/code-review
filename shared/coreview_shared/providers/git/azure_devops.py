@@ -13,9 +13,10 @@ from coreview_shared.protocols import (
     PRContext,
     PRMetadata,
     WebhookEvent,
-    Workspace,
     WorkspaceSpec,
 )
+from coreview_shared.workspace.git_worktree import prepare_repo_worktree
+from coreview_shared.workspace.paths import mirror_dir
 
 logger = logging.getLogger(__name__)
 
@@ -261,41 +262,30 @@ class AzureDevOpsProvider:
             )
         return PRContext(metadata=metadata, diff="")
 
-    async def clone_repository(
+    def _git_auth_args(self) -> list[str]:
+        auth_token = base64.b64encode(f":{self._pat}".encode()).decode()
+        return ["-c", f"http.extraheader=Authorization: Basic {auth_token}"]
+
+    async def ensure_worktree(
         self,
         spec: WorkspaceSpec,
-        workspace: Workspace,
+        repo_base: Path,
         runner: CommandRunner,
-    ) -> None:
+    ) -> Path:
         organization, project, repo = parse_repo_full_name(
             spec.repo_full_name,
             organization=self._organization,
             project=self._project,
         )
         clone_url = f"https://dev.azure.com/{organization}/{project}/_git/{repo}"
-        auth_token = base64.b64encode(f":{self._pat}".encode()).decode()
-        auth_config = f"http.extraheader=Authorization: Basic {auth_token}"
-        await runner.run(
-            [
-                "git",
-                "-c",
-                auth_config,
-                "clone",
-                "--depth",
-                "1",
-                clone_url,
-                "repo",
-            ],
-            cwd=workspace.path,
-        )
-        repo_path = workspace.path / "repo"
-        await runner.run(
-            ["git", "-c", auth_config, "fetch", "origin", spec.head_sha],
-            cwd=repo_path,
-        )
-        await runner.run(
-            ["git", "checkout", spec.head_sha],
-            cwd=repo_path,
+        return await prepare_repo_worktree(
+            runner,
+            repo_base,
+            mirror_dir(repo_base),
+            clone_url,
+            spec.pr_number,
+            spec.head_sha,
+            auth_args=self._git_auth_args(),
         )
 
     async def build_diff_from_workspace(

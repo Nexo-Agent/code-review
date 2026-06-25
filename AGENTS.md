@@ -20,7 +20,7 @@ Three layers with clear boundaries:
 
 1. **Backend (API)** — Configuration management, webhooks, frontend API. Stores repo integrations and LLM providers in Postgres.
 2. **Job (Celery worker)** — Reads review + integration config from DB, builds a full `NEXO_COREVIEW_*` env dict, spawns a one-shot agent container via the Docker runtime provider.
-3. **Agent (stateless container)** — Receives all execution config via env (materializes ephemeral `opencode.json` locally). Runs clone → LLM review → GitHub post. Reports progress and findings via **HTTP callback** (schema v1, HMAC-signed); it does **not** connect to Postgres.
+3. **Agent (stateless container)** — Receives all execution config via env (materializes ephemeral `opencode.json` locally). Uses a persistent repo mirror + per-PR git worktree under `/workspaces`, runs LLM review, posts to GitHub. Reports progress and findings via **HTTP callback** (schema v1, HMAC-signed); it does **not** connect to Postgres.
 
 The agent does **not** read `repo_integrations` or `llm_providers` from the database.
 
@@ -43,8 +43,8 @@ Protocols, GitHub Git/CI implementations, runtime specs (Docker/K8s), OpenCode L
 | Module (in `coreview_shared`) | Purpose |
 |--------|---------|
 | `llm/opencode` | OpenCode CLI review runner |
-| `providers/git`, `providers/ci` | GitHub clone, diff, webhook, CI summary |
-| `runtime/docker`, `runtime/k8s` | Job execution and workspace isolation |
+| `providers/git`, `providers/ci` | GitHub worktree checkout, diff, webhook, CI summary |
+| `runtime/docker`, `runtime/k8s` | Job execution and persistent workspace volume |
 | `schemas/review_callback` | Agent callback contract (v1) |
 
 Backend-specific: `backend/app/providers/factory.py`, `opencode_config.py` (multi-provider DB merge). Agent-specific: `agent/app/providers/factory.py`, MCP toolbase in `agent/app/toolbase/`.

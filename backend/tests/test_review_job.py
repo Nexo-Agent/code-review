@@ -4,6 +4,7 @@ import pytest
 from coreview_shared.runtime.docker.job_executor import DockerJobExecutor
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
 from coreview_shared.runtime.review_job import (
+    REVIEW_WORKSPACES_VOLUME_NAME,
     agent_database_url,
     agent_nano_cpus,
     build_docker_review_job_spec,
@@ -68,7 +69,10 @@ def test_build_docker_review_job_spec_network_and_labels() -> None:
     ]
     assert spec.network == "coreview"
     assert spec.extra_hosts is None
-    assert spec.volumes == ()
+    assert len(spec.volumes) == 1
+    assert spec.volumes[0].source == REVIEW_WORKSPACES_VOLUME_NAME
+    assert spec.volumes[0].target == "/workspaces"
+    assert spec.volumes[0].kind == "named"
     assert (
         spec.labels["nexo.coreview.review_id"] == "550e8400-e29b-41d4-a716-446655440000"
     )

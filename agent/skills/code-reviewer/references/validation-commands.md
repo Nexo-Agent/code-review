@@ -1,6 +1,6 @@
 # Validation commands during review
 
-Use the **bash** tool in the cloned repository workspace (`--dir` session root) to
+Use the **bash** tool in the PR git worktree (`--dir` session root) to
 run project checks. Prefer evidence from real command output over guessing.
 
 ## Discover commands (in order)
@@ -64,4 +64,4 @@ Review runs are unattended with a finite timeout. Prefer:
 - Read-only review: do **not** modify source files, commit, or push
 - Do **not** run destructive commands (`rm -rf`, `docker system prune`, deploy)
 - Do **not** start long-running servers; use test/lint targets only
-- Stay inside the cloned repo directory
+- Stay inside the worktree directory

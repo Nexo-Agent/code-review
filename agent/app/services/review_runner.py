@@ -1,5 +1,4 @@
 import logging
-import shutil
 from pathlib import Path
 
 from coreview_shared.llm.opencode import OpenCodeLLMProvider
@@ -17,6 +16,8 @@ from coreview_shared.schemas.review_callback import (
     ReviewCallbackGithubResult,
     ReviewCallbackResult,
 )
+from coreview_shared.workspace.git_worktree import remove_worktree
+from coreview_shared.workspace.paths import mirror_dir, repo_base_dir
 
 from app.config import clear_agent_settings_cache, get_agent_settings
 from app.providers.factory import build_providers_from_env
@@ -57,9 +58,14 @@ async def execute_review_logic(review_id: str) -> None:
     require_review_env(infra)
 
     callback = ReviewCallbackClient.from_settings(infra)
-    workspace_root: Path | None = None
+    mirror_path: Path | None = None
+    worktree_path: Path | None = None
+    git_auth_args: list[str] | None = None
+    runner = LocalCommandRunner()
     try:
         providers = build_providers_from_env(infra)
+        if isinstance(providers.git, AzureDevOpsProvider):
+            git_auth_args = providers.git._git_auth_args()
 
         await callback.post_event(
             callback.build_event(
@@ -86,25 +92,27 @@ async def execute_review_logic(review_id: str) -> None:
         )
         request = request_from_metadata(pr_context.metadata, infra.git_provider)
 
-        workspace_root = Path(infra.workspace_root) / review_id
-        workspace_root.mkdir(parents=True, exist_ok=True)
         spec = WorkspaceSpec(
             review_id=review_id,
             repo_full_name=infra.repo_full_name,
             pr_number=infra.pr_number,
             head_sha=infra.head_sha,
         )
-        workspace = Workspace(path=workspace_root, spec=spec)
-        logger.info("Review %s: cloning repository", review_id)
-        runner = LocalCommandRunner()
-        await providers.git.clone_repository(spec, workspace, runner)
+        repo_base = repo_base_dir(
+            Path(infra.workspace_root),
+            infra.git_provider,
+            infra.repo_full_name,
+        )
+        mirror_path = mirror_dir(repo_base)
+        logger.info("Review %s: ensuring worktree at %s", review_id, repo_base)
+        worktree_path = await providers.git.ensure_worktree(spec, repo_base, runner)
 
         if infra.git_provider == "azure-devops" and isinstance(
             providers.git, AzureDevOpsProvider
         ):
             diff = await providers.git.build_diff_from_workspace(
                 runner,
-                workspace_root / "repo",
+                worktree_path,
                 pr_context.metadata.base_sha,
                 pr_context.metadata.head_sha,
             )
@@ -122,7 +130,7 @@ async def execute_review_logic(review_id: str) -> None:
             opencode_config_path=str(config_path),
             log_level=infra.opencode_log_level,
         )
-        repo_workspace = Workspace(path=workspace_root / "repo", spec=spec)
+        repo_workspace = Workspace(path=worktree_path, spec=spec)
         logger.info("Review %s: running LLM review", review_id)
         findings = await llm.run_review(repo_workspace, pr_context)
 
@@ -194,8 +202,13 @@ async def execute_review_logic(review_id: str) -> None:
             logger.exception("Failed to send review.failed callback")
         raise
     finally:
-        if workspace_root is not None:
+        if mirror_path is not None and worktree_path is not None:
             try:
-                shutil.rmtree(workspace_root, ignore_errors=True)
+                await remove_worktree(
+                    runner,
+                    mirror_path,
+                    worktree_path,
+                    auth_args=git_auth_args,
+                )
             except Exception:
-                logger.exception("Failed to cleanup workspace")
+                logger.exception("Failed to cleanup worktree %s", worktree_path)
