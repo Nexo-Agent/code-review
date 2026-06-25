@@ -27,6 +27,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
+      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://app:8000/api/v1/agent/review-events
+      NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
     networks:
       - coreview
     depends_on:
@@ -53,19 +55,15 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
-      NEXO_COREVIEW_GITHUB_TOKEN: ${NEXO_COREVIEW_GITHUB_TOKEN:-}
-      NEXO_COREVIEW_GITHUB_WEBHOOK_SECRET: ${NEXO_COREVIEW_GITHUB_WEBHOOK_SECRET:-}
       NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
-      NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-nexo-coreview-agent:dev}
+      NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
       NEXO_COREVIEW_AGENT_NETWORK: coreview
-      NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
-      NEXO_COREVIEW_OPENCODE_CONFIG_HOST_PATH: ${NEXO_COREVIEW_PROJECT_DIR}/opencode.generated.json
-      NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD: ${NEXO_COREVIEW_OPENCODE_SERVER_PASSWORD:-}
+      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://app:8000/api/v1/agent/review-events
+      NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
     volumes:
       - review_workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./opencode.generated.json:/config/opencode.generated.json:ro
     networks:
       - coreview
     depends_on:
@@ -74,8 +72,6 @@ services:
       redis:
         condition: service_started
       migrate:
-        condition: service_completed_successfully
-      render-opencode:
         condition: service_completed_successfully
       agent-image:
         condition: service_completed_successfully
@@ -139,7 +135,6 @@ services:
     restart: "no"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-      NEXO_COREVIEW_OPENCODE_CONFIG_PATH: /config/opencode.generated.json
     volumes:
       - ./opencode.generated.json:/config/opencode.generated.json
     networks:
@@ -164,7 +159,8 @@ services:
         VERSION: ${VERSION:-dev}
         BUILD_DATE: ${BUILD_DATE:-}
         VCS_REF: ${VCS_REF:-}
-    image: ${NEXO_COREVIEW_AGENT_IMAGE:-nexo-coreview-agent:dev}
+    image: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
+    pull_policy: never
     restart: "no"
     entrypoint: ["/bin/true"]
 

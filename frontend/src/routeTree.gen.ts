@@ -14,7 +14,6 @@ import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
 import { Route as RepositoriesIndexRouteImport } from './routes/repositories/index'
 import { Route as LlmProvidersIndexRouteImport } from './routes/llm-providers/index'
-import { Route as ExamplesIndexRouteImport } from './routes/examples/index'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 import { Route as RepositoriesRepoIdRouteImport } from './routes/repositories/$repoId'
 import { Route as LlmProvidersProviderIdRouteImport } from './routes/llm-providers/$providerId'
@@ -44,11 +43,6 @@ const LlmProvidersIndexRoute = LlmProvidersIndexRouteImport.update({
   path: '/llm-providers/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
-  id: '/examples/',
-  path: '/examples/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
   id: '/reviews/$reviewId',
   path: '/reviews/$reviewId',
@@ -70,7 +64,6 @@ export interface FileRoutesByFullPath {
   '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
-  '/examples/': typeof ExamplesIndexRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
@@ -81,7 +74,6 @@ export interface FileRoutesByTo {
   '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
-  '/examples': typeof ExamplesIndexRoute
   '/llm-providers': typeof LlmProvidersIndexRoute
   '/repositories': typeof RepositoriesIndexRoute
   '/reviews': typeof ReviewsIndexRoute
@@ -93,7 +85,6 @@ export interface FileRoutesById {
   '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
-  '/examples/': typeof ExamplesIndexRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
@@ -106,7 +97,6 @@ export interface FileRouteTypes {
     | '/llm-providers/$providerId'
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
-    | '/examples/'
     | '/llm-providers/'
     | '/repositories/'
     | '/reviews/'
@@ -117,7 +107,6 @@ export interface FileRouteTypes {
     | '/llm-providers/$providerId'
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
-    | '/examples'
     | '/llm-providers'
     | '/repositories'
     | '/reviews'
@@ -128,7 +117,6 @@ export interface FileRouteTypes {
     | '/llm-providers/$providerId'
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
-    | '/examples/'
     | '/llm-providers/'
     | '/repositories/'
     | '/reviews/'
@@ -140,7 +128,6 @@ export interface RootRouteChildren {
   LlmProvidersProviderIdRoute: typeof LlmProvidersProviderIdRoute
   RepositoriesRepoIdRoute: typeof RepositoriesRepoIdRoute
   ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
-  ExamplesIndexRoute: typeof ExamplesIndexRoute
   LlmProvidersIndexRoute: typeof LlmProvidersIndexRoute
   RepositoriesIndexRoute: typeof RepositoriesIndexRoute
   ReviewsIndexRoute: typeof ReviewsIndexRoute
@@ -184,13 +171,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LlmProvidersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/examples/': {
-      id: '/examples/'
-      path: '/examples'
-      fullPath: '/examples/'
-      preLoaderRoute: typeof ExamplesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/reviews/$reviewId': {
       id: '/reviews/$reviewId'
       path: '/reviews/$reviewId'
@@ -220,7 +200,6 @@ const rootRouteChildren: RootRouteChildren = {
   LlmProvidersProviderIdRoute: LlmProvidersProviderIdRoute,
   RepositoriesRepoIdRoute: RepositoriesRepoIdRoute,
   ReviewsReviewIdRoute: ReviewsReviewIdRoute,
-  ExamplesIndexRoute: ExamplesIndexRoute,
   LlmProvidersIndexRoute: LlmProvidersIndexRoute,
   RepositoriesIndexRoute: RepositoriesIndexRoute,
   ReviewsIndexRoute: ReviewsIndexRoute,

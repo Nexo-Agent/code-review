@@ -1,8 +1,8 @@
+from coreview_shared.protocols import ProviderBundle
+from coreview_shared.providers.ci.github import GitHubCIProvider
+from coreview_shared.providers.git.github import GitHubProvider
+
 from app.config import AgentSettings, get_agent_settings
-from app.providers.ci.github import GitHubCIProvider
-from app.providers.git.github import GitHubProvider
-from app.providers.protocols import ProviderBundle
-from app.repositories.repo_integrations import RepoIntegrationRow
 
 _GIT_PROVIDERS: dict[str, type[GitHubProvider]] = {
     "github": GitHubProvider,
@@ -22,15 +22,6 @@ def build_providers(
     git = git_cls(token=github_token)
     ci = GitHubCIProvider(token=github_token)
     return ProviderBundle(git=git, ci=ci)
-
-
-def build_providers_from_integration(
-    repo_integration: RepoIntegrationRow,
-) -> ProviderBundle:
-    return build_providers(
-        github_token=repo_integration.github_token,
-        git_provider=repo_integration.git_provider,
-    )
 
 
 def build_providers_from_env(

@@ -5,6 +5,7 @@ description = "Nexo Co-Review API (nexo-coreview)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "coreview-shared[docker]",
     "asyncpg>=0.31.0",
     "celery[redis]>=5.4.0",
     "docker>=7.1.0",
@@ -16,6 +17,9 @@ dependencies = [
     "typer>=0.15.0",
     "uvicorn>=0.49.0",
 ]
+
+[tool.uv.sources]
+coreview-shared = { workspace = true }
 
 [project.scripts]
 code-review = "app.cli:main"

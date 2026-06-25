@@ -26,7 +26,6 @@ Full stack with Vite HMR, Uvicorn `--reload`, and Docker Compose Watch. Migratio
 
 ```bash
 cp .env.example .env
-# Set NEXO_COREVIEW_PROJECT_DIR in .env to this repo's absolute path
 make dev-watch
 ```
 
@@ -42,7 +41,7 @@ make dev
 | http://localhost:8000/docs | OpenAPI / Swagger |
 | http://localhost:8000/api/v1/health | Health check |
 
-`make dev-watch` merges [`docker-compose.yaml`](docker-compose.yaml) with [`docker-compose.override.yaml`](docker-compose.override.yaml). Bind mounts enable instant reload; `develop.watch` rebuilds images when `uv.lock` or `yarn.lock` change.
+`make dev-watch` merges [`docker-compose.yaml`](docker-compose.yaml) with [`docker-compose.override.yaml`](docker-compose.override.yaml). Bind mounts enable instant reload; `develop.watch` rebuilds images when root `uv.lock` or `yarn.lock` change. After changing Python dependencies in `shared/`, `backend/`, or `agent/`, run `uv lock` from the repo root.
 
 On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if HMR misses file changes.
 
@@ -64,7 +63,16 @@ Production uses only the base compose file; `docker-compose.override.yaml` is no
 | [`dev.Dockerfile`](dev.Dockerfile) | Multi-stage dev images (`target: api` / `target: web`) |
 | [`Dockerfile`](Dockerfile) | Production bundle (API + static SPA) |
 
-Docker dev stack services: `api`, `worker`, `redis`, `db`. The worker mounts `/var/run/docker.sock` and spawns a per-review agent container (`nexo-coreview-agent`) with OpenCode + MCP.
+Docker dev stack services: `api`, `worker`, `redis`, `db`. The worker mounts `/var/run/docker.sock`, loads review config from Postgres, injects `NEXO_COREVIEW_*` env vars, and spawns a per-review agent container built locally as `code-review-agent:dev` (`agent-image` service, `pull_policy: never` — no registry pull).
+
+## Review execution flow
+
+1. Webhook or retry enqueues `review.run` with a `review_id`.
+2. Celery worker calls `prepare_review_job` ([`backend/app/services/review_job_prepare.py`](backend/app/services/review_job_prepare.py)) to resolve repo integration + LLM provider and build the agent env dict.
+3. Docker runtime starts `coreview-agent review run --review-id <uuid>` with that env.
+4. Agent materializes OpenCode config from env, executes the review, and POSTs lifecycle events + findings to the callback URL (`NEXO_COREVIEW_CALLBACK_*`). The API persists them via `POST /api/v1/agent/review-events`.
+
+`opencode.generated.json` is still regenerated at a fixed path (repo root on host, `/config/opencode.generated.json` in Compose) for the Settings UI and API startup sync; agent containers build ephemeral config from injected env instead.
 
 ## Environment variables
 
@@ -88,14 +96,14 @@ These are infrastructure-only. Repo credentials and LLM profiles are stored in P
 | Variable | Description |
 |----------|-------------|
 | `NEXO_COREVIEW_CELERY_BROKER_URL` | Redis broker URL |
-| `NEXO_COREVIEW_OPENCODE_SERVER_URL` | OpenCode `serve` base URL |
-| `NEXO_COREVIEW_OPENCODE_CONFIG_PATH` | Path to generated OpenCode config |
 | `NEXO_COREVIEW_DOCKER_HOST` | Docker Engine URL; empty = auto-detect per platform |
 | `NEXO_COREVIEW_GIT_IMAGE` | Minimal git image (default `alpine/git:latest`) |
+| `NEXO_COREVIEW_AGENT_CALLBACK_URL` | URL agent containers POST review events to (Compose: `http://api:8000/api/v1/agent/review-events`) |
+| `NEXO_COREVIEW_AGENT_CALLBACK_SECRET` | Shared HMAC secret for callback auth |
 | `NEXO_COREVIEW_MCP_SERVER_URL` | MCP SSE URL (default `http://mcp-serve:8001/sse`) |
 | `MCP_PORT` | Host port for MCP server (default `8001`) |
 
-Optional one-time bootstrap vars (`NEXO_COREVIEW_GITHUB_*`, `NEXO_COREVIEW_LLM_*`) seed the database on first load if settings are empty.
+GitHub tokens, webhook secrets, and LLM provider credentials are **not** infrastructure env vars — configure them in Postgres via **Settings** (`/settings`).
 
 ### Dynamic settings (database)
 
@@ -104,7 +112,7 @@ Configured via **Settings** (`/settings`) or the API:
 - **LLM providers** — `GET/POST /api/v1/settings/llm-providers`, `PUT/DELETE .../{id}`
 - **Repositories** — `GET/POST /api/v1/settings/repos`, `PUT/DELETE .../{id}`
 
-Saving LLM providers regenerates `opencode.generated.json`; new reviews pick up the config automatically.
+Saving LLM providers regenerates `opencode.generated.json` for the backend; the job worker injects per-review LLM credentials into agent containers via env at spawn time.
 
 ## CLI modes
 

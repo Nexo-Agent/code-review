@@ -60,7 +60,7 @@ RUN if [ -f package-lock.json ]; then \
     fi
 
 # =============================================================================
-# Stage: python-builder — install backend into .venv
+# Stage: python-builder — install backend workspace into .venv
 # =============================================================================
 FROM python:${PYTHON_VERSION}-slim-trixie AS python-builder
 
@@ -68,19 +68,25 @@ ARG BACKEND_DIR
 
 COPY --from=uv /uv /uvx /bin/
 
-WORKDIR /app
+WORKDIR /workspace
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
     UV_PYTHON_DOWNLOADS=0
 
-COPY ${BACKEND_DIR}/pyproject.toml ${BACKEND_DIR}/uv.lock ./
+COPY pyproject.toml uv.lock ./
+COPY shared/ shared/
+COPY backend/pyproject.toml backend/README.md ./backend/
+COPY agent/pyproject.toml agent/README.md ./agent/
+
+WORKDIR /workspace/${BACKEND_DIR}
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-editable
 
-COPY ${BACKEND_DIR}/ /app
+COPY shared/ /workspace/shared/
+COPY ${BACKEND_DIR}/ /workspace/${BACKEND_DIR}/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable
@@ -113,7 +119,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN groupadd --system --gid 999 app \
  && useradd --system --gid 999 --uid 999 --create-home app
 
-COPY --from=python-builder --chown=app:app /app/.venv /app/.venv
+COPY --from=python-builder --chown=app:app /workspace/.venv /app/.venv
+COPY --from=python-builder --chown=app:app /workspace/backend /app
 COPY --from=frontend-builder --chown=app:app /app/dist /app/static
 
 USER app

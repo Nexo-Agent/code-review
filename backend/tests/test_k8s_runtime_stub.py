@@ -1,9 +1,9 @@
 import pytest
+from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
+from coreview_shared.runtime.specs import ReviewJobRequest
 
 from app.config import CodeReviewSettings, Settings
-from app.providers.factory import build_providers
-from app.providers.runtime.k8s.provider import K8sRuntimeProvider
-from app.providers.runtime.specs import ReviewJobRequest
+from app.providers.factory import build_runtime_provider
 
 
 @pytest.mark.asyncio
@@ -13,7 +13,9 @@ async def test_k8s_runtime_run_review_job_raises() -> None:
         database_url="postgresql://app:app@db:5432/app",
     )
     with pytest.raises(NotImplementedError, match="K8s runtime not implemented"):
-        await provider.run_review_job(ReviewJobRequest(review_id="r1"))
+        await provider.run_review_job(
+            ReviewJobRequest(review_id="r1", environment={"DATABASE_URL": "x"}),
+        )
 
 
 def test_k8s_runtime_command_runner_raises() -> None:
@@ -23,11 +25,8 @@ def test_k8s_runtime_command_runner_raises() -> None:
 
 
 def test_provider_factory_k8s_runtime() -> None:
-    providers = build_providers(
-        CodeReviewSettings(
-            git_provider="github",
-            runtime_provider="k8s",
-        ),
+    runtime = build_runtime_provider(
+        infra=CodeReviewSettings(runtime_provider="k8s"),
         app_settings=Settings(),
     )
-    assert isinstance(providers.runtime, K8sRuntimeProvider)
+    assert isinstance(runtime, K8sRuntimeProvider)

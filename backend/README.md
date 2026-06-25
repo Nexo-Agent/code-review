@@ -21,7 +21,6 @@ AI-powered pull request reviews for GitHub. Connect a repository, point a webhoo
 
 ```bash
 cp .env.example .env
-# Set NEXO_COREVIEW_PROJECT_DIR in .env to this repo's absolute path
 make prod-up
 ```
 

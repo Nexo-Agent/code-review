@@ -3,7 +3,8 @@ name: code-review
 description: >-
   Perform structured pull-request code reviews. Use when reviewing PR diffs,
   checking for bugs, security issues, performance problems, missing tests, or
-  API breaking changes. Output must be JSON with findings array.
+  API breaking changes. Output must be JSON with findings array; each finding
+  body must follow the PR review message template.
 license: MIT
 metadata:
   author: Nexo
@@ -29,15 +30,15 @@ Structured PR review for Nexo Co-Review (`nexo-coreview`).
 
 ## Output format (required)
 
-Return JSON:
+Return JSON only (no free-form markdown outside JSON):
 
 ```json
 {
   "findings": [
     {
       "severity": "critical|warning|info|suggestion",
-      "title": "Short title",
-      "body": "Detailed explanation and recommendation",
+      "title": "Short imperative title (≤ 80 chars, no period)",
+      "body": "**Problem:** ...\n\n**Impact:** ...\n\n**Recommendation:** ...",
       "file_path": "path/to/file.py",
       "line_start": 42,
       "line_end": 45
@@ -45,6 +46,12 @@ Return JSON:
   ]
 }
 ```
+
+## PR review message template (required)
+
+Every finding **`body`** must use the three-section template (**Problem** / **Impact** / **Recommendation**). Titles and severity labels are added by Nexo when posting to GitHub — do not duplicate them in `body`.
+
+Full rules, rendered comment examples, attribution footer, and LGTM behavior: [references/pr-review-message.md](references/pr-review-message.md).
 
 ## Severity rubric
 

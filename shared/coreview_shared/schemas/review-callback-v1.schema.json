@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexo-coreview.dev/schemas/review-callback/v1",
+  "title": "ReviewCallbackEvent",
+  "description": "Generic agent review callback payload (schema version 1.0)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event",
+    "review_id",
+    "occurred_at",
+    "agent",
+    "request"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "event": {
+      "type": "string",
+      "enum": ["review.started", "review.completed", "review.failed"]
+    },
+    "review_id": { "type": "string", "format": "uuid" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "agent": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "request": {
+      "type": "object",
+      "required": ["git_provider", "repo_full_name", "pr_number", "head_sha"],
+      "properties": {
+        "git_provider": { "type": "string" },
+        "repo_full_name": { "type": "string" },
+        "pr_number": { "type": "integer", "minimum": 1 },
+        "head_sha": { "type": "string" },
+        "base_sha": { "type": "string" },
+        "head_ref": { "type": "string" },
+        "base_ref": { "type": "string" },
+        "pr_title": { "type": "string" },
+        "pr_url": { "type": "string" }
+      }
+    },
+    "result": {
+      "type": ["object", "null"],
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "title", "body"],
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": ["critical", "warning", "info", "suggestion"]
+              },
+              "title": { "type": "string" },
+              "body": { "type": "string" },
+              "file_path": { "type": ["string", "null"] },
+              "line_start": { "type": ["integer", "null"] },
+              "line_end": { "type": ["integer", "null"] }
+            }
+          }
+        },
+        "github": {
+          "type": "object",
+          "properties": {
+            "summary_comment_posted": { "type": "boolean" },
+            "inline_comments_posted": { "type": "integer", "minimum": 0 },
+            "inline_comments_skipped": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "error": {
+      "type": ["object", "null"],
+      "properties": {
+        "message": { "type": "string" },
+        "code": { "type": "string" }
+      },
+      "required": ["message"]
+    },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

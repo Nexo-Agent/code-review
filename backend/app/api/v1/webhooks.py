@@ -12,7 +12,7 @@ from app.providers.factory import build_providers
 from app.repositories.reviews import ReviewRepository
 from app.schemas.review import ReviewResponse
 from app.services.provider_resolution import (
-    build_providers_config,
+    build_review_runtime_config,
     resolve_llm_provider,
     resolve_repo_integration,
 )
@@ -65,7 +65,9 @@ async def github_webhook(
             content={"detail": "no LLM provider configured"},
         )
 
-    providers = build_providers(build_providers_config(repo_integration, llm_provider))
+    providers = build_providers(
+        build_review_runtime_config(repo_integration, llm_provider)
+    )
 
     if not providers.git.verify_webhook_signature(
         body,

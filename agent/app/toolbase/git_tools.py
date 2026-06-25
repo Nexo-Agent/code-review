@@ -1,7 +1,8 @@
 from dataclasses import asdict
 from typing import Any
 
-from app.providers.protocols import InlineComment
+from coreview_shared.protocols import InlineComment
+
 from app.toolbase.context import ToolContext, providers_for_repo
 
 
