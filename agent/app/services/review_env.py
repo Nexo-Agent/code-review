@@ -1,10 +1,9 @@
 from app.config import AgentSettings
 
-_REQUIRED_STRING_FIELDS = (
+_BASE_REQUIRED_STRING_FIELDS = (
     "review_id",
     "repo_full_name",
     "head_sha",
-    "github_token",
     "llm_provider_id",
     "llm_base_url",
     "llm_api_token",
@@ -17,7 +16,13 @@ _REQUIRED_STRING_FIELDS = (
 def require_review_env(settings: AgentSettings) -> None:
     """Fail fast when the job did not inject required execution env vars."""
     missing: list[str] = []
-    for field in _REQUIRED_STRING_FIELDS:
+    required_fields = list(_BASE_REQUIRED_STRING_FIELDS)
+    if settings.git_provider == "azure-devops":
+        required_fields.extend(["ado_organization", "ado_project", "ado_pat"])
+    else:
+        required_fields.append("github_token")
+
+    for field in required_fields:
         value = getattr(settings, field, "")
         if not str(value).strip():
             missing.append(f"NEXO_COREVIEW_{field.upper()}")

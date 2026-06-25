@@ -313,6 +313,29 @@ def test_provider_factory_github_docker() -> None:
         assert providers.runtime.command_runner() is not None
 
 
+def test_provider_factory_azure_devops() -> None:
+    from coreview_shared.providers.ci.noop import NoOpCIProvider
+    from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
+
+    from app.providers.factory import build_providers
+
+    runtime = ReviewRuntimeConfig(
+        git_provider="azure-devops",
+        github_webhook_secret="",
+        github_token="",
+        llm_provider_id="openai-compat",
+        llm_base_url="https://api.openai.com/v1",
+        llm_api_token="",
+        llm_model="gpt-4o",
+        ado_organization="fabrikam",
+        ado_project="MyProject",
+        ado_pat="pat",
+    )
+    providers = build_providers(runtime)
+    assert isinstance(providers.git, AzureDevOpsProvider)
+    assert isinstance(providers.ci, NoOpCIProvider)
+
+
 def test_provider_factory_unsupported_git() -> None:
     from app.providers.factory import build_providers
 

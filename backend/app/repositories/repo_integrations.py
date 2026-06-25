@@ -4,6 +4,18 @@ from uuid import UUID
 
 import asyncpg
 
+_ADO_COLUMNS = """
+    ado_organization, ado_project, ado_pat,
+    ado_webhook_username, ado_webhook_password
+"""
+
+_SELECT_COLUMNS = f"""
+    id, name, git_provider, repo_full_name, github_webhook_secret,
+    github_token, llm_provider_id, system_prompt, enabled,
+    {_ADO_COLUMNS},
+    created_at, updated_at
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class RepoIntegrationRow:
@@ -16,6 +28,11 @@ class RepoIntegrationRow:
     llm_provider_id: UUID | None
     system_prompt: str
     enabled: bool
+    ado_organization: str
+    ado_project: str
+    ado_pat: str
+    ado_webhook_username: str
+    ado_webhook_password: str
     created_at: datetime
     updated_at: datetime
 
@@ -32,10 +49,8 @@ class RepoIntegrationRepository:
 
     async def list_all(self) -> list[RepoIntegrationRow]:
         rows = await self._conn.fetch(
-            """
-            SELECT id, name, git_provider, repo_full_name, github_webhook_secret,
-                   github_token, llm_provider_id, system_prompt, enabled,
-                   created_at, updated_at
+            f"""
+            SELECT {_SELECT_COLUMNS}
             FROM repo_integrations
             ORDER BY repo_full_name ASC NULLS FIRST, name ASC
             """
@@ -44,10 +59,8 @@ class RepoIntegrationRepository:
 
     async def get(self, integration_id: UUID) -> RepoIntegrationRow | None:
         row = await self._conn.fetchrow(
-            """
-            SELECT id, name, git_provider, repo_full_name, github_webhook_secret,
-                   github_token, llm_provider_id, system_prompt, enabled,
-                   created_at, updated_at
+            f"""
+            SELECT {_SELECT_COLUMNS}
             FROM repo_integrations WHERE id = $1
             """,
             integration_id,
@@ -56,10 +69,8 @@ class RepoIntegrationRepository:
 
     async def resolve_for_repo(self, repo_full_name: str) -> RepoIntegrationRow | None:
         exact = await self._conn.fetchrow(
-            """
-            SELECT id, name, git_provider, repo_full_name, github_webhook_secret,
-                   github_token, llm_provider_id, system_prompt, enabled,
-                   created_at, updated_at
+            f"""
+            SELECT {_SELECT_COLUMNS}
             FROM repo_integrations
             WHERE enabled = true AND repo_full_name = $1
             LIMIT 1
@@ -70,10 +81,8 @@ class RepoIntegrationRepository:
             return _row_to_repo_integration(exact)
 
         catch_all = await self._conn.fetchrow(
-            """
-            SELECT id, name, git_provider, repo_full_name, github_webhook_secret,
-                   github_token, llm_provider_id, system_prompt, enabled,
-                   created_at, updated_at
+            f"""
+            SELECT {_SELECT_COLUMNS}
             FROM repo_integrations
             WHERE enabled = true AND repo_full_name = ''
             LIMIT 1
@@ -92,17 +101,22 @@ class RepoIntegrationRepository:
         llm_provider_id: UUID | None,
         system_prompt: str = "",
         enabled: bool = True,
+        ado_organization: str = "",
+        ado_project: str = "",
+        ado_pat: str = "",
+        ado_webhook_username: str = "",
+        ado_webhook_password: str = "",
     ) -> RepoIntegrationRow:
         row = await self._conn.fetchrow(
-            """
+            f"""
             INSERT INTO repo_integrations (
                 name, git_provider, repo_full_name, github_webhook_secret,
-                github_token, llm_provider_id, system_prompt, enabled
+                github_token, llm_provider_id, system_prompt, enabled,
+                ado_organization, ado_project, ado_pat,
+                ado_webhook_username, ado_webhook_password
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, name, git_provider, repo_full_name, github_webhook_secret,
-                      github_token, llm_provider_id, system_prompt, enabled,
-                      created_at, updated_at
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            RETURNING {_SELECT_COLUMNS}
             """,
             name,
             git_provider,
@@ -112,6 +126,11 @@ class RepoIntegrationRepository:
             llm_provider_id,
             system_prompt,
             enabled,
+            ado_organization,
+            ado_project,
+            ado_pat,
+            ado_webhook_username,
+            ado_webhook_password,
         )
         if row is None:
             msg = "failed to create repo integration"
@@ -133,6 +152,13 @@ class RepoIntegrationRepository:
         enabled: bool | None = None,
         clear_webhook_secret: bool = False,
         clear_github_token: bool = False,
+        ado_organization: str | None = None,
+        ado_project: str | None = None,
+        ado_pat: str | None = None,
+        ado_webhook_username: str | None = None,
+        ado_webhook_password: str | None = None,
+        clear_ado_pat: bool = False,
+        clear_ado_webhook_password: bool = False,
     ) -> RepoIntegrationRow:
         current = await self.get(integration_id)
         if current is None:
@@ -146,25 +172,32 @@ class RepoIntegrationRepository:
             resolved_llm_id = llm_provider_id
 
         row = await self._conn.fetchrow(
-            """
+            f"""
             UPDATE repo_integrations
             SET name = $2,
                 git_provider = $3,
                 repo_full_name = $4,
                 github_webhook_secret = CASE
-                    WHEN $10 THEN '' ELSE COALESCE($5, github_webhook_secret)
+                    WHEN $14 THEN '' ELSE COALESCE($5, github_webhook_secret)
                 END,
                 github_token = CASE
-                    WHEN $11 THEN '' ELSE COALESCE($6, github_token)
+                    WHEN $15 THEN '' ELSE COALESCE($6, github_token)
                 END,
                 llm_provider_id = $7,
                 system_prompt = COALESCE($8, system_prompt),
                 enabled = $9,
+                ado_organization = COALESCE($10, ado_organization),
+                ado_project = COALESCE($11, ado_project),
+                ado_pat = CASE
+                    WHEN $16 THEN '' ELSE COALESCE($12, ado_pat)
+                END,
+                ado_webhook_username = COALESCE($13, ado_webhook_username),
+                ado_webhook_password = CASE
+                    WHEN $17 THEN '' ELSE COALESCE($18, ado_webhook_password)
+                END,
                 updated_at = now()
             WHERE id = $1
-            RETURNING id, name, git_provider, repo_full_name, github_webhook_secret,
-                      github_token, llm_provider_id, system_prompt, enabled,
-                      created_at, updated_at
+            RETURNING {_SELECT_COLUMNS}
             """,
             integration_id,
             name if name is not None else current.name,
@@ -172,15 +205,20 @@ class RepoIntegrationRepository:
             repo_full_name.strip()
             if repo_full_name is not None
             else current.repo_full_name,
-            github_webhook_secret
-            if github_webhook_secret is not None
-            else current.github_webhook_secret,
-            github_token if github_token is not None else current.github_token,
+            github_webhook_secret,
+            github_token,
             resolved_llm_id,
             system_prompt,
             enabled if enabled is not None else current.enabled,
+            ado_organization,
+            ado_project,
+            ado_pat,
+            ado_webhook_username,
+            ado_webhook_password,
             clear_webhook_secret,
             clear_github_token,
+            clear_ado_pat,
+            clear_ado_webhook_password,
         )
         if row is None:
             msg = "failed to update repo integration"
@@ -205,6 +243,11 @@ def _row_to_repo_integration(row: asyncpg.Record) -> RepoIntegrationRow:
         llm_provider_id=row["llm_provider_id"],
         system_prompt=row["system_prompt"],
         enabled=row["enabled"],
+        ado_organization=row["ado_organization"],
+        ado_project=row["ado_project"],
+        ado_pat=row["ado_pat"],
+        ado_webhook_username=row["ado_webhook_username"],
+        ado_webhook_password=row["ado_webhook_password"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

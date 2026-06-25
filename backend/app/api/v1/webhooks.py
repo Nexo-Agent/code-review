@@ -2,6 +2,7 @@ import json
 import logging
 
 import asyncpg
+from coreview_shared.providers.git.azure_devops import _organization_from_base_url
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
@@ -35,24 +36,50 @@ def _extract_repo_full_name(body: bytes) -> str | None:
     return None
 
 
-@router.post("/github", status_code=status.HTTP_202_ACCEPTED, response_model=None)
-async def github_webhook(
-    request: Request,
-    conn: asyncpg.Connection = Depends(get_conn),
-    x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
-    x_github_delivery: str | None = Header(None, alias="X-GitHub-Delivery"),
-    x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
-) -> ReviewResponse | JSONResponse:
-    body = await request.body()
-    repo_full_name = _extract_repo_full_name(body)
-    if not repo_full_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="invalid webhook payload",
-        )
+def _extract_ado_repo_full_name(body: bytes) -> str | None:
+    try:
+        payload = json.loads(body)
+        resource = payload.get("resource")
+        if not isinstance(resource, dict):
+            return None
+        repository = resource.get("repository")
+        if not isinstance(repository, dict):
+            return None
+        project = repository.get("project")
+        if not isinstance(project, dict):
+            return None
+        repo_name = repository.get("name", "")
+        project_name = project.get("name", "")
+        if not repo_name or not project_name:
+            return None
+        containers = payload.get("resourceContainers", {})
+        account = containers.get("account", {})
+        base_url = account.get("baseUrl", "") if isinstance(account, dict) else ""
+        organization = _organization_from_base_url(base_url)
+        if not organization:
+            return None
+        return f"{organization}/{project_name}/{repo_name}"
+    except (json.JSONDecodeError, TypeError):
+        return None
 
+
+async def _enqueue_webhook_review(
+    conn: asyncpg.Connection,
+    *,
+    body: bytes,
+    repo_full_name: str,
+    headers: dict[str, str],
+    auth_header: str | None,
+    webhook_secret_resolver,
+    expected_git_provider: str,
+) -> ReviewResponse | JSONResponse:
     repo_integration = await resolve_repo_integration(conn, repo_full_name)
     if repo_integration is None or not repo_integration.enabled:
+        return JSONResponse(
+            status_code=202,
+            content={"detail": "repository not configured for review"},
+        )
+    if repo_integration.git_provider != expected_git_provider:
         return JSONResponse(
             status_code=202,
             content={"detail": "repository not configured for review"},
@@ -69,20 +96,13 @@ async def github_webhook(
         build_review_runtime_config(repo_integration, llm_provider)
     )
 
-    if not providers.git.verify_webhook_signature(
-        body,
-        x_hub_signature_256,
-        repo_integration.github_webhook_secret,
-    ):
+    webhook_secret = webhook_secret_resolver(repo_integration)
+    if not providers.git.verify_webhook_signature(body, auth_header, webhook_secret):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook signature",
         )
 
-    headers = {
-        "X-GitHub-Event": x_github_event or "",
-        "X-GitHub-Delivery": x_github_delivery or "",
-    }
     event = providers.git.parse_webhook(headers, body)
     if event is None:
         return JSONResponse(status_code=202, content={"detail": "event ignored"})
@@ -112,3 +132,67 @@ async def github_webhook(
         repo_integration.id,
     )
     return _to_review_response(review)
+
+
+@router.post("/github", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def github_webhook(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+    x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
+    x_github_delivery: str | None = Header(None, alias="X-GitHub-Delivery"),
+    x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
+) -> ReviewResponse | JSONResponse:
+    body = await request.body()
+    repo_full_name = _extract_repo_full_name(body)
+    if not repo_full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="invalid webhook payload",
+        )
+
+    return await _enqueue_webhook_review(
+        conn,
+        body=body,
+        repo_full_name=repo_full_name,
+        headers={
+            "X-GitHub-Event": x_github_event or "",
+            "X-GitHub-Delivery": x_github_delivery or "",
+        },
+        auth_header=x_hub_signature_256,
+        webhook_secret_resolver=lambda integration: integration.github_webhook_secret,
+        expected_git_provider="github",
+    )
+
+
+@router.post("/azure-devops", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def azure_devops_webhook(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> ReviewResponse | JSONResponse:
+    body = await request.body()
+    repo_full_name = _extract_ado_repo_full_name(body)
+    if not repo_full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="invalid webhook payload",
+        )
+
+    repo_integration = await resolve_repo_integration(conn, repo_full_name)
+    if repo_integration is None:
+        return JSONResponse(
+            status_code=202,
+            content={"detail": "repository not configured for review"},
+        )
+
+    return await _enqueue_webhook_review(
+        conn,
+        body=body,
+        repo_full_name=repo_full_name,
+        headers={},
+        auth_header=authorization,
+        webhook_secret_resolver=lambda integration: (
+            f"{integration.ado_webhook_username}:{integration.ado_webhook_password}"
+        ),
+        expected_git_provider="azure-devops",
+    )

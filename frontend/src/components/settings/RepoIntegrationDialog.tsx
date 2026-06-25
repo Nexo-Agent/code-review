@@ -46,6 +46,8 @@ function repoFormFromIntegration(
     name: repo.name,
     git_provider: repo.git_provider,
     repo_full_name: repo.repo_full_name,
+    ado_organization: repo.ado_organization,
+    ado_project: repo.ado_project,
     llm_provider_id: repo.llm_provider_id,
     enabled: repo.enabled,
   }
@@ -70,8 +72,12 @@ function RepoIntegrationForm({
   const [form, setForm] = useState(() => repoFormFromIntegration(repo))
   const [webhookSecret, setWebhookSecret] = useState("")
   const [githubToken, setGithubToken] = useState("")
+  const [adoPat, setAdoPat] = useState("")
+  const [adoWebhookUsername, setAdoWebhookUsername] = useState("")
+  const [adoWebhookPassword, setAdoWebhookPassword] = useState("")
   const [systemPrompt, setSystemPrompt] = useState(() => repo?.system_prompt ?? "")
 
+  const isAzureDevOps = form.git_provider === "azure-devops"
   const isPending =
     createRepo.isPending || updateRepo.isPending || deleteRepo.isPending
 
@@ -87,14 +93,28 @@ function RepoIntegrationForm({
           enabled: form.enabled,
           system_prompt: systemPrompt,
         }
-        if (webhookSecret) payload.github_webhook_secret = webhookSecret
-        if (githubToken) payload.github_token = githubToken
+        if (isAzureDevOps) {
+          payload.ado_organization = form.ado_organization
+          payload.ado_project = form.ado_project
+          if (adoPat) payload.ado_pat = adoPat
+          if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
+          if (adoWebhookPassword) payload.ado_webhook_password = adoWebhookPassword
+        } else {
+          if (webhookSecret) payload.github_webhook_secret = webhookSecret
+          if (githubToken) payload.github_token = githubToken
+        }
         await updateRepo.mutateAsync({ id: repo.id, payload })
         toast.success("Repository updated")
       } else {
         const payload = { ...form, system_prompt: systemPrompt }
-        if (webhookSecret) payload.github_webhook_secret = webhookSecret
-        if (githubToken) payload.github_token = githubToken
+        if (isAzureDevOps) {
+          if (adoPat) payload.ado_pat = adoPat
+          if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
+          if (adoWebhookPassword) payload.ado_webhook_password = adoWebhookPassword
+        } else {
+          if (webhookSecret) payload.github_webhook_secret = webhookSecret
+          if (githubToken) payload.github_token = githubToken
+        }
         await createRepo.mutateAsync(payload)
         toast.success("Repository created")
       }
@@ -134,7 +154,7 @@ function RepoIntegrationForm({
         <DialogDescription>
           {isEdit
             ? "Webhook credentials, LLM mapping, and review prompt."
-            : "Map a GitHub repo to webhook credentials and an optional LLM provider."}
+            : "Map a repository to webhook credentials and an optional LLM provider."}
         </DialogDescription>
       </DialogHeader>
 
@@ -144,15 +164,6 @@ function RepoIntegrationForm({
             <Input
               value={form.name ?? ""}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </Field>
-          <Field label="Repository (owner/repo)">
-            <Input
-              placeholder="empty = all repositories"
-              value={form.repo_full_name ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, repo_full_name: e.target.value })
-              }
             />
           </Field>
           <Field label="Git provider">
@@ -173,6 +184,137 @@ function RepoIntegrationForm({
               ))}
             </Select>
           </Field>
+          <Field
+            label={
+              isAzureDevOps
+                ? "Repository (org/project/repo)"
+                : "Repository (owner/repo)"
+            }
+          >
+            <Input
+              placeholder={
+                isAzureDevOps
+                  ? "fabrikam/MyProject/MyRepo — empty = all repositories"
+                  : "empty = all repositories"
+              }
+              value={form.repo_full_name ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, repo_full_name: e.target.value })
+              }
+            />
+          </Field>
+          {isAzureDevOps ? (
+            <>
+              <Field label="Organization">
+                <Input
+                  value={form.ado_organization ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, ado_organization: e.target.value })
+                  }
+                  placeholder="fabrikam"
+                />
+              </Field>
+              <Field label="Project">
+                <Input
+                  value={form.ado_project ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, ado_project: e.target.value })
+                  }
+                  placeholder="MyProject"
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit ? "PAT (leave blank to keep)" : "Personal Access Token"
+                }
+              >
+                <Input
+                  type="password"
+                  value={adoPat}
+                  onChange={(e) => setAdoPat(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.ado_pat_configured
+                        ? "Configured"
+                        : "Not set"
+                      : undefined
+                  }
+                />
+              </Field>
+              <Field label="Webhook username">
+                <Input
+                  value={adoWebhookUsername}
+                  onChange={(e) => setAdoWebhookUsername(e.target.value)}
+                  placeholder={
+                    isEdit && repo?.ado_webhook_configured
+                      ? "Configured"
+                      : "Service hook basic auth username"
+                  }
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit
+                    ? "Webhook password (leave blank to keep)"
+                    : "Webhook password"
+                }
+              >
+                <Input
+                  type="password"
+                  value={adoWebhookPassword}
+                  onChange={(e) => setAdoWebhookPassword(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.ado_webhook_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Service hook basic auth password"
+                  }
+                />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field
+                label={
+                  isEdit
+                    ? "Webhook secret (leave blank to keep)"
+                    : "Webhook secret"
+                }
+              >
+                <Input
+                  type="password"
+                  value={webhookSecret}
+                  onChange={(e) => setWebhookSecret(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.github_webhook_secret_configured
+                        ? "Configured"
+                        : "Not set"
+                      : undefined
+                  }
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit ? "GitHub token (leave blank to keep)" : "GitHub token"
+                }
+              >
+                <Input
+                  type="password"
+                  value={githubToken}
+                  onChange={(e) => setGithubToken(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.github_token_configured
+                        ? "Configured"
+                        : "Not set"
+                      : undefined
+                  }
+                />
+              </Field>
+            </>
+          )}
           <Field label="LLM provider">
             <Select
               value={form.llm_provider_id ?? ""}
@@ -190,44 +332,6 @@ function RepoIntegrationForm({
                 </option>
               ))}
             </Select>
-          </Field>
-          <Field
-            label={
-              isEdit
-                ? "Webhook secret (leave blank to keep)"
-                : "Webhook secret"
-            }
-          >
-            <Input
-              type="password"
-              value={webhookSecret}
-              onChange={(e) => setWebhookSecret(e.target.value)}
-              placeholder={
-                isEdit
-                  ? repo?.github_webhook_secret_configured
-                    ? "Configured"
-                    : "Not set"
-                  : undefined
-              }
-            />
-          </Field>
-          <Field
-            label={
-              isEdit ? "GitHub token (leave blank to keep)" : "GitHub token"
-            }
-          >
-            <Input
-              type="password"
-              value={githubToken}
-              onChange={(e) => setGithubToken(e.target.value)}
-              placeholder={
-                isEdit
-                  ? repo?.github_token_configured
-                    ? "Configured"
-                    : "Not set"
-                  : undefined
-              }
-            />
           </Field>
           {isEdit ? (
             <Field label="System prompt">

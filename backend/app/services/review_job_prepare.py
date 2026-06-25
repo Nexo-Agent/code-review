@@ -79,6 +79,10 @@ def build_agent_environment(
     }
     if repo_integration.system_prompt.strip():
         env["NEXO_COREVIEW_SYSTEM_PROMPT"] = repo_integration.system_prompt
+    if repo_integration.git_provider == "azure-devops":
+        env["NEXO_COREVIEW_ADO_ORGANIZATION"] = repo_integration.ado_organization
+        env["NEXO_COREVIEW_ADO_PROJECT"] = repo_integration.ado_project
+        env["NEXO_COREVIEW_ADO_PAT"] = repo_integration.ado_pat
     return env
 
 

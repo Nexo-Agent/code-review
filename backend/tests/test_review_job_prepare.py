@@ -41,6 +41,11 @@ def _repo_integration() -> RepoIntegrationRow:
         llm_provider_id=UUID("22222222-2222-2222-2222-222222222222"),
         system_prompt="Focus on security only.",
         enabled=True,
+        ado_organization="",
+        ado_project="",
+        ado_pat="",
+        ado_webhook_username="",
+        ado_webhook_password="",
         created_at=now,
         updated_at=now,
     )
@@ -101,6 +106,33 @@ def test_build_agent_environment_includes_review_and_credentials() -> None:
     metadata = json.loads(env["NEXO_COREVIEW_CALLBACK_METADATA"])
     assert metadata["delivery_id"] == "del-1"
     assert metadata["repo_integration_id"] == str(review.repo_integration_id)
+
+
+def test_build_agent_environment_includes_ado_credentials() -> None:
+    review = _review_row()
+    repo_integration = replace(
+        _repo_integration(),
+        git_provider="azure-devops",
+        repo_full_name="fabrikam/MyProject/Repo",
+        ado_organization="fabrikam",
+        ado_project="MyProject",
+        ado_pat="ado-pat",
+    )
+    env = build_agent_environment(
+        review_id=str(review.id),
+        review=review,
+        repo_integration=repo_integration,
+        llm_provider=_llm_provider(),
+        infra=CodeReviewSettings(
+            agent_callback_url="http://api:8000/api/v1/agent/review-events",
+            agent_callback_secret="shared-secret",
+        ),
+    )
+
+    assert env["NEXO_COREVIEW_GIT_PROVIDER"] == "azure-devops"
+    assert env["NEXO_COREVIEW_ADO_ORGANIZATION"] == "fabrikam"
+    assert env["NEXO_COREVIEW_ADO_PROJECT"] == "MyProject"
+    assert env["NEXO_COREVIEW_ADO_PAT"] == "ado-pat"
 
 
 def test_build_agent_environment_includes_custom_system_prompt() -> None:
