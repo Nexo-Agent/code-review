@@ -15,11 +15,7 @@ services:
     ports:
       - "${APP_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       CORS_ORIGINS: '["http://localhost:5173"]'
-      NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
-      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
-      NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
     volumes:
       - ./backend:/workspace/backend
       - ./shared:/workspace/shared
@@ -113,15 +109,11 @@ services:
       target: api
     command: ["uv", "run", "code-review", "job", "worker"]
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
-      NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
       NEXO_COREVIEW_WORKSPACE_ROOT: /workspaces
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
       NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
       NEXO_COREVIEW_AGENT_NETWORK: coreview
       NEXO_COREVIEW_OPENCODE_LOG_LEVEL: ${NEXO_COREVIEW_OPENCODE_LOG_LEVEL:-INFO}
-      NEXO_COREVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
-      NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
     volumes:
       - ./backend:/workspace/backend
       - ./shared:/workspace/shared
