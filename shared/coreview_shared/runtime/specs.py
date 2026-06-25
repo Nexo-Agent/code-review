@@ -25,6 +25,8 @@ class JobSpec:
     network: str | None = None
     extra_hosts: dict[str, str] | None = None
     stream_logs: bool = True
+    mem_limit: str | None = None
+    nano_cpus: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

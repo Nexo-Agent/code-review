@@ -79,6 +79,11 @@ class DockerJobExecutor:
             run_kwargs["network"] = spec.network
         elif spec.extra_hosts:
             run_kwargs["extra_hosts"] = spec.extra_hosts
+        if spec.mem_limit:
+            run_kwargs["mem_limit"] = spec.mem_limit
+            run_kwargs["memswap_limit"] = spec.mem_limit
+        if spec.nano_cpus:
+            run_kwargs["nano_cpus"] = spec.nano_cpus
 
         logger.info(
             "Running review agent container for %s (image=%s)",

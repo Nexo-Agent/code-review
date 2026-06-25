@@ -23,6 +23,8 @@ class DockerRuntimeProvider:
         agent_image: str = "code-review-agent:dev",
         agent_network: str | None = None,
         database_url: str = "",
+        agent_mem_limit: str = "",
+        agent_cpus: float = 0.0,
     ) -> None:
         self._workspace_root = Path(workspace_root)
         self._docker_host = docker_host
@@ -30,6 +32,8 @@ class DockerRuntimeProvider:
         self._agent_image = agent_image
         self._agent_network = agent_network
         self._database_url = database_url
+        self._agent_mem_limit = agent_mem_limit
+        self._agent_cpus = agent_cpus
         self._runner: DockerCommandRunner | None = None
         self._job_executor: DockerJobExecutor | None = None
 
@@ -62,6 +66,8 @@ class DockerRuntimeProvider:
             agent_image=self._agent_image,
             environment=dict(request.environment),
             agent_network=self._agent_network,
+            agent_mem_limit=self._agent_mem_limit,
+            agent_cpus=self._agent_cpus,
         )
         executor = self._get_job_executor()
         await executor.cleanup_stale(spec.labels)

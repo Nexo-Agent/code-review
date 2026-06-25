@@ -15,6 +15,12 @@ def agent_database_url(database_url: str, *, network: str | None) -> str:
     )
 
 
+def agent_nano_cpus(agent_cpus: float) -> int | None:
+    if agent_cpus <= 0:
+        return None
+    return int(agent_cpus * 1_000_000_000)
+
+
 def review_job_labels(review_id: str) -> dict[str, str]:
     return {
         REVIEW_ROLE_LABEL: REVIEW_AGENT_ROLE,
@@ -28,8 +34,11 @@ def build_docker_review_job_spec(
     agent_image: str,
     environment: dict[str, str],
     agent_network: str | None,
+    agent_mem_limit: str = "",
+    agent_cpus: float = 0.0,
 ) -> JobSpec:
     network = (agent_network or "").strip() or None
+    mem_limit = agent_mem_limit.strip() or None
     return JobSpec(
         job_id=review_id,
         image=agent_image,
@@ -45,6 +54,8 @@ def build_docker_review_job_spec(
         labels=review_job_labels(review_id),
         network=network,
         extra_hosts=None if network else {"host.docker.internal": "host-gateway"},
+        mem_limit=mem_limit,
+        nano_cpus=agent_nano_cpus(agent_cpus),
     )
 
 

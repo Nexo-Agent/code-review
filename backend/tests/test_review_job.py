@@ -5,6 +5,7 @@ from coreview_shared.runtime.docker.job_executor import DockerJobExecutor
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
 from coreview_shared.runtime.review_job import (
     agent_database_url,
+    agent_nano_cpus,
     build_docker_review_job_spec,
 )
 from coreview_shared.runtime.specs import ReviewJobRequest
@@ -74,6 +75,34 @@ def test_build_docker_review_job_spec_network_and_labels() -> None:
     assert spec.environment["NEXO_COREVIEW_GITHUB_TOKEN"] == "ghp_test"
 
 
+def test_build_docker_review_job_spec_resource_limits() -> None:
+    spec = build_docker_review_job_spec(
+        review_id="r1",
+        agent_image="img",
+        environment=_sample_environment(),
+        agent_network="coreview",
+        agent_mem_limit="768m",
+        agent_cpus=1.0,
+    )
+
+    assert spec.mem_limit == "768m"
+    assert spec.nano_cpus == agent_nano_cpus(1.0)
+
+
+def test_build_docker_review_job_spec_no_resource_limits_when_unset() -> None:
+    spec = build_docker_review_job_spec(
+        review_id="r1",
+        agent_image="img",
+        environment=_sample_environment(),
+        agent_network="coreview",
+        agent_mem_limit="",
+        agent_cpus=0.0,
+    )
+
+    assert spec.mem_limit is None
+    assert spec.nano_cpus is None
+
+
 def test_build_docker_review_job_spec_extra_hosts_without_network() -> None:
     spec = build_docker_review_job_spec(
         review_id="r1",
@@ -93,6 +122,8 @@ async def test_docker_job_executor_runs_container() -> None:
         agent_image="nexo-coreview-agent:test",
         environment=_sample_environment(),
         agent_network="coreview",
+        agent_mem_limit="768m",
+        agent_cpus=1.0,
     )
 
     mock_client = MagicMock()
@@ -118,6 +149,9 @@ async def test_docker_job_executor_runs_container() -> None:
     assert run_kwargs["network"] == "coreview"
     assert run_kwargs["detach"] is True
     assert run_kwargs["remove"] is False
+    assert run_kwargs["mem_limit"] == "768m"
+    assert run_kwargs["memswap_limit"] == "768m"
+    assert run_kwargs["nano_cpus"] == agent_nano_cpus(1.0)
     mock_container.wait.assert_called_once()
     mock_container.remove.assert_called_once_with(force=True)
 

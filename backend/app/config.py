@@ -64,6 +64,9 @@ class CodeReviewSettings(BaseSettings):
     opencode_log_level: str = "INFO"
     review_timeout_seconds: int = 600
     agent_image: str = "code-review-agent:dev"
+    # Per-review agent container limits (Docker mem_limit / nano_cpus). Empty / 0 = no cap.
+    agent_mem_limit: str = "768m"
+    agent_cpus: float = 1.0
     # Docker network for per-review agent containers (e.g. coreview in Compose).
     # Empty = publish OpenCode port to host (native worker dev).
     agent_network: str = ""

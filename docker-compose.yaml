@@ -1,6 +1,9 @@
 # Base stack: Postgres, Redis, init jobs (migrate, opencode config, agent image),
 # production app (profile: prod), and manual tools (profile: tools).
 #
+# Resource limits target EC2 t2.medium (2 vCPU, 4 GiB RAM): one review at a time
+# (worker --concurrency 1) plus a capped agent container (~768 MiB).
+#
 # Development (auto-merges docker-compose.override.yaml):
 #   docker compose up --build
 #   docker compose watch
@@ -11,6 +14,24 @@
 networks:
   coreview:
     name: coreview
+
+x-db-resources: &db-resources
+  deploy:
+    resources:
+      limits:
+        cpus: "0.25"
+        memory: 256M
+      reservations:
+        memory: 64M
+
+x-redis-resources: &redis-resources
+  deploy:
+    resources:
+      limits:
+        cpus: "0.10"
+        memory: 96M
+      reservations:
+        memory: 32M
 
 services:
   app:
@@ -29,6 +50,15 @@ services:
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
       NEXO_COREVIEW_AGENT_CALLBACK_URL: http://app:8000/api/v1/agent/review-events
       NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
+      DB_POOL_MIN_SIZE: 1
+      DB_POOL_MAX_SIZE: 4
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+        reservations:
+          memory: 128M
     networks:
       - coreview
     depends_on:
@@ -51,7 +81,7 @@ services:
       dockerfile: Dockerfile
       args:
         VERSION: ${VERSION:-dev}
-    command: ["code-review", "job", "worker"]
+    command: ["code-review", "job", "worker", "--concurrency", "1"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
       NEXO_COREVIEW_CELERY_BROKER_URL: redis://redis:6379/0
@@ -59,8 +89,19 @@ services:
       NEXO_COREVIEW_DOCKER_HOST: unix:///var/run/docker.sock
       NEXO_COREVIEW_AGENT_IMAGE: ${NEXO_COREVIEW_AGENT_IMAGE:-code-review-agent:dev}
       NEXO_COREVIEW_AGENT_NETWORK: coreview
+      NEXO_COREVIEW_AGENT_MEM_LIMIT: ${NEXO_COREVIEW_AGENT_MEM_LIMIT:-768m}
+      NEXO_COREVIEW_AGENT_CPUS: ${NEXO_COREVIEW_AGENT_CPUS:-1.0}
       NEXO_COREVIEW_AGENT_CALLBACK_URL: http://app:8000/api/v1/agent/review-events
       NEXO_COREVIEW_AGENT_CALLBACK_SECRET: ${NEXO_COREVIEW_AGENT_CALLBACK_SECRET:-dev-callback-secret}
+      DB_POOL_MIN_SIZE: 1
+      DB_POOL_MAX_SIZE: 4
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 320M
+        reservations:
+          memory: 96M
     volumes:
       - review_workspaces:/workspaces
       - /var/run/docker.sock:/var/run/docker.sock
@@ -81,6 +122,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    <<: *redis-resources
     ports:
       - "${REDIS_PORT:-6379}:6379"
     networks:
@@ -94,6 +137,8 @@ services:
 
   db:
     image: postgres:16-alpine
+    <<: *db-resources
+    command: postgres -c shared_buffers=64MB -c max_connections=30
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     environment:

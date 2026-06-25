@@ -43,6 +43,8 @@ def _build_runtime(
             agent_image=cfg.agent_image,
             agent_network=(cfg.agent_network or "").strip() or None,
             database_url=database_url,
+            agent_mem_limit=cfg.agent_mem_limit,
+            agent_cpus=cfg.agent_cpus,
         )
 
     return K8sRuntimeProvider(
