@@ -10,7 +10,7 @@ cogito-review-agent review run --review-id <uuid>
 
 Inside the container, `opencode run` reads the review prompt from **stdin**. With `--print-logs` and `--log-level`, internal OpenCode logs stream to **stderr** in real time; `--format json` emits NDJSON events on **stdout**. The Python wrapper streams both pipes to container stdout so the worker can follow progress via `docker logs`.
 
-MCP tools are started as a local stdio subprocess (`cogito-review-agent serve --transport stdio`), not as HTTP servers.
+MCP tools are started as a local stdio subprocess (`cogito-review-agent serve`), not as an HTTP server.
 
 Review skills for OpenCode live in `skills/code-reviewer/` and are copied into the
 image at `/opencode/skills/`. The skill name matches the OpenCode agent id
@@ -59,7 +59,7 @@ uv run cogito-review-agent review run --review-id <uuid>
 
 Docker image (OpenCode + MCP + git):
 
-Built automatically on `make dev` / `make prod-up`, or manually:
+Built automatically on `make dev` / `make prod`, or manually:
 
 ```bash
 make build-agent   # docker build -f agent/Dockerfile -t cogito-review-agent:dev .

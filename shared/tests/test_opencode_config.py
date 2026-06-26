@@ -4,6 +4,7 @@ from coreview_shared.opencode.config import (
     build_code_reviewer_agent_config,
     build_headless_opencode_permissions,
     build_headless_opencode_tools,
+    build_mcp_config,
     build_review_agent_permissions,
     build_review_skills_config,
 )
@@ -33,6 +34,13 @@ def test_headless_tools_disable_only_question() -> None:
 def test_review_skills_config_points_at_bundled_path() -> None:
     skills = build_review_skills_config()
     assert skills["paths"] == ["/opencode/skills"]
+
+
+def test_mcp_config_uses_stdio_subprocess() -> None:
+    mcp = build_mcp_config()
+    assert mcp["coreview"]["type"] == "local"
+    assert mcp["coreview"]["command"] == ["cogito-review-agent", "serve"]
+    assert mcp["coreview"]["enabled"] is True
 
 
 def test_review_agent_config_appends_custom_prompt() -> None:

@@ -1,11 +1,10 @@
 import asyncio
 import logging
-from typing import Literal
 
 import typer
 
 from app.cli.review import app as review_app
-from app.config import AgentSettings, get_agent_settings
+from app.config import get_agent_settings
 from app.mcp.server import create_mcp_server
 from app.toolbase.context import ToolContext, build_tool_context
 
@@ -26,35 +25,14 @@ def _resolve_tool_context() -> ToolContext:
 
 
 @app.command("serve")
-def serve(
-    transport: Literal["stdio", "sse"] = typer.Option(
-        "stdio", help="MCP transport (stdio or sse)."
-    ),
-    host: str | None = typer.Option(
-        None, help="HTTP host for SSE transport (default from config)."
-    ),
-    port: int | None = typer.Option(
-        None, help="HTTP port for SSE transport (default from config)."
-    ),
-) -> None:
-    """Start the Cogito Review MCP server (coreview Git/CI tools)."""
+def serve() -> None:
+    """Start the Cogito Review MCP server over stdio."""
 
     async def _run() -> None:
         ctx = _resolve_tool_context()
-        if port is not None:
-            infra = AgentSettings(**{**ctx.infra.model_dump(), "mcp_server_port": port})
-            ctx = build_tool_context(infra, providers=ctx.providers)
         mcp = create_mcp_server(ctx)
-        bind_host = host if host is not None else ctx.infra.mcp_bind_host
-        bind_port = port if port is not None else ctx.infra.mcp_server_port
-        mcp.settings.host = bind_host
-        mcp.settings.port = bind_port
-
-        logger.info("Starting MCP server transport=%s", transport)
-        if transport == "stdio":
-            await mcp.run_stdio_async()
-        else:
-            await mcp.run_sse_async()
+        logger.info("Starting MCP server (stdio)")
+        await mcp.run_stdio_async()
 
     asyncio.run(_run())
 

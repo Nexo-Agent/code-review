@@ -59,7 +59,7 @@ make test
 Run the stack when you need end-to-end validation:
 
 ```bash
-make dev-watch
+make dev
 ```
 
 ### 3. Commit
@@ -242,7 +242,7 @@ COGITO_REVIEW_AGENT_IMAGE=ghcr.io/cogitoforge-ai/cogito-review-agent:0.2.0
 Deploy with Compose:
 
 ```bash
-make prod-up
+make prod
 ```
 
 Migrations run automatically via the `migrate` init service on stack bring-up.
@@ -328,7 +328,7 @@ feature/* ──PR──► dev ──PR──► main ──push──► GHCR 
 | Release to production | merge `dev` → `main` |
 | Semver release | `git tag -a vX.Y.Z && git push origin vX.Y.Z` |
 | Pull release images | `docker pull ghcr.io/cogitoforge-ai/cogito-review:VERSION` |
-| Deploy | `make prod-up` |
+| Deploy | `make prod` |
 
 ## Related docs
 

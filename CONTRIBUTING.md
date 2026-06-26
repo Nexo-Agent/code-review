@@ -26,14 +26,8 @@ Full stack with Vite HMR, Uvicorn `--reload`, and Docker Compose Watch. Migratio
 
 ```bash
 cp .env.example .env
-make dev-watch
-make pre-commit-install   # optional: lint/format on git commit
-```
-
-Without watch:
-
-```bash
 make dev
+make pre-commit-install   # optional: lint/format on git commit
 ```
 
 | URL | Service |
@@ -42,7 +36,7 @@ make dev
 | http://localhost:8000/docs | OpenAPI / Swagger |
 | http://localhost:8000/api/v1/health | Health check |
 
-`make dev-watch` merges [`docker-compose.yaml`](docker-compose.yaml) with [`docker-compose.override.yaml`](docker-compose.override.yaml). Bind mounts enable instant reload; `develop.watch` rebuilds images when root `uv.lock` or `yarn.lock` change. After changing Python dependencies in `shared/`, `backend/`, or `agent/`, run `uv lock` from the repo root.
+`make dev` merges [`docker-compose.yaml`](docker-compose.yaml) with [`docker-compose.override.yaml`](docker-compose.override.yaml). Bind mounts enable instant reload; `develop.watch` rebuilds images when root `uv.lock` or `yarn.lock` change. After changing Python dependencies in `shared/`, `backend/`, or `agent/`, run `uv lock` from the repo root.
 
 On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if HMR misses file changes.
 
@@ -50,7 +44,7 @@ On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if H
 
 ```bash
 cp .env.example .env
-make prod-up   # docker compose -f docker-compose.yaml pull && up -d --wait
+make prod   # docker compose -f docker-compose.yaml pull && up -d --wait
 ```
 
 Production uses only the base compose file; `docker-compose.override.yaml` is not merged. Init jobs (migrate, opencode config, agent image) run automatically before `app` and `worker` start.
@@ -60,11 +54,10 @@ Production uses only the base compose file; `docker-compose.override.yaml` is no
 | File | Purpose |
 |------|---------|
 | [`docker-compose.yaml`](docker-compose.yaml) | `api`, `worker`, `db`, `redis` (+ one-shot `migrate`); GHCR images; agent spawned by worker |
-| [`docker-compose.override.yaml`](docker-compose.override.yaml) | Dev: `api`, `web`, `worker`, Compose Watch |
-| [`dev.Dockerfile`](dev.Dockerfile) | Multi-stage dev images (`target: api` / `target: web`) |
-| [`Dockerfile`](Dockerfile) | Production bundle (API + static SPA) |
+| [`docker-compose.override.yaml`](docker-compose.override.yaml) | Dev: selects Dockerfile build targets, overrides commands, enables reload/HMR and Compose Watch |
+| [`Dockerfile`](Dockerfile) | Multi-stage image definitions for production bundle and dev build targets |
 
-Docker dev stack services: `api`, `web`, `worker`, `redis`, `db`. `make dev` / `make dev-watch` build the agent image locally (`cogito-review-agent:dev`) first; the worker mounts `/var/run/docker.sock` and spawns a one-shot agent container per review via `docker run` when a PR arrives.
+Docker dev stack services: `api`, `web`, `worker`, `redis`, `db`. `make dev` builds the agent image locally (`cogito-review-agent:dev`) first; the worker mounts `/var/run/docker.sock` and spawns a one-shot agent container per review via `docker run` when a PR arrives.
 
 ## Review execution flow
 
@@ -109,10 +102,10 @@ These are infrastructure-only. Repo credentials and LLM profiles are stored in P
 | `COGITO_REVIEW_GIT_IMAGE` | Minimal git image (default `alpine/git:latest`) |
 | `COGITO_REVIEW_AGENT_CALLBACK_URL` | URL agent containers POST review events to (Compose: `http://api:8000/api/v1/agent/review-events`) |
 | `COGITO_REVIEW_AGENT_CALLBACK_SECRET` | Shared HMAC secret for callback auth |
-| `COGITO_REVIEW_MCP_SERVER_URL` | MCP SSE URL (default `http://mcp-serve:8001/sse`) |
-| `MCP_PORT` | Host port for MCP server (default `8001`) |
 
 GitHub tokens, webhook secrets, and LLM provider credentials are **not** infrastructure env vars — configure them in Postgres via **Settings** (`/settings`).
+
+The bundled MCP server runs over stdio when started with `cogito-review-agent serve` (OpenCode spawns it as a subprocess during review).
 
 ### Dynamic settings (database)
 
@@ -129,7 +122,7 @@ Saving LLM providers may regenerate `opencode.generated.json` on the API host fo
 cd backend && uv run cogito-review backend run
 cd backend && uv run cogito-review job worker
 cd agent && uv run cogito-review-agent review run --review-id <uuid>
-cd agent && uv run cogito-review-agent serve --transport sse --host 0.0.0.0 --port 8001
+cd agent && uv run cogito-review-agent serve
 ```
 
 ## Project structure
@@ -237,10 +230,9 @@ cd backend && uv run pytest tests/api/test_reviews.py -k webhook
 
 | Command | Description |
 |---------|-------------|
-| `make dev-watch` | Docker dev with Compose Watch |
-| `make dev` | Docker dev without watch |
-| `make dev-down` / `make down` | Stop Docker stack |
-| `make prod-up` / `make up` | Production stack (pull GHCR images, auto migrate) |
+| `make dev` | Docker dev with Compose Watch |
+| `make prod` | Production stack (pull GHCR images, auto migrate) |
+| `make prod-down` | Stop the production-like stack |
 | `make migrate` / `make migrate-down` | dbmate up / down via Compose |
 | `make render-opencode-config` | Regenerate `opencode.generated.json` on host (optional debug) |
 | `make build-agent` | Build agent image locally (`docker build`) |

@@ -21,12 +21,12 @@ AI-powered pull request reviews for GitHub. Connect a repository, point a webhoo
 
 ```bash
 cp .env.example .env
-make prod-up
+make prod
 ```
 
 Open the app (default port from `APP_PORT`, usually `8000`). Go to **Settings** to add an LLM provider and register your GitHub repository.
 
-For local development with hot reload (`make dev-watch`), see [CONTRIBUTING.md](CONTRIBUTING.md).
+For local development with hot reload (`make dev`), see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Usage
 

@@ -131,5 +131,5 @@ RUN chmod +x /usr/local/bin/api-entrypoint.sh \
 
 EXPOSE 8000
 
-ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]
+# ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

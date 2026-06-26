@@ -31,7 +31,7 @@ docker compose -f docker-compose.yaml pull
 docker compose -f docker-compose.yaml up -d
 ```
 
-Or from a full clone: `make prod-up`.
+Or from a full clone: `make prod`.
 
 Open the app (default port from `APP_PORT`, usually `8000`). Go to **Settings** to add an LLM provider and register your GitHub repository.
 

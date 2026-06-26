@@ -238,12 +238,7 @@ def test_build_opencode_config_includes_mcp() -> None:
     config = build_opencode_config_from_llm_providers([], None, CodeReviewSettings())
     assert "mcp" in config
     assert config["mcp"]["coreview"]["type"] == "local"
-    assert config["mcp"]["coreview"]["command"] == [
-        "cogito-review-agent",
-        "serve",
-        "--transport",
-        "stdio",
-    ]
+    assert config["mcp"]["coreview"]["command"] == ["cogito-review-agent", "serve"]
     assert config["tools"] == {"question": False}
     assert config["permission"]["question"] == "deny"
     assert config["permission"]["doom_loop"] == "deny"

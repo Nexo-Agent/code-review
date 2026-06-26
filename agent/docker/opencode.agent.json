@@ -3,7 +3,7 @@
   "mcp": {
     "coreview": {
       "type": "local",
-      "command": ["cogito-review-agent", "serve", "--transport", "stdio"],
+      "command": ["cogito-review-agent", "serve"],
       "enabled": true
     }
   },

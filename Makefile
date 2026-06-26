@@ -1,4 +1,4 @@
-.PHONY: dev dev-watch dev-down up down prod-up migrate migrate-down openapi lint test test-unit build-agent render-opencode-config pre-commit-install pre-commit
+.PHONY: help dev prod prod-down migrate migrate-down openapi lint test test-unit build-agent render-opencode-config pre-commit-install pre-commit
 
 ifneq (,$(wildcard .env))
 include .env
@@ -9,32 +9,43 @@ COMPOSE := docker compose
 COMPOSE_PROD := docker compose -f docker-compose.yaml
 AGENT_IMAGE ?= $(or $(COGITO_REVIEW_AGENT_IMAGE),cogito-review-agent:dev)
 
+help:
+	@printf "%s\n" \
+		"Available targets:" \
+		"  help                  Show this help message" \
+		"  dev                   Start the development stack with Compose Watch" \
+		"  prod                  Start the production-like stack from docker-compose.yaml" \
+		"  prod-down             Stop the production-like stack" \
+		"  migrate               Run database migrations via Compose" \
+		"  migrate-down          Roll back the latest database migration via Compose" \
+		"  build-agent           Build the local agent image" \
+		"  render-opencode-config Render backend OpenCode config on the host" \
+		"  openapi               Export OpenAPI and regenerate frontend types" \
+		"  lint                  Run Ruff, ESLint, and TypeScript checks" \
+		"  test-unit             Run unit test suites" \
+		"  test                  Run unit and integration tests" \
+		"  pre-commit-install    Install local pre-commit hooks" \
+		"  pre-commit            Run pre-commit on all files"
+
 # --- Stack lifecycle (Docker Compose only) ---
 
 dev: build-agent
-	$(COMPOSE) up --build
-
-dev-watch: build-agent
 	$(COMPOSE) watch
 
-dev-down: down
-
-up: prod-up
-
-prod-up:
+prod:
 	$(COMPOSE_PROD) pull
 	$(COMPOSE_PROD) up -d --wait
 
-down:
-	$(COMPOSE) down
+prod-down:
+	$(COMPOSE_PROD) down
 
 # --- Init / maintenance (runs via Compose services) ---
 
 migrate:
-	$(COMPOSE) run --rm migrate
+	$(COMPOSE) run --build --rm migrate
 
 migrate-down:
-	$(COMPOSE) --profile tools run --rm migrate-down
+	$(COMPOSE) --profile tools run --build --rm migrate-down
 
 render-opencode-config: migrate
 	cd backend && uv run cogito-review config render-opencode
