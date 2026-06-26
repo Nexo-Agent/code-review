@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: dev.Dockerfile
       target: api
-    volumes: !override
+    volumes:
       - ./backend/migrations:/app/migrations:ro
 
   migrate-down:
@@ -12,7 +12,7 @@ services:
       context: .
       dockerfile: dev.Dockerfile
       target: api
-    volumes: !override
+    volumes:
       - ./backend/migrations:/app/migrations:ro
 
   api:
@@ -128,7 +128,7 @@ services:
     working_dir: /workspace/backend
     networks:
       - coreview
-    depends_on: !reset
+    depends_on:
       db:
         condition: service_healthy
       redis:
@@ -137,6 +137,14 @@ services:
         condition: service_completed_successfully
       api:
         condition: service_started
+
+  redis:
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  db:
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
 
 volumes:
   backend_venv:

@@ -1,14 +1,7 @@
-# Cogito Review stack — production uses GHCR images; dev merges docker-compose.override.yaml.
-#
-# Runtime: api, worker, db, redis (+ one-shot migrate).
-# Agent review containers are spawned on demand by the worker.
-#
-# Deploy (copy this file + .env.example only):
-#   cp .env.example .env
-#   docker compose -f docker-compose.yaml pull
-#   docker compose -f docker-compose.yaml up -d
-#
-# Dev: docker compose up --build
+# Local "prod-like" reference for understanding the deployment topology.
+# Not a production-ready manifest.
+# Before using this as a production base, review image pinning, secrets,
+# port exposure, persistent storage, resource sizing, and Docker socket access.
 
 networks:
   coreview:
@@ -16,7 +9,7 @@ networks:
 
 x-coreview-image: &coreview-image
   image: ${COGITO_REVIEW_IMAGE:-ghcr.io/cogitoforge-ai/cogito-review:latest}
-  pull_policy: missing
+  pull_policy: always
 
 x-api-environment: &api-environment
   DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?sslmode=disable
@@ -64,7 +57,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
@@ -96,7 +89,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       api:
@@ -107,8 +100,6 @@ services:
     image: redis:7-alpine
     command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
     <<: *redis-resources
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     networks:
       - coreview
     healthcheck:
@@ -122,8 +113,6 @@ services:
     image: postgres:16-alpine
     <<: *db-resources
     command: postgres -c shared_buffers=64MB -c max_connections=30
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
