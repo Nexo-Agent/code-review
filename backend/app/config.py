@@ -63,8 +63,6 @@ class CodeReviewSettings(BaseSettings):
     docker_host: str = ""
     # Minimal git image for DockerCommandRunner; ENTRYPOINT is "git".
     git_image: str = "alpine/git:latest"
-    mcp_server_url: str = "http://mcp-serve:8001/sse"
-    mcp_server_port: int = 8001
     opencode_agent: str = "code-reviewer"
     opencode_log_level: str = "INFO"
     review_timeout_seconds: int = 600

@@ -82,7 +82,7 @@ def build_mcp_config() -> dict[str, Any]:
     return {
         "coreview": {
             "type": "local",
-            "command": ["cogito-review-agent", "serve", "--transport", "stdio"],
+            "command": ["cogito-review-agent", "serve"],
             "enabled": True,
         }
     }
