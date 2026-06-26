@@ -109,10 +109,10 @@ These are infrastructure-only. Repo credentials and LLM profiles are stored in P
 | `COGITO_REVIEW_GIT_IMAGE` | Minimal git image (default `alpine/git:latest`) |
 | `COGITO_REVIEW_AGENT_CALLBACK_URL` | URL agent containers POST review events to (Compose: `http://api:8000/api/v1/agent/review-events`) |
 | `COGITO_REVIEW_AGENT_CALLBACK_SECRET` | Shared HMAC secret for callback auth |
-| `COGITO_REVIEW_MCP_SERVER_URL` | MCP SSE URL (default `http://mcp-serve:8001/sse`) |
-| `MCP_PORT` | Host port for MCP server (default `8001`) |
 
 GitHub tokens, webhook secrets, and LLM provider credentials are **not** infrastructure env vars — configure them in Postgres via **Settings** (`/settings`).
+
+The bundled MCP server runs over stdio when started with `cogito-review-agent serve` (OpenCode spawns it as a subprocess during review).
 
 ### Dynamic settings (database)
 
@@ -129,7 +129,7 @@ Saving LLM providers may regenerate `opencode.generated.json` on the API host fo
 cd backend && uv run cogito-review backend run
 cd backend && uv run cogito-review job worker
 cd agent && uv run cogito-review-agent review run --review-id <uuid>
-cd agent && uv run cogito-review-agent serve --transport sse --host 0.0.0.0 --port 8001
+cd agent && uv run cogito-review-agent serve
 ```
 
 ## Project structure

@@ -17,8 +17,6 @@ def create_mcp_server(ctx: ToolContext) -> FastMCP:
     mcp = FastMCP(
         name="coreview",
         instructions="Git and CI tools for code review workflows.",
-        host="0.0.0.0",
-        port=ctx.infra.mcp_server_port,
         transport_security=None,
     )
 
