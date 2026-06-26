@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -8,6 +9,8 @@ import pytest
 from coreview_shared.protocols import (
     InlineComment,
     InlineCommentsResult,
+    PreparedWorkspace,
+    Workspace,
     WorkspaceSpec,
 )
 from coreview_shared.providers.git.diff_lines import (
@@ -69,8 +72,6 @@ def test_github_parse_webhook_ignored_event() -> None:
 
 @pytest.mark.asyncio
 async def test_github_ensure_worktree() -> None:
-    from pathlib import Path
-
     provider = GitHubProvider(token="tok")
     runner = AsyncMock()
     spec = WorkspaceSpec(
@@ -81,19 +82,79 @@ async def test_github_ensure_worktree() -> None:
     )
     repo_base = Path("/workspaces/github/org__repo")
     expected = repo_base / "worktrees" / "pr-1-deadbee"
+    prepared_workspace = PreparedWorkspace(
+        repo_base=repo_base,
+        mirror_path=repo_base / "mirror.git",
+        worktree_path=expected,
+        workspace=Workspace(path=expected, spec=spec),
+    )
 
-    with patch(
-        "coreview_shared.providers.git.github.prepare_repo_worktree",
-        new_callable=AsyncMock,
-        return_value=expected,
+    with patch.object(
+        provider._workspace_adapter,
+        "prepare_workspace",
+        new=AsyncMock(return_value=prepared_workspace),
     ) as mock_prepare:
         path = await provider.ensure_worktree(spec, repo_base, runner)
 
     assert path == expected
     mock_prepare.assert_awaited_once()
-    assert mock_prepare.await_args.args[3] == (
-        "https://x-access-token:tok@github.com/org/repo.git"
+    access = mock_prepare.await_args.args[3]
+    assert access.clone_url == "https://x-access-token:tok@github.com/org/repo.git"
+
+
+@pytest.mark.asyncio
+async def test_github_prepare_review_prefers_local_diff() -> None:
+    provider = GitHubProvider(token="tok")
+    runner = AsyncMock()
+    spec = WorkspaceSpec(
+        review_id="r1",
+        repo_full_name="org/repo",
+        pr_number=1,
+        head_sha="head-sha",
     )
+    repo_base = Path("/workspaces/github/org__repo")
+    prepared_workspace = PreparedWorkspace(
+        repo_base=repo_base,
+        mirror_path=repo_base / "mirror.git",
+        worktree_path=repo_base / "worktrees" / "pr-1-headsha",
+        workspace=Workspace(path=repo_base / "worktrees" / "pr-1-headsha", spec=spec),
+    )
+
+    with (
+        patch.object(
+            provider,
+            "get_pr_metadata",
+            new=AsyncMock(
+                return_value=MagicMock(
+                    repo_full_name="org/repo",
+                    pr_number=1,
+                    title="PR",
+                    author="alice",
+                    head_sha="head-sha",
+                    base_sha="base-sha",
+                    head_ref="feature",
+                    base_ref="main",
+                    html_url="https://example.com/pr/1",
+                )
+            ),
+        ),
+        patch.object(
+            provider._workspace_adapter,
+            "prepare_workspace",
+            new=AsyncMock(return_value=prepared_workspace),
+        ) as mock_prepare,
+        patch.object(
+            provider._workspace_adapter,
+            "build_diff",
+            new=AsyncMock(return_value="local diff"),
+        ) as mock_diff,
+    ):
+        review = await provider.prepare_review(spec, repo_base, runner)
+
+    assert review.context.diff == "local diff"
+    assert review.workspace == prepared_workspace
+    mock_prepare.assert_awaited_once()
+    mock_diff.assert_awaited_once()
 
 
 @pytest.mark.asyncio

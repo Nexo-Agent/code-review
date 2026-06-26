@@ -1,8 +1,9 @@
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from coreview_shared.workspace.adapter import GitWorkspaceAdapter
 from coreview_shared.workspace.git_mirror import ensure_mirror, is_mirror
 from coreview_shared.workspace.git_worktree import (
     prepare_repo_worktree,
@@ -75,3 +76,21 @@ async def test_remove_worktree_rmtree_when_not_mirror(tmp_path: Path) -> None:
     (wt / "file.txt").write_text("x", encoding="utf-8")
     await remove_worktree(runner, tmp_path / "missing-mirror", wt)
     assert not wt.exists()
+
+
+@pytest.mark.asyncio
+async def test_workspace_adapter_build_diff(tmp_path: Path) -> None:
+    adapter = GitWorkspaceAdapter()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    with patch("asyncio.to_thread", new=AsyncMock(return_value="diff text")):
+        result = await adapter.build_diff(
+            prepared_workspace=type(
+                "PreparedWorkspaceLike",
+                (),
+                {"worktree_path": repo},
+            )(),
+            base_sha="base",
+            head_sha="head",
+        )
+    assert result == "diff text"

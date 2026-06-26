@@ -11,12 +11,13 @@ from coreview_shared.protocols import (
     InlineComment,
     InlineCommentsResult,
     PRContext,
+    PreparedReview,
     PRMetadata,
+    RemoteRepoAccess,
     WebhookEvent,
     WorkspaceSpec,
 )
-from coreview_shared.workspace.git_worktree import prepare_repo_worktree
-from coreview_shared.workspace.paths import mirror_dir
+from coreview_shared.workspace import GitWorkspaceAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +68,13 @@ class AzureDevOpsProvider:
         pat: str,
         organization: str = "",
         project: str = "",
+        workspace_adapter: GitWorkspaceAdapter | None = None,
     ) -> None:
         self._pat = pat
         self._organization = organization
         self._project = project
         self._repository_ids: dict[str, str] = {}
+        self._workspace_adapter = workspace_adapter or GitWorkspaceAdapter()
 
     def _auth_headers(self) -> dict[str, str]:
         token = base64.b64encode(f":{self._pat}".encode()).decode()
@@ -88,6 +91,18 @@ class AzureDevOpsProvider:
 
     def _repo_cache_key(self, organization: str, project: str, repo: str) -> str:
         return f"{organization}/{project}/{repo}"
+
+    def _remote_access(self, repo_full_name: str) -> RemoteRepoAccess:
+        organization, project, repo = parse_repo_full_name(
+            repo_full_name,
+            organization=self._organization,
+            project=self._project,
+        )
+        clone_url = f"https://dev.azure.com/{organization}/{project}/_git/{repo}"
+        return RemoteRepoAccess(
+            clone_url=clone_url,
+            auth_args=tuple(self._git_auth_args()),
+        )
 
     async def _resolve_repository_id(
         self,
@@ -192,6 +207,56 @@ class AzureDevOpsProvider:
             pr_title=resource.get("title") or "",
         )
 
+    async def prepare_review(
+        self,
+        spec: WorkspaceSpec,
+        repo_base: Path,
+        runner: CommandRunner,
+    ) -> PreparedReview:
+        """Prepare Azure DevOps review inputs without leaking provider branches.
+
+        Azure DevOps does not currently provide the same simple diff shape as
+        GitHub for this project, so the provider still fetches metadata from the
+        API but delegates diff generation to the shared local git adapter.
+        """
+
+        metadata = await self.get_pr_metadata(spec.repo_full_name, spec.pr_number)
+        if spec.head_sha and metadata.head_sha != spec.head_sha:
+            logger.warning(
+                "PR head SHA mismatch: expected %s, API returned %s",
+                spec.head_sha[:7],
+                metadata.head_sha[:7],
+            )
+
+        access = self._remote_access(spec.repo_full_name)
+        prepared_workspace = await self._workspace_adapter.prepare_workspace(
+            spec,
+            repo_base,
+            runner,
+            access,
+        )
+        diff = await self._workspace_adapter.build_diff(
+            prepared_workspace,
+            base_sha=metadata.base_sha,
+            head_sha=metadata.head_sha,
+        )
+        return PreparedReview(
+            context=PRContext(metadata=metadata, diff=diff),
+            workspace=prepared_workspace,
+            remote_access=access,
+        )
+
+    async def cleanup_review(
+        self,
+        review: PreparedReview,
+        runner: CommandRunner,
+    ) -> None:
+        await self._workspace_adapter.cleanup_workspace(
+            review.workspace,
+            runner,
+            review.remote_access,
+        )
+
     async def get_pr_metadata(self, repo_full_name: str, pr_number: int) -> PRMetadata:
         organization, project, repo = parse_repo_full_name(
             repo_full_name,
@@ -272,21 +337,13 @@ class AzureDevOpsProvider:
         repo_base: Path,
         runner: CommandRunner,
     ) -> Path:
-        organization, project, repo = parse_repo_full_name(
-            spec.repo_full_name,
-            organization=self._organization,
-            project=self._project,
-        )
-        clone_url = f"https://dev.azure.com/{organization}/{project}/_git/{repo}"
-        return await prepare_repo_worktree(
-            runner,
+        prepared_workspace = await self._workspace_adapter.prepare_workspace(
+            spec,
             repo_base,
-            mirror_dir(repo_base),
-            clone_url,
-            spec.pr_number,
-            spec.head_sha,
-            auth_args=self._git_auth_args(),
+            runner,
+            self._remote_access(spec.repo_full_name),
         )
+        return prepared_workspace.worktree_path
 
     async def build_diff_from_workspace(
         self,
@@ -350,6 +407,32 @@ class AzureDevOpsProvider:
                 json=payload,
             )
             response.raise_for_status()
+
+    async def publish_summary_comment(
+        self,
+        review: PreparedReview,
+        body: str,
+    ) -> None:
+        await self.post_review_comment(
+            review.context.metadata.repo_full_name,
+            review.context.metadata.pr_number,
+            body,
+        )
+
+    async def publish_inline_comments(
+        self,
+        review: PreparedReview,
+        comments: list[InlineComment],
+        body: str = "",
+    ) -> InlineCommentsResult:
+        return await self.post_inline_comments(
+            review.context.metadata.repo_full_name,
+            review.context.metadata.pr_number,
+            review.context.metadata.head_sha,
+            comments,
+            body=body,
+            diff=review.context.diff,
+        )
 
     async def post_inline_comments(
         self,

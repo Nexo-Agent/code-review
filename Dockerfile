@@ -122,14 +122,11 @@ RUN groupadd --system --gid 999 app \
 COPY --from=python-builder --chown=app:app /app/.venv /app/.venv
 COPY --from=python-builder --chown=app:app /workspace/backend /app
 COPY --from=frontend-builder --chown=app:app /app/dist /app/static
-COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
 COPY --from=dbmate /usr/local/bin/dbmate /usr/local/bin/dbmate
 
-RUN chmod +x /usr/local/bin/api-entrypoint.sh \
- && mkdir -p /config /app/data \
+RUN mkdir -p /config /app/data \
  && chown -R app:app /app /config /app/data
 
 EXPOSE 8000
 
-# ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

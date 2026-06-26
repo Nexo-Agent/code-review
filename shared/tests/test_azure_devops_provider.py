@@ -5,7 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from coreview_shared.protocols import InlineComment, WorkspaceSpec
+from coreview_shared.protocols import (
+    InlineComment,
+    PreparedWorkspace,
+    PRMetadata,
+    Workspace,
+    WorkspaceSpec,
+)
 from coreview_shared.providers.git.azure_devops import (
     AzureDevOpsProvider,
     parse_repo_full_name,
@@ -141,17 +147,81 @@ async def test_ado_ensure_worktree() -> None:
     )
     repo_base = Path("/workspaces/azure-devops/fabrikam__myproject__repo")
     expected = repo_base / "worktrees" / "pr-1-deadbee"
+    prepared_workspace = PreparedWorkspace(
+        repo_base=repo_base,
+        mirror_path=repo_base / "mirror.git",
+        worktree_path=expected,
+        workspace=Workspace(path=expected, spec=spec),
+    )
 
-    with patch(
-        "coreview_shared.providers.git.azure_devops.prepare_repo_worktree",
-        new_callable=AsyncMock,
-        return_value=expected,
+    with patch.object(
+        provider._workspace_adapter,
+        "prepare_workspace",
+        new=AsyncMock(return_value=prepared_workspace),
     ) as mock_prepare:
         path = await provider.ensure_worktree(spec, repo_base, runner)
 
     assert path == expected
     mock_prepare.assert_awaited_once()
-    assert mock_prepare.await_args.kwargs["auth_args"] == provider._git_auth_args()
+    access = mock_prepare.await_args.args[3]
+    assert list(access.auth_args) == provider._git_auth_args()
+
+
+@pytest.mark.asyncio
+async def test_ado_prepare_review_uses_local_diff() -> None:
+    provider = AzureDevOpsProvider(pat="pat")
+    runner = AsyncMock()
+    spec = WorkspaceSpec(
+        review_id="r1",
+        repo_full_name="fabrikam/MyProject/Repo",
+        pr_number=1,
+        head_sha="head-sha",
+    )
+    repo_base = Path("/workspaces/azure-devops/fabrikam__myproject__repo")
+    prepared_workspace = PreparedWorkspace(
+        repo_base=repo_base,
+        mirror_path=repo_base / "mirror.git",
+        worktree_path=repo_base / "worktrees" / "pr-1-headsha",
+        workspace=Workspace(
+            path=repo_base / "worktrees" / "pr-1-headsha",
+            spec=spec,
+        ),
+    )
+    metadata = PRMetadata(
+        repo_full_name="fabrikam/MyProject/Repo",
+        pr_number=1,
+        title="My PR",
+        author="Alice",
+        head_sha="head-sha",
+        base_sha="base-sha",
+        head_ref="feature",
+        base_ref="main",
+        html_url="https://dev.azure.com/fabrikam/pull/1",
+    )
+
+    with (
+        patch.object(
+            provider,
+            "get_pr_metadata",
+            new=AsyncMock(return_value=metadata),
+        ),
+        patch.object(
+            provider._workspace_adapter,
+            "prepare_workspace",
+            new=AsyncMock(return_value=prepared_workspace),
+        ) as mock_prepare,
+        patch.object(
+            provider._workspace_adapter,
+            "build_diff",
+            new=AsyncMock(return_value="local diff"),
+        ) as mock_diff,
+    ):
+        review = await provider.prepare_review(spec, repo_base, runner)
+
+    assert review.context.diff == "local diff"
+    assert review.workspace == prepared_workspace
+    mock_prepare.assert_awaited_once()
+    mock_diff.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -4,20 +4,17 @@ from pathlib import Path
 from coreview_shared.llm.opencode import OpenCodeLLMProvider
 from coreview_shared.protocols import (
     InlineComment,
-    PRContext,
+    PreparedReview,
     ReviewFinding,
-    Workspace,
     WorkspaceSpec,
 )
-from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
 from coreview_shared.runtime.command_runner import LocalCommandRunner
 from coreview_shared.schemas.review_callback import (
     ReviewCallbackError,
     ReviewCallbackGithubResult,
     ReviewCallbackResult,
 )
-from coreview_shared.workspace.git_worktree import remove_worktree
-from coreview_shared.workspace.paths import mirror_dir, repo_base_dir
+from coreview_shared.workspace.paths import repo_base_dir
 
 from app.config import clear_agent_settings_cache, get_agent_settings
 from app.providers.factory import build_providers_from_env
@@ -50,6 +47,19 @@ def _summary_findings(
     ]
 
 
+def _with_ci_summary(review: PreparedReview, ci_summary: str) -> PreparedReview:
+    return PreparedReview(
+        context=type(review.context)(
+            metadata=review.context.metadata,
+            diff=review.context.diff,
+            ci_summary=ci_summary,
+        ),
+        workspace=review.workspace,
+        remote_access=review.remote_access,
+        provider_data=review.provider_data,
+    )
+
+
 async def execute_review_logic(review_id: str) -> None:
     clear_agent_settings_cache()
     infra = get_agent_settings()
@@ -58,14 +68,11 @@ async def execute_review_logic(review_id: str) -> None:
     require_review_env(infra)
 
     callback = ReviewCallbackClient.from_settings(infra)
-    mirror_path: Path | None = None
-    worktree_path: Path | None = None
-    git_auth_args: list[str] | None = None
+    prepared_review: PreparedReview | None = None
     runner = LocalCommandRunner()
+    providers = None
     try:
         providers = build_providers_from_env(infra)
-        if isinstance(providers.git, AzureDevOpsProvider):
-            git_auth_args = providers.git._git_auth_args()
 
         await callback.post_event(
             callback.build_event(
@@ -74,23 +81,10 @@ async def execute_review_logic(review_id: str) -> None:
                 request=request_from_env(infra),
             )
         )
-        logger.info("Review %s: fetching PR context", review_id)
-
-        pr_context = await providers.git.fetch_pr_context(
-            infra.repo_full_name,
-            infra.pr_number,
-            infra.head_sha,
-        )
         ci_summary = await providers.ci.get_ci_summary(
             infra.repo_full_name,
             infra.head_sha,
         )
-        pr_context = type(pr_context)(
-            metadata=pr_context.metadata,
-            diff=pr_context.diff,
-            ci_summary=ci_summary,
-        )
-        request = request_from_metadata(pr_context.metadata, infra.git_provider)
 
         spec = WorkspaceSpec(
             review_id=review_id,
@@ -103,24 +97,11 @@ async def execute_review_logic(review_id: str) -> None:
             infra.git_provider,
             infra.repo_full_name,
         )
-        mirror_path = mirror_dir(repo_base)
-        logger.info("Review %s: ensuring worktree at %s", review_id, repo_base)
-        worktree_path = await providers.git.ensure_worktree(spec, repo_base, runner)
-
-        if infra.git_provider == "azure-devops" and isinstance(
-            providers.git, AzureDevOpsProvider
-        ):
-            diff = await providers.git.build_diff_from_workspace(
-                runner,
-                worktree_path,
-                pr_context.metadata.base_sha,
-                pr_context.metadata.head_sha,
-            )
-            pr_context = PRContext(
-                metadata=pr_context.metadata,
-                diff=diff,
-                ci_summary=pr_context.ci_summary,
-            )
+        logger.info("Review %s: preparing review workspace at %s", review_id, repo_base)
+        prepared_review = await providers.git.prepare_review(spec, repo_base, runner)
+        prepared_review = _with_ci_summary(prepared_review, ci_summary)
+        pr_context = prepared_review.context
+        request = request_from_metadata(pr_context.metadata, infra.git_provider)
 
         config_path = materialize_opencode_config(infra, review_id=review_id)
         llm = OpenCodeLLMProvider(
@@ -130,9 +111,8 @@ async def execute_review_logic(review_id: str) -> None:
             opencode_config_path=str(config_path),
             log_level=infra.opencode_log_level,
         )
-        repo_workspace = Workspace(path=worktree_path, spec=spec)
         logger.info("Review %s: running LLM review", review_id)
-        findings = await llm.run_review(repo_workspace, pr_context)
+        findings = await llm.run_review(prepared_review.workspace.workspace, pr_context)
 
         logger.info(
             "Review %s: posting %d finding(s) to remote",
@@ -143,12 +123,9 @@ async def execute_review_logic(review_id: str) -> None:
         posted_inline: tuple[InlineComment, ...] = ()
         inline_skipped = 0
         if inline_comments:
-            inline_result = await providers.git.post_inline_comments(
-                infra.repo_full_name,
-                infra.pr_number,
-                infra.head_sha,
+            inline_result = await providers.git.publish_inline_comments(
+                prepared_review,
                 inline_comments,
-                diff=pr_context.diff,
             )
             posted_inline = inline_result.posted
             inline_skipped = len(inline_result.skipped)
@@ -165,11 +142,7 @@ async def execute_review_logic(review_id: str) -> None:
             infra.repo_full_name,
             infra.pr_number,
         )
-        await providers.git.post_review_comment(
-            infra.repo_full_name,
-            infra.pr_number,
-            summary,
-        )
+        await providers.git.publish_summary_comment(prepared_review, summary)
 
         await callback.post_event(
             callback.build_event(
@@ -202,13 +175,11 @@ async def execute_review_logic(review_id: str) -> None:
             logger.exception("Failed to send review.failed callback")
         raise
     finally:
-        if mirror_path is not None and worktree_path is not None:
+        if prepared_review is not None and providers is not None:
             try:
-                await remove_worktree(
-                    runner,
-                    mirror_path,
-                    worktree_path,
-                    auth_args=git_auth_args,
-                )
+                await providers.git.cleanup_review(prepared_review, runner)
             except Exception:
-                logger.exception("Failed to cleanup worktree %s", worktree_path)
+                logger.exception(
+                    "Failed to cleanup worktree %s",
+                    prepared_review.workspace.worktree_path,
+                )

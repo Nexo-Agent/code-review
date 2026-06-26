@@ -214,11 +214,11 @@ class RepoIntegrationRepository:
             ado_project,
             ado_pat,
             ado_webhook_username,
-            ado_webhook_password,
             clear_webhook_secret,
             clear_github_token,
             clear_ado_pat,
             clear_ado_webhook_password,
+            ado_webhook_password,
         )
         if row is None:
             msg = "failed to update repo integration"

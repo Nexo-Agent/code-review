@@ -11,13 +11,14 @@ from coreview_shared.protocols import (
     InlineComment,
     InlineCommentsResult,
     PRContext,
+    PreparedReview,
     PRMetadata,
+    RemoteRepoAccess,
     WebhookEvent,
     WorkspaceSpec,
 )
 from coreview_shared.providers.git.diff_lines import filter_inline_comments
-from coreview_shared.workspace.git_worktree import prepare_repo_worktree
-from coreview_shared.workspace.paths import mirror_dir
+from coreview_shared.workspace import GitWorkspaceAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,14 @@ HANDLED_WEBHOOK_ACTIONS = frozenset({"opened", "synchronize", "reopened"})
 class GitHubProvider:
     API_BASE = "https://api.github.com"
 
-    def __init__(self, token: str) -> None:
+    def __init__(
+        self,
+        token: str,
+        *,
+        workspace_adapter: GitWorkspaceAdapter | None = None,
+    ) -> None:
         self._token = token
+        self._workspace_adapter = workspace_adapter or GitWorkspaceAdapter()
 
     def _headers(self) -> dict[str, str]:
         headers = {
@@ -41,6 +48,9 @@ class GitHubProvider:
 
     def _clone_url(self, repo_full_name: str) -> str:
         return f"https://x-access-token:{self._token}@github.com/{repo_full_name}.git"
+
+    def _remote_access(self, repo_full_name: str) -> RemoteRepoAccess:
+        return RemoteRepoAccess(clone_url=self._clone_url(repo_full_name))
 
     def verify_webhook_signature(
         self, payload: bytes, signature: str | None, secret: str
@@ -82,6 +92,56 @@ class GitHubProvider:
             head_sha=pr["head"]["sha"],
             delivery_id=normalized.get("x-github-delivery"),
             pr_title=pr.get("title") or "",
+        )
+
+    async def prepare_review(
+        self,
+        spec: WorkspaceSpec,
+        repo_base: Path,
+        runner: CommandRunner,
+    ) -> PreparedReview:
+        """Prepare a provider-agnostic review session using local git artifacts.
+
+        GitHub exposes a diff API, but review execution should still prefer the
+        shared local git workflow so every provider converges on the same local
+        behavior once a worktree exists.
+        """
+
+        metadata = await self.get_pr_metadata(spec.repo_full_name, spec.pr_number)
+        if spec.head_sha and metadata.head_sha != spec.head_sha:
+            logger.warning(
+                "PR head SHA mismatch: expected %s, API returned %s",
+                spec.head_sha[:7],
+                metadata.head_sha[:7],
+            )
+
+        access = self._remote_access(spec.repo_full_name)
+        prepared_workspace = await self._workspace_adapter.prepare_workspace(
+            spec,
+            repo_base,
+            runner,
+            access,
+        )
+        diff = await self._workspace_adapter.build_diff(
+            prepared_workspace,
+            base_sha=metadata.base_sha,
+            head_sha=metadata.head_sha,
+        )
+        return PreparedReview(
+            context=PRContext(metadata=metadata, diff=diff),
+            workspace=prepared_workspace,
+            remote_access=access,
+        )
+
+    async def cleanup_review(
+        self,
+        review: PreparedReview,
+        runner: CommandRunner,
+    ) -> None:
+        await self._workspace_adapter.cleanup_workspace(
+            review.workspace,
+            runner,
+            review.remote_access,
         )
 
     async def get_pr_metadata(self, repo_full_name: str, pr_number: int) -> PRMetadata:
@@ -134,14 +194,38 @@ class GitHubProvider:
         repo_base: Path,
         runner: CommandRunner,
     ) -> Path:
-        clone_url = self._clone_url(spec.repo_full_name)
-        return await prepare_repo_worktree(
-            runner,
+        prepared_workspace = await self._workspace_adapter.prepare_workspace(
+            spec,
             repo_base,
-            mirror_dir(repo_base),
-            clone_url,
-            spec.pr_number,
-            spec.head_sha,
+            runner,
+            self._remote_access(spec.repo_full_name),
+        )
+        return prepared_workspace.worktree_path
+
+    async def publish_summary_comment(
+        self,
+        review: PreparedReview,
+        body: str,
+    ) -> None:
+        await self.post_review_comment(
+            review.context.metadata.repo_full_name,
+            review.context.metadata.pr_number,
+            body,
+        )
+
+    async def publish_inline_comments(
+        self,
+        review: PreparedReview,
+        comments: list[InlineComment],
+        body: str = "",
+    ) -> InlineCommentsResult:
+        return await self.post_inline_comments(
+            review.context.metadata.repo_full_name,
+            review.context.metadata.pr_number,
+            review.context.metadata.head_sha,
+            comments,
+            body=body,
+            diff=review.context.diff,
         )
 
     async def post_review_comment(
