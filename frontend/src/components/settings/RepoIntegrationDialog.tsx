@@ -149,6 +149,7 @@ function RepoIntegrationForm({
         await updateRepo.mutateAsync({ id: repo.id, payload })
         toast.success("Repository updated")
       } else {
+        const repoFullName = form.repo_full_name?.trim() ?? ""
         const payload: RepoIntegrationCreate = {
           ...form,
           name: form.name?.trim() || deriveRepoName(repoFullName),
