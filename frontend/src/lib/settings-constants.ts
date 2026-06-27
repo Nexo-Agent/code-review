@@ -1,25 +1,10 @@
 import type { LlmProviderCreate, RepoIntegrationCreate } from "@/api/settings-types"
 
-export const GIT_PROVIDER_OPTIONS = [
-  { value: "github", label: "GitHub" },
-  { value: "azure-devops", label: "Azure DevOps" },
-  { value: "gitlab", label: "GitLab (coming soon)", disabled: true },
-] as const
+export {
+  llmProviderIdOptions,
+} from "@/components/settings/llm-provider/providers"
 
-export const LLM_PROVIDER_ID_OPTIONS = [
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "google", label: "Google" },
-  { value: "openai-compat", label: "OpenAI Compatible API" },
-] as const
-
-export function llmProviderIdOptions(current?: string) {
-  const options = [...LLM_PROVIDER_ID_OPTIONS]
-  if (current && !options.some((option) => option.value === current)) {
-    return [{ value: current, label: current }, ...options]
-  }
-  return options
-}
+export { GIT_PROVIDER_OPTIONS } from "@/components/settings/repo-integration/providers"
 
 export function emptyLlmForm(): LlmProviderCreate {
   return {
