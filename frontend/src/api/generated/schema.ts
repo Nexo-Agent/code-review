@@ -21,6 +21,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/install/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Install Status */
+        get: operations["install_status_api_v1_install_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/install/bootstrap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Install Bootstrap */
+        post: operations["install_bootstrap_api_v1_install_bootstrap_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -30,6 +64,23 @@ export interface paths {
         };
         /** Get Me */
         get: operations["get_me_api_v1_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/idp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Idp */
+        get: operations["get_idp_api_v1_auth_idp_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -83,6 +134,74 @@ export interface paths {
         get: operations["callback_api_v1_auth_callback_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Saml Login */
+        get: operations["saml_login_api_v1_auth_saml_login_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Saml Acs */
+        post: operations["saml_acs_api_v1_auth_saml_acs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Saml Metadata */
+        get: operations["saml_metadata_api_v1_auth_saml_metadata_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/local/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Local Login */
+        post: operations["local_login_api_v1_auth_local_login_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -174,15 +293,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/members": {
+    "/api/v1/users": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Org Members */
-        get: operations["get_org_members_api_v1_members_get"];
+        /** List Users */
+        get: operations["list_users_api_v1_users_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -353,6 +472,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/identity-provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Idp Settings */
+        get: operations["get_idp_settings_api_v1_settings_identity_provider_get"];
+        /** Put Idp Settings */
+        put: operations["put_idp_settings_api_v1_settings_identity_provider_put"];
+        post?: never;
+        /** Delete Idp Settings */
+        delete: operations["delete_idp_settings_api_v1_settings_identity_provider_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/identity-provider/saml/cert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Saml Sp Cert */
+        put: operations["put_saml_sp_cert_api_v1_settings_identity_provider_saml_cert_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/llm-providers": {
         parameters: {
             query?: never;
@@ -515,6 +670,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_saml_acs_api_v1_auth_saml_acs_post */
+        Body_saml_acs_api_v1_auth_saml_acs_post: {
+            /**
+             * Samlresponse
+             * @default
+             */
+            SAMLResponse: string;
+            /**
+             * Relaystate
+             * @default
+             */
+            RelayState: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -528,6 +696,195 @@ export interface components {
             db: string;
             /** Version */
             version: string;
+        };
+        /** IdentityProviderPublicResponse */
+        IdentityProviderPublicResponse: {
+            /** Enabled */
+            enabled: boolean;
+            /** Display Name */
+            display_name: string;
+            /** Protocol */
+            protocol: string;
+        };
+        /** IdentityProviderResponse */
+        IdentityProviderResponse: {
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Protocol */
+            protocol: string;
+            /** Preset */
+            preset: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Display Name */
+            display_name: string;
+            /** Oidc Issuer */
+            oidc_issuer?: string | null;
+            /** Oidc Client Id */
+            oidc_client_id?: string | null;
+            /**
+             * Oidc Client Secret Configured
+             * @default false
+             */
+            oidc_client_secret_configured: boolean;
+            /**
+             * Oidc Scopes
+             * @default openid email profile
+             */
+            oidc_scopes: string;
+            /** Oidc Authorize Url */
+            oidc_authorize_url?: string | null;
+            /** Oidc Token Url */
+            oidc_token_url?: string | null;
+            /** Oidc Userinfo Url */
+            oidc_userinfo_url?: string | null;
+            /** Saml Idp Entity Id */
+            saml_idp_entity_id?: string | null;
+            /** Saml Idp Sso Url */
+            saml_idp_sso_url?: string | null;
+            /** Saml Idp Slo Url */
+            saml_idp_slo_url?: string | null;
+            /**
+             * Saml Idp Cert Configured
+             * @default false
+             */
+            saml_idp_cert_configured: boolean;
+            /** Saml Sp Entity Id */
+            saml_sp_entity_id?: string | null;
+            /** Saml Sp Acs Url */
+            saml_sp_acs_url?: string | null;
+            /**
+             * Saml Sp Cert Configured
+             * @default false
+             */
+            saml_sp_cert_configured: boolean;
+            /**
+             * Saml Sp Private Key Configured
+             * @default false
+             */
+            saml_sp_private_key_configured: boolean;
+            /**
+             * Email Claim
+             * @default email
+             */
+            email_claim: string;
+            /**
+             * Name Claim
+             * @default name
+             */
+            name_claim: string;
+            /**
+             * Sub Claim
+             * @default sub
+             */
+            sub_claim: string;
+            /** Oidc Redirect Uri */
+            oidc_redirect_uri: string;
+            /** Saml Metadata Url */
+            saml_metadata_url: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** IdentityProviderUpsert */
+        IdentityProviderUpsert: {
+            /** Protocol */
+            protocol: string;
+            /** Preset */
+            preset: string;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Display Name
+             * @default
+             */
+            display_name: string;
+            /** Oidc Issuer */
+            oidc_issuer?: string | null;
+            /** Oidc Client Id */
+            oidc_client_id?: string | null;
+            /** Oidc Client Secret */
+            oidc_client_secret?: string | null;
+            /**
+             * Clear Oidc Client Secret
+             * @default false
+             */
+            clear_oidc_client_secret: boolean;
+            /**
+             * Oidc Scopes
+             * @default openid email profile
+             */
+            oidc_scopes: string;
+            /** Oidc Authorize Url */
+            oidc_authorize_url?: string | null;
+            /** Oidc Token Url */
+            oidc_token_url?: string | null;
+            /** Oidc Userinfo Url */
+            oidc_userinfo_url?: string | null;
+            /** Saml Idp Metadata Url */
+            saml_idp_metadata_url?: string | null;
+            /** Saml Idp Metadata Xml */
+            saml_idp_metadata_xml?: string | null;
+            /** Saml Idp Entity Id */
+            saml_idp_entity_id?: string | null;
+            /** Saml Idp Sso Url */
+            saml_idp_sso_url?: string | null;
+            /** Saml Idp Slo Url */
+            saml_idp_slo_url?: string | null;
+            /** Saml Idp Cert */
+            saml_idp_cert?: string | null;
+            /**
+             * Email Claim
+             * @default email
+             */
+            email_claim: string;
+            /**
+             * Name Claim
+             * @default name
+             */
+            name_claim: string;
+            /**
+             * Sub Claim
+             * @default sub
+             */
+            sub_claim: string;
+            /** Preset Tenant Id */
+            preset_tenant_id?: string | null;
+            /** Preset Domain */
+            preset_domain?: string | null;
+            /** Preset Base Url */
+            preset_base_url?: string | null;
+            /** Preset Realm */
+            preset_realm?: string | null;
+        };
+        /** InstallBootstrapRequest */
+        InstallBootstrapRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name?: string | null;
+        };
+        /** InstallStatusResponse */
+        InstallStatusResponse: {
+            /** Setup Required */
+            setup_required: boolean;
         };
         /** LlmProviderCreate */
         LlmProviderCreate: {
@@ -618,6 +975,13 @@ export interface components {
             /** Enabled */
             enabled?: boolean | null;
         };
+        /** LocalLoginRequest */
+        LocalLoginRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
         /** MeResponse */
         MeResponse: {
             user: components["schemas"]["UserResponse"];
@@ -625,32 +989,6 @@ export interface components {
             team_ids: string[];
             /** Auth Enabled */
             auth_enabled: boolean;
-        };
-        /** OrgMemberResponse */
-        OrgMemberResponse: {
-            /**
-             * Team Id
-             * Format: uuid
-             */
-            team_id: string;
-            /** Team Name */
-            team_name: string;
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-            /** User Email */
-            user_email: string;
-            /** User Name */
-            user_name: string;
-            /** Role */
-            role: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
         };
         /** OrgRepositoryResponse */
         OrgRepositoryResponse: {
@@ -1064,6 +1402,13 @@ export interface components {
             /** Findings */
             findings?: components["schemas"]["ReviewFindingResponse"][];
         };
+        /** SamlSpCertUpload */
+        SamlSpCertUpload: {
+            /** Sp Cert */
+            sp_cert: string;
+            /** Sp Private Key */
+            sp_private_key: string;
+        };
         /** TeamCreate */
         TeamCreate: {
             /** Name */
@@ -1198,6 +1543,40 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** UserListItemResponse */
+        UserListItemResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /** Username */
+            username: string | null;
+            /** Auth Source */
+            auth_source: string;
+            /** Is Org Admin */
+            is_org_admin: boolean;
+            /** Is Superuser */
+            is_superuser: boolean;
+            /** Team Names */
+            team_names: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** UserListResponse */
+        UserListResponse: {
+            /** Items */
+            items: components["schemas"]["UserListItemResponse"][];
+            /** Total */
+            total: number;
+        };
         /** UserResponse */
         UserResponse: {
             /**
@@ -1259,6 +1638,59 @@ export interface operations {
             };
         };
     };
+    install_status_api_v1_install_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallStatusResponse"];
+                };
+            };
+        };
+    };
+    install_bootstrap_api_v1_install_bootstrap_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallBootstrapRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_me_api_v1_auth_me_get: {
         parameters: {
             query?: never;
@@ -1286,6 +1718,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_idp_api_v1_auth_idp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderPublicResponse"];
                 };
             };
         };
@@ -1360,6 +1812,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saml_login_api_v1_auth_saml_login_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    saml_acs_api_v1_auth_saml_acs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["Body_saml_acs_api_v1_auth_saml_acs_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saml_metadata_api_v1_auth_saml_metadata_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    local_login_api_v1_auth_local_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1525,9 +2083,13 @@ export interface operations {
             };
         };
     };
-    get_org_members_api_v1_members_get: {
+    list_users_api_v1_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -1542,7 +2104,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrgMemberResponse"][];
+                    "application/json": components["schemas"]["UserListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2166,6 +2728,136 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_idp_settings_api_v1_settings_identity_provider_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_idp_settings_api_v1_settings_identity_provider_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityProviderUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_idp_settings_api_v1_settings_identity_provider_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_saml_sp_cert_api_v1_settings_identity_provider_saml_cert_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SamlSpCertUpload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

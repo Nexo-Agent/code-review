@@ -65,13 +65,3 @@ export interface OrgRepository extends TeamRepository {
   team_id: string
   team_name: string
 }
-
-export interface OrgMember {
-  team_id: string
-  team_name: string
-  user_id: string
-  user_email: string
-  user_name: string
-  role: string
-  created_at: string
-}

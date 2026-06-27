@@ -10,13 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InstallRouteImport } from './routes/install'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UsersIndexRouteImport } from './routes/users/index'
 import { Route as TeamsIndexRouteImport } from './routes/teams/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
 import { Route as RepositoriesIndexRouteImport } from './routes/repositories/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as LlmProvidersIndexRouteImport } from './routes/llm-providers/index'
+import { Route as SettingsIdentityProviderRouteImport } from './routes/settings/identity-provider'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 import { Route as RepositoriesRepoIdRouteImport } from './routes/repositories/$repoId'
 import { Route as LlmProvidersProviderIdRouteImport } from './routes/llm-providers/$providerId'
@@ -29,9 +32,19 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstallRoute = InstallRouteImport.update({
+  id: '/install',
+  path: '/install',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersIndexRoute = UsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TeamsIndexRoute = TeamsIndexRouteImport.update({
@@ -64,6 +77,12 @@ const LlmProvidersIndexRoute = LlmProvidersIndexRouteImport.update({
   path: '/llm-providers/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIdentityProviderRoute =
+  SettingsIdentityProviderRouteImport.update({
+    id: '/settings/identity-provider',
+    path: '/settings/identity-provider',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
   id: '/reviews/$reviewId',
   path: '/reviews/$reviewId',
@@ -99,32 +118,38 @@ const TeamsTeamIdProjectsProjectIdReposRepoIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
+  '/settings/identity-provider': typeof SettingsIdentityProviderRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/members/': typeof MembersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/teams/': typeof TeamsIndexRoute
+  '/users/': typeof UsersIndexRoute
   '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/projects/$projectId/': typeof TeamsTeamIdProjectsProjectIdIndexRoute
   '/teams/$teamId/projects/$projectId/repos/$repoId': typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
+  '/settings/identity-provider': typeof SettingsIdentityProviderRoute
   '/llm-providers': typeof LlmProvidersIndexRoute
   '/members': typeof MembersIndexRoute
   '/repositories': typeof RepositoriesIndexRoute
   '/reviews': typeof ReviewsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/teams': typeof TeamsIndexRoute
+  '/users': typeof UsersIndexRoute
   '/teams/$teamId': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/projects/$projectId': typeof TeamsTeamIdProjectsProjectIdIndexRoute
   '/teams/$teamId/projects/$projectId/repos/$repoId': typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
@@ -132,16 +157,19 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/llm-providers/$providerId': typeof LlmProvidersProviderIdRoute
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
+  '/settings/identity-provider': typeof SettingsIdentityProviderRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/members/': typeof MembersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/teams/': typeof TeamsIndexRoute
+  '/users/': typeof UsersIndexRoute
   '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/projects/$projectId/': typeof TeamsTeamIdProjectsProjectIdIndexRoute
   '/teams/$teamId/projects/$projectId/repos/$repoId': typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
@@ -150,48 +178,57 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/install'
     | '/login'
     | '/llm-providers/$providerId'
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
+    | '/settings/identity-provider'
     | '/llm-providers/'
     | '/members/'
     | '/repositories/'
     | '/reviews/'
     | '/settings/'
     | '/teams/'
+    | '/users/'
     | '/teams/$teamId/'
     | '/teams/$teamId/projects/$projectId/'
     | '/teams/$teamId/projects/$projectId/repos/$repoId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/install'
     | '/login'
     | '/llm-providers/$providerId'
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
+    | '/settings/identity-provider'
     | '/llm-providers'
     | '/members'
     | '/repositories'
     | '/reviews'
     | '/settings'
     | '/teams'
+    | '/users'
     | '/teams/$teamId'
     | '/teams/$teamId/projects/$projectId'
     | '/teams/$teamId/projects/$projectId/repos/$repoId'
   id:
     | '__root__'
     | '/'
+    | '/install'
     | '/login'
     | '/llm-providers/$providerId'
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
+    | '/settings/identity-provider'
     | '/llm-providers/'
     | '/members/'
     | '/repositories/'
     | '/reviews/'
     | '/settings/'
     | '/teams/'
+    | '/users/'
     | '/teams/$teamId/'
     | '/teams/$teamId/projects/$projectId/'
     | '/teams/$teamId/projects/$projectId/repos/$repoId'
@@ -199,16 +236,19 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InstallRoute: typeof InstallRoute
   LoginRoute: typeof LoginRoute
   LlmProvidersProviderIdRoute: typeof LlmProvidersProviderIdRoute
   RepositoriesRepoIdRoute: typeof RepositoriesRepoIdRoute
   ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
+  SettingsIdentityProviderRoute: typeof SettingsIdentityProviderRoute
   LlmProvidersIndexRoute: typeof LlmProvidersIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
   RepositoriesIndexRoute: typeof RepositoriesIndexRoute
   ReviewsIndexRoute: typeof ReviewsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   TeamsIndexRoute: typeof TeamsIndexRoute
+  UsersIndexRoute: typeof UsersIndexRoute
   TeamsTeamIdIndexRoute: typeof TeamsTeamIdIndexRoute
   TeamsTeamIdProjectsProjectIdIndexRoute: typeof TeamsTeamIdProjectsProjectIdIndexRoute
   TeamsTeamIdProjectsProjectIdReposRepoIdRoute: typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
@@ -223,11 +263,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/install': {
+      id: '/install'
+      path: '/install'
+      fullPath: '/install'
+      preLoaderRoute: typeof InstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users/': {
+      id: '/users/'
+      path: '/users'
+      fullPath: '/users/'
+      preLoaderRoute: typeof UsersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/teams/': {
@@ -270,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/llm-providers'
       fullPath: '/llm-providers/'
       preLoaderRoute: typeof LlmProvidersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/identity-provider': {
+      id: '/settings/identity-provider'
+      path: '/settings/identity-provider'
+      fullPath: '/settings/identity-provider'
+      preLoaderRoute: typeof SettingsIdentityProviderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reviews/$reviewId': {
@@ -319,16 +380,19 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InstallRoute: InstallRoute,
   LoginRoute: LoginRoute,
   LlmProvidersProviderIdRoute: LlmProvidersProviderIdRoute,
   RepositoriesRepoIdRoute: RepositoriesRepoIdRoute,
   ReviewsReviewIdRoute: ReviewsReviewIdRoute,
+  SettingsIdentityProviderRoute: SettingsIdentityProviderRoute,
   LlmProvidersIndexRoute: LlmProvidersIndexRoute,
   MembersIndexRoute: MembersIndexRoute,
   RepositoriesIndexRoute: RepositoriesIndexRoute,
   ReviewsIndexRoute: ReviewsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   TeamsIndexRoute: TeamsIndexRoute,
+  UsersIndexRoute: UsersIndexRoute,
   TeamsTeamIdIndexRoute: TeamsTeamIdIndexRoute,
   TeamsTeamIdProjectsProjectIdIndexRoute:
     TeamsTeamIdProjectsProjectIdIndexRoute,

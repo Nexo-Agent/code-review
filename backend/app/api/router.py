@@ -4,20 +4,23 @@ from app.api.v1 import (
     agent_callbacks,
     auth,
     health,
+    identity_provider,
+    install,
     llm_providers,
-    org_members,
     org_repositories,
     project_repos,
     projects,
     repos,
     reviews,
     teams,
+    users,
     webhooks,
 )
 
 api_router = APIRouter(prefix="/api")
 v1_router = APIRouter(prefix="/v1")
 v1_router.include_router(health.router, tags=["health"])
+v1_router.include_router(install.router, prefix="/install", tags=["install"])
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 v1_router.include_router(
@@ -25,7 +28,7 @@ v1_router.include_router(
     prefix="/repositories",
     tags=["repositories"],
 )
-v1_router.include_router(org_members.router, prefix="/members", tags=["members"])
+v1_router.include_router(users.router, prefix="/users", tags=["users"])
 v1_router.include_router(teams.router, prefix="/teams", tags=["teams"])
 v1_router.include_router(
     projects.router,
@@ -36,6 +39,11 @@ v1_router.include_router(
     project_repos.router,
     prefix="/teams/{team_id}/projects/{project_id}/repos",
     tags=["repos"],
+)
+v1_router.include_router(
+    identity_provider.router,
+    prefix="/settings/identity-provider",
+    tags=["identity-provider"],
 )
 v1_router.include_router(
     llm_providers.router,

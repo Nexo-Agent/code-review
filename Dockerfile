@@ -69,6 +69,12 @@ COPY --from=uv /uv /uvx /bin/
 
 WORKDIR /workspace
 
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    libxmlsec1 \
+    libxmlsec1-openssl \
+ && rm -rf /var/lib/apt/lists/*
+
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
@@ -118,6 +124,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN groupadd --system --gid 999 app \
  && useradd --system --gid 999 --uid 999 --create-home app
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    libxmlsec1 \
+    libxmlsec1-openssl \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=python-builder --chown=app:app /app/.venv /app/.venv
 COPY --from=python-builder --chown=app:app /workspace/backend /app

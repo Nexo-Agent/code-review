@@ -10,7 +10,6 @@ import type {
   TeamMember,
   TeamMemberCreate,
   TeamRepository,
-  OrgMember,
   OrgRepository,
   TeamUpdate,
 } from "@/api/team-types"
@@ -73,13 +72,6 @@ export function useOrgRepositories() {
   return useQuery({
     queryKey: ["repositories"],
     queryFn: () => api<OrgRepository[]>("/repositories"),
-  })
-}
-
-export function useOrgMembers() {
-  return useQuery({
-    queryKey: ["members"],
-    queryFn: () => api<OrgMember[]>("/members"),
   })
 }
 
@@ -157,7 +149,7 @@ export function useAddTeamMember(teamId: string) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams", teamId, "members"] })
-      queryClient.invalidateQueries({ queryKey: ["members"] })
+      queryClient.invalidateQueries({ queryKey: ["users"] })
       queryClient.invalidateQueries({ queryKey: ["teams"] })
     },
   })
@@ -170,7 +162,7 @@ export function useRemoveTeamMember(teamId: string) {
       api<void>(`/teams/${teamId}/members/${userId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams", teamId, "members"] })
-      queryClient.invalidateQueries({ queryKey: ["members"] })
+      queryClient.invalidateQueries({ queryKey: ["users"] })
       queryClient.invalidateQueries({ queryKey: ["teams"] })
     },
   })

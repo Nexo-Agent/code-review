@@ -7,7 +7,6 @@ from app.repositories.team_members import TeamMemberRepository
 from app.repositories.teams import TeamRepository, TeamRow
 from app.repositories.users import UserRepository
 from app.schemas.team import (
-    OrgMemberResponse,
     TeamCreate,
     TeamMemberCreate,
     TeamMemberResponse,
@@ -144,25 +143,6 @@ async def add_team_member(
 
 async def remove_team_member(conn, team_id: UUID, user_id: UUID) -> None:
     await TeamMemberRepository(conn).remove(team_id, user_id)
-
-
-async def list_org_members(
-    conn,
-    team_ids: list[UUID],
-) -> list[OrgMemberResponse]:
-    rows = await TeamMemberRepository(conn).list_for_teams(team_ids)
-    return [
-        OrgMemberResponse(
-            team_id=row.team_id,
-            team_name=row.team_name,
-            user_id=row.user_id,
-            user_email=row.user_email,
-            user_name=row.user_name,
-            role=row.role,
-            created_at=row.created_at,
-        )
-        for row in rows
-    ]
 
 
 async def list_users(conn) -> list:

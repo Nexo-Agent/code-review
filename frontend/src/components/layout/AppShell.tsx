@@ -17,7 +17,6 @@ const baseNavItems = [
   { to: "/", label: "Dashboard", exact: true },
   { to: "/teams", label: "Teams", exact: false },
   { to: "/repositories", label: "Repositories", exact: false },
-  { to: "/members", label: "Members", exact: false },
   { to: "/reviews", label: "Reviews", exact: false },
 ] as const
 
@@ -40,7 +39,12 @@ export function AppShell({
   const isOrgAdmin = me.data?.user.is_org_admin ?? false
 
   const navItems = isOrgAdmin
-    ? [...baseNavItems, { to: "/llm-providers", label: "LLM Providers", exact: false }]
+    ? [
+        ...baseNavItems,
+        { to: "/users", label: "Users", exact: false },
+        { to: "/llm-providers", label: "LLM Providers", exact: false },
+        { to: "/settings/identity-provider", label: "SSO", exact: false },
+      ]
     : baseNavItems
 
   return (

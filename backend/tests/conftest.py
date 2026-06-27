@@ -48,6 +48,9 @@ def make_dev_user(**overrides: object) -> UserRow:
         "email": "test@example.com",
         "name": "Test User",
         "is_org_admin": True,
+        "auth_source": "sso",
+        "username": None,
+        "is_superuser": False,
         "created_at": now,
     }
     defaults.update(overrides)
