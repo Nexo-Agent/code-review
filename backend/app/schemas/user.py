@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas.pagination import PaginatedResponse
+
 
 class UserListItemResponse(BaseModel):
     id: UUID
@@ -16,6 +18,5 @@ class UserListItemResponse(BaseModel):
     created_at: datetime
 
 
-class UserListResponse(BaseModel):
-    items: list[UserListItemResponse]
-    total: int
+class UserListResponse(PaginatedResponse[UserListItemResponse]):
+    pass

@@ -3,9 +3,8 @@ import { Settings } from "lucide-react"
 import { useState } from "react"
 
 import { AppShell } from "@/components/layout/AppShell"
-import { DataPanel } from "@/components/patterns/data-panel"
 import { EmptyState } from "@/components/patterns/empty-state"
-import { ProjectCreateDialog } from "@/components/teams/ProjectCreateDialog"
+import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
 import { TeamMemberAddDialog } from "@/components/teams/TeamMemberAddDialog"
 import { TeamRepositoryAddDialog } from "@/components/teams/TeamRepositoryAddDialog"
 import { TeamSettingsDialog } from "@/components/teams/TeamSettingsDialog"
@@ -21,8 +20,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMe } from "@/hooks/use-auth"
 import {
-  useTeamMembers,
-  useTeamRepositories,
+  useTeamMembersPage,
+  useTeamRepositoriesPage,
   useTeams,
 } from "@/hooks/use-teams"
 
@@ -34,11 +33,11 @@ function TeamDetailPage() {
   const { teamId } = Route.useParams()
   const me = useMe()
   const teams = useTeams()
-  const repositories = useTeamRepositories(teamId)
-  const members = useTeamMembers(teamId)
   const [tab, setTab] = useState("repositories")
-  const [projectDialogOpen, setProjectDialogOpen] = useState(false)
-  const [projectDialogSession, setProjectDialogSession] = useState(0)
+  const [repoPage, setRepoPage] = useState(1)
+  const [memberPage, setMemberPage] = useState(1)
+  const repositories = useTeamRepositoriesPage(teamId, { page: repoPage })
+  const members = useTeamMembersPage(teamId, { page: memberPage })
   const [repositoryDialogOpen, setRepositoryDialogOpen] = useState(false)
   const [repositoryDialogSession, setRepositoryDialogSession] = useState(0)
   const [memberDialogOpen, setMemberDialogOpen] = useState(false)
@@ -47,14 +46,7 @@ function TeamDetailPage() {
   const [settingsDialogSession, setSettingsDialogSession] = useState(0)
 
   const isOrgAdmin = me.data?.user.is_org_admin ?? false
-  const team = teams.data?.find((row) => row.id === teamId)
-  const repoList = repositories.data ?? []
-  const memberList = members.data ?? []
-
-  function openProjectDialog() {
-    setProjectDialogSession((session) => session + 1)
-    setProjectDialogOpen(true)
-  }
+  const team = teams.data?.items.find((row) => row.id === teamId)
 
   function openRepositoryDialog() {
     setRepositoryDialogSession((session) => session + 1)
@@ -116,73 +108,61 @@ function TeamDetailPage() {
           ) : null}
         </div>
 
-        <ProjectCreateDialog
-          teamId={teamId}
-          open={projectDialogOpen}
-          onOpenChange={setProjectDialogOpen}
-          sessionKey={projectDialogSession}
-        />
         {isOrgAdmin ? (
           <TeamRepositoryAddDialog
             teamId={teamId}
             open={repositoryDialogOpen}
             onOpenChange={setRepositoryDialogOpen}
             sessionKey={repositoryDialogSession}
-            onCreateProject={openProjectDialog}
           />
         ) : null}
 
         <TabsContent value="repositories" className="mt-4">
-          <DataPanel loading={repositories.isPending} error={repositories.isError}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Repository</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>LLM</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {repoList.length ? (
-                  repoList.map((repo) => (
-                    <TableRow key={repo.id}>
-                      <TableCell>
-                        <Link
-                          to="/teams/$teamId/projects/$projectId/repos/$repoId"
-                          params={{
-                            teamId,
-                            projectId: repo.project_id,
-                            repoId: repo.id,
-                          }}
-                          className="font-medium hover:underline"
-                        >
-                          {repo.repo_full_name || repo.name || "All repositories"}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          to="/teams/$teamId/projects/$projectId"
-                          params={{ teamId, projectId: repo.project_id }}
-                          className="text-muted-foreground hover:underline"
-                        >
-                          {repo.project_name}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        {repo.llm_provider_name ?? "Org default"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <EmptyState colSpan={3}>
-                    {isOrgAdmin
-                      ? 'No repositories yet. Create a project, then add repositories from the project page.'
-                      : "No repositories in this team yet."}
-                  </EmptyState>
-                )}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          <PaginatedListPanel
+            query={repositories}
+            page={repoPage}
+            onPageChange={setRepoPage}
+          >
+            {(repoList) => (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Repository</TableHead>
+                    <TableHead>LLM</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {repoList.length ? (
+                    repoList.map((repo) => (
+                      <TableRow key={repo.id}>
+                        <TableCell>
+                          <Link
+                            to="/teams/$teamId/repos/$repoId"
+                            params={{
+                              teamId,
+                              repoId: repo.id,
+                            }}
+                            className="font-medium hover:underline"
+                          >
+                            {repo.repo_full_name || repo.name || "All repositories"}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          {repo.llm_provider_name ?? "Org default"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <EmptyState colSpan={2}>
+                      {isOrgAdmin
+                        ? 'No repositories yet. Click "Add repository" to connect one.'
+                        : "No repositories in this team yet."}
+                    </EmptyState>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </PaginatedListPanel>
         </TabsContent>
 
         <TabsContent value="members" className="mt-4">
@@ -194,32 +174,38 @@ function TeamDetailPage() {
               sessionKey={memberDialogSession}
             />
           ) : null}
-          <DataPanel loading={members.isPending} error={members.isError}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {memberList.length ? (
-                  memberList.map((member) => (
-                    <TableRow key={member.user_id}>
-                      <TableCell>{member.user_email}</TableCell>
-                      <TableCell>{member.role}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <EmptyState colSpan={2}>
-                    {isOrgAdmin
-                      ? 'No members yet. Click "Add member" to assign users.'
-                      : "No members listed for this team."}
-                  </EmptyState>
-                )}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          <PaginatedListPanel
+            query={members}
+            page={memberPage}
+            onPageChange={setMemberPage}
+          >
+            {(memberList) => (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {memberList.length ? (
+                    memberList.map((member) => (
+                      <TableRow key={member.user_id}>
+                        <TableCell>{member.user_email}</TableCell>
+                        <TableCell>{member.role}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <EmptyState colSpan={2}>
+                      {isOrgAdmin
+                        ? 'No members yet. Click "Add member" to assign users.'
+                        : "No members listed for this team."}
+                    </EmptyState>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </PaginatedListPanel>
         </TabsContent>
       </Tabs>
     </AppShell>

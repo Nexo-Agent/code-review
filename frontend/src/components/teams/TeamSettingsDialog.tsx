@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useDeleteTeam, useUpdateTeam } from "@/hooks/use-teams"
+import { DEFAULT_LIST_SEARCH } from "@/lib/pagination"
 
 type TeamSettingsDialogProps = {
   team: Team
@@ -56,7 +57,7 @@ export function TeamSettingsDialog({
       toast.success("Team deleted")
       setDeleteConfirmOpen(false)
       onOpenChange(false)
-      void navigate({ to: "/teams" })
+      void navigate({ to: "/teams", search: DEFAULT_LIST_SEARCH })
     } catch {
       toast.error("Failed to delete team")
     }

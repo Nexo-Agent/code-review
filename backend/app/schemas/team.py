@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.pagination import PaginatedResponse
+
 
 class TeamResponse(BaseModel):
     id: UUID
@@ -47,3 +49,11 @@ class TeamMemberResponse(BaseModel):
 class TeamMemberCreate(BaseModel):
     user_id: UUID
     role: str = Field(default="member", pattern="^(member|viewer|team_admin)$")
+
+
+class TeamListResponse(PaginatedResponse[TeamResponse]):
+    pass
+
+
+class TeamMemberListResponse(PaginatedResponse[TeamMemberResponse]):
+    pass

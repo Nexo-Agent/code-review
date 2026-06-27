@@ -8,10 +8,9 @@ from app.api.v1 import (
     install,
     llm_providers,
     org_repositories,
-    project_repos,
-    projects,
     repos,
     reviews,
+    team_repos,
     teams,
     users,
     webhooks,
@@ -31,13 +30,8 @@ v1_router.include_router(
 v1_router.include_router(users.router, prefix="/users", tags=["users"])
 v1_router.include_router(teams.router, prefix="/teams", tags=["teams"])
 v1_router.include_router(
-    projects.router,
-    prefix="/teams/{team_id}/projects",
-    tags=["projects"],
-)
-v1_router.include_router(
-    project_repos.router,
-    prefix="/teams/{team_id}/projects/{project_id}/repos",
+    team_repos.router,
+    prefix="/teams/{team_id}/repos",
     tags=["repos"],
 )
 v1_router.include_router(

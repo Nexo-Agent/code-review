@@ -13,7 +13,6 @@ from app.dependencies import get_conn
 from app.main import create_app
 from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.organizations import DEFAULT_ORG_ID
-from app.repositories.projects import DEFAULT_PROJECT_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
 from app.repositories.teams import DEFAULT_TEAM_ID
 from tests.conftest import make_dev_user, make_review_row
@@ -65,7 +64,7 @@ def _repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
     now = datetime.now(UTC)
     return RepoIntegrationRow(
         id=uuid4(),
-        project_id=DEFAULT_PROJECT_ID,
+        team_id=DEFAULT_TEAM_ID,
         name="owner/repo",
         git_provider="github",
         repo_full_name="owner/repo",
@@ -120,7 +119,7 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
 
     mock_integration_repo = MagicMock()
     mock_integration_repo.get_with_team = AsyncMock(
-        return_value=(repo_integration, DEFAULT_TEAM_ID, DEFAULT_PROJECT_ID)
+        return_value=(repo_integration, DEFAULT_TEAM_ID)
     )
 
     with (

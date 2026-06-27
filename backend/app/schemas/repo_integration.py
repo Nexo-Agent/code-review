@@ -3,10 +3,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.pagination import PaginatedResponse
+
 
 class RepoIntegrationResponse(BaseModel):
     id: UUID
-    project_id: UUID
+    team_id: UUID
     name: str
     git_provider: str
     repo_full_name: str
@@ -86,10 +88,13 @@ class RepoIntegrationUpdate(BaseModel):
     clear_llm_provider_id: bool = False
 
 
-class TeamRepositoryResponse(RepoIntegrationResponse):
-    project_name: str
-
-
-class OrgRepositoryResponse(TeamRepositoryResponse):
-    team_id: UUID
+class OrgRepositoryResponse(RepoIntegrationResponse):
     team_name: str
+
+
+class RepoIntegrationListResponse(PaginatedResponse[RepoIntegrationResponse]):
+    pass
+
+
+class OrgRepositoryListResponse(PaginatedResponse[OrgRepositoryResponse]):
+    pass

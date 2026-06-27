@@ -1,26 +1,29 @@
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.pagination import PaginationParams
 from app.auth.dependencies import get_current_user, require_org_admin_user
 from app.dependencies import get_conn
-from app.schemas.repo_integration import TeamRepositoryResponse
+from app.schemas.repo_integration import RepoIntegrationListResponse
 from app.schemas.team import (
     TeamCreate,
+    TeamListResponse,
     TeamMemberCreate,
+    TeamMemberListResponse,
     TeamMemberResponse,
     TeamResponse,
     TeamUpdate,
 )
 from app.services.access_control import AccessDeniedError, require_team_access
-from app.services.repo_integrations import list_repo_integrations_for_team
+from app.services.repo_integrations import list_repo_integrations_for_team_paginated
 from app.services.teams import (
     add_team_member,
     create_team,
     delete_team,
-    list_team_members,
-    list_teams,
+    list_team_members_paginated,
+    list_teams_paginated,
     remove_team_member,
     update_team,
 )
@@ -28,26 +31,43 @@ from app.services.teams import (
 router = APIRouter()
 
 
-@router.get("", response_model=list[TeamResponse])
+@router.get("", response_model=TeamListResponse)
 async def get_teams(
+    q: str | None = Query(None, max_length=200),
+    pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
     user=Depends(get_current_user),
-) -> list[TeamResponse]:
-    return await list_teams(conn, user=user)
+) -> TeamListResponse:
+    return await list_teams_paginated(
+        conn,
+        user=user,
+        search=q,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
 
 
-@router.get("/{team_id}/repositories", response_model=list[TeamRepositoryResponse])
+@router.get("/{team_id}/repositories", response_model=RepoIntegrationListResponse)
 async def get_team_repositories(
     team_id: UUID,
+    q: str | None = Query(None, max_length=200),
+    pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
     user=Depends(get_current_user),
-) -> list[TeamRepositoryResponse]:
+) -> RepoIntegrationListResponse:
     try:
         await require_team_access(conn, user, team_id)
     except AccessDeniedError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     try:
-        return await list_repo_integrations_for_team(conn, team_id)
+        return await list_repo_integrations_for_team_paginated(
+            conn,
+            team_id,
+            search=q,
+            enabled=None,
+            limit=pagination.limit,
+            offset=pagination.offset,
+        )
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
@@ -83,17 +103,25 @@ async def delete_team_route(
     await delete_team(conn, team_id)
 
 
-@router.get("/{team_id}/members", response_model=list[TeamMemberResponse])
+@router.get("/{team_id}/members", response_model=TeamMemberListResponse)
 async def get_team_members(
     team_id: UUID,
+    q: str | None = Query(None, max_length=200),
+    pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
     user=Depends(get_current_user),
-) -> list[TeamMemberResponse]:
+) -> TeamMemberListResponse:
     try:
         await require_team_access(conn, user, team_id)
     except AccessDeniedError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    return await list_team_members(conn, team_id)
+    return await list_team_members_paginated(
+        conn,
+        team_id,
+        search=q,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
 
 
 @router.post(

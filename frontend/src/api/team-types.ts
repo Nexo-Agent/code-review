@@ -33,35 +33,8 @@ export interface TeamMemberCreate {
   role?: string
 }
 
-export interface Project {
-  id: string
-  team_id: string
-  name: string
-  description: string
-  llm_provider_id: string | null
-  llm_provider_name: string | null
-  created_at: string
-  updated_at: string
-}
+export type TeamRepository = RepoIntegration
 
-export interface ProjectCreate {
-  name: string
-  description?: string
-  llm_provider_id?: string | null
-}
-
-export interface ProjectUpdate {
-  name?: string
-  description?: string
-  llm_provider_id?: string | null
-  clear_llm_provider_id?: boolean
-}
-
-export interface TeamRepository extends RepoIntegration {
-  project_name: string
-}
-
-export interface OrgRepository extends TeamRepository {
-  team_id: string
+export interface OrgRepository extends RepoIntegration {
   team_name: string
 }

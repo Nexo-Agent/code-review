@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.pagination import PaginatedResponse
+
 
 class LlmProviderResponse(BaseModel):
     id: UUID
@@ -28,6 +30,10 @@ class LlmProviderCreate(BaseModel):
     opencode_model: str = Field(default="", max_length=128)
     is_default: bool = False
     enabled: bool = True
+
+
+class LlmProviderListResponse(PaginatedResponse[LlmProviderResponse]):
+    pass
 
 
 class LlmProviderUpdate(BaseModel):

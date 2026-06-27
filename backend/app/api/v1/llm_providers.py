@@ -1,31 +1,40 @@
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.pagination import PaginationParams
 from app.auth.dependencies import AuthContext, get_auth_context, require_org_admin_user
 from app.dependencies import get_conn
 from app.schemas.llm_provider import (
     LlmProviderCreate,
+    LlmProviderListResponse,
     LlmProviderResponse,
     LlmProviderUpdate,
 )
 from app.services.llm_providers import (
     create_llm_provider,
     delete_llm_provider,
-    list_llm_providers,
+    list_llm_providers_paginated,
     update_llm_provider,
 )
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[LlmProviderResponse])
+@router.get("", response_model=LlmProviderListResponse)
 async def get_llm_providers(
+    q: str | None = Query(None, max_length=200),
+    pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
     _auth: AuthContext = Depends(get_auth_context),
-) -> list[LlmProviderResponse]:
-    return await list_llm_providers(conn)
+) -> LlmProviderListResponse:
+    return await list_llm_providers_paginated(
+        conn,
+        search=q,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )
 
 
 @router.post(
@@ -50,12 +59,12 @@ async def put_llm_provider(
 ) -> LlmProviderResponse:
     try:
         return await update_llm_provider(conn, provider_id, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
 @router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_llm_provider(
+async def delete_llm_provider_route(
     provider_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
     _admin=Depends(require_org_admin_user),

@@ -34,6 +34,74 @@ class TeamMemberRepository:
         )
         return [_row_to_member(row) for row in rows]
 
+    async def list_for_team_paginated(
+        self,
+        team_id: UUID,
+        *,
+        search: str = "",
+        limit: int,
+        offset: int,
+    ) -> list[TeamMemberRow]:
+        if search:
+            pattern = f"%{search}%"
+            rows = await self._conn.fetch(
+                """
+                SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+                       u.email AS user_email, u.name AS user_name
+                FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE tm.team_id = $1
+                  AND (u.email ILIKE $2 OR u.name ILIKE $2)
+                ORDER BY u.email ASC
+                LIMIT $3 OFFSET $4
+                """,
+                team_id,
+                pattern,
+                limit,
+                offset,
+            )
+        else:
+            rows = await self._conn.fetch(
+                """
+                SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+                       u.email AS user_email, u.name AS user_name
+                FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE tm.team_id = $1
+                ORDER BY u.email ASC
+                LIMIT $2 OFFSET $3
+                """,
+                team_id,
+                limit,
+                offset,
+            )
+        return [_row_to_member(row) for row in rows]
+
+    async def count_for_team(self, team_id: UUID, *, search: str = "") -> int:
+        if search:
+            pattern = f"%{search}%"
+            return (
+                await self._conn.fetchval(
+                    """
+                    SELECT COUNT(*)::int
+                    FROM team_members tm
+                    JOIN users u ON u.id = tm.user_id
+                    WHERE tm.team_id = $1
+                      AND (u.email ILIKE $2 OR u.name ILIKE $2)
+                    """,
+                    team_id,
+                    pattern,
+                )
+                or 0
+            )
+        return (
+            await self._conn.fetchval(
+                "SELECT COUNT(*)::int FROM team_members WHERE team_id = $1",
+                team_id,
+            )
+            or 0
+        )
+
     async def get(self, team_id: UUID, user_id: UUID) -> TeamMemberRow | None:
         row = await self._conn.fetchrow(
             """

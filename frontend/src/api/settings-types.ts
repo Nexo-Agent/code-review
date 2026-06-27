@@ -37,7 +37,7 @@ export interface LlmProviderUpdate {
 
 export interface RepoIntegration {
   id: string
-  project_id: string
+  team_id: string
   name: string
   git_provider: string
   repo_full_name: string

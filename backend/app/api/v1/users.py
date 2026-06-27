@@ -1,6 +1,7 @@
 import asyncpg
 from fastapi import APIRouter, Depends, Query
 
+from app.api.pagination import PaginationParams
 from app.auth.dependencies import require_org_admin_user
 from app.dependencies import get_conn
 from app.repositories.users import UserRow
@@ -13,9 +14,13 @@ router = APIRouter()
 @router.get("", response_model=UserListResponse)
 async def list_users(
     q: str | None = Query(None, max_length=200),
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
     _user: UserRow = Depends(require_org_admin_user),
 ) -> UserListResponse:
-    return await list_users_paginated(conn, search=q, limit=limit, offset=offset)
+    return await list_users_paginated(
+        conn,
+        search=q,
+        limit=pagination.limit,
+        offset=pagination.offset,
+    )

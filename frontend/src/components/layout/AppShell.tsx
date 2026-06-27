@@ -12,12 +12,27 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useLogout, useMe } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
+import {
+  DEFAULT_LIST_SEARCH,
+  DEFAULT_REPOSITORIES_SEARCH,
+  DEFAULT_REVIEWS_SEARCH,
+} from "@/lib/pagination"
 
 const baseNavItems = [
-  { to: "/", label: "Dashboard", exact: true },
-  { to: "/teams", label: "Teams", exact: false },
-  { to: "/repositories", label: "Repositories", exact: false },
-  { to: "/reviews", label: "Reviews", exact: false },
+  { to: "/", label: "Dashboard", exact: true, search: undefined },
+  { to: "/teams", label: "Teams", exact: false, search: DEFAULT_LIST_SEARCH },
+  {
+    to: "/repositories",
+    label: "Repositories",
+    exact: false,
+    search: DEFAULT_REPOSITORIES_SEARCH,
+  },
+  {
+    to: "/reviews",
+    label: "Reviews",
+    exact: false,
+    search: DEFAULT_REVIEWS_SEARCH,
+  },
 ] as const
 
 export function AppShell({
@@ -41,9 +56,19 @@ export function AppShell({
   const navItems = isOrgAdmin
     ? [
         ...baseNavItems,
-        { to: "/users", label: "Users", exact: false },
-        { to: "/llm-providers", label: "LLM Providers", exact: false },
-        { to: "/settings/identity-provider", label: "SSO", exact: false },
+        { to: "/users", label: "Users", exact: false, search: DEFAULT_LIST_SEARCH },
+        {
+          to: "/llm-providers",
+          label: "LLM Providers",
+          exact: false,
+          search: DEFAULT_LIST_SEARCH,
+        },
+        {
+          to: "/settings/identity-provider",
+          label: "SSO",
+          exact: false,
+          search: undefined,
+        },
       ]
     : baseNavItems
 
@@ -60,6 +85,7 @@ export function AppShell({
             <Link
               key={item.to}
               to={item.to}
+              search={item.search}
               className={cn(
                 "text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-2.5 py-1.5 text-sm transition-colors",
               )}

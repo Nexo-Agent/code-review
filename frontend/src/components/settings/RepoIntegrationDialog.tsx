@@ -37,7 +37,6 @@ import { emptyRepoForm, GIT_PROVIDER_OPTIONS } from "@/lib/settings-constants"
 
 type RepoIntegrationDialogProps = {
   teamId: string
-  projectId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   repo?: RepoIntegration | null
@@ -59,23 +58,21 @@ function repoFormFromIntegration(
 
 function RepoIntegrationForm({
   teamId,
-  projectId,
   repo,
   onOpenChange,
   onDeleted,
 }: {
   teamId: string
-  projectId: string
   repo?: RepoIntegration | null
   onOpenChange: (open: boolean) => void
   onDeleted?: () => void
 }) {
   const isEdit = Boolean(repo)
   const llmProviders = useLlmProviders()
-  const createRepo = useCreateRepoIntegration(teamId, projectId)
-  const updateRepo = useUpdateRepoIntegration(teamId, projectId)
-  const deleteRepo = useDeleteRepoIntegration(teamId, projectId)
-  const enabledLlmProviders = (llmProviders.data ?? []).filter(
+  const createRepo = useCreateRepoIntegration(teamId)
+  const updateRepo = useUpdateRepoIntegration(teamId)
+  const deleteRepo = useDeleteRepoIntegration(teamId)
+  const enabledLlmProviders = (llmProviders.data?.items ?? []).filter(
     (provider) => provider.enabled,
   )
 
@@ -381,7 +378,6 @@ function RepoIntegrationForm({
 
 export function RepoIntegrationDialog({
   teamId,
-  projectId,
   open,
   onOpenChange,
   repo,
@@ -397,7 +393,6 @@ export function RepoIntegrationDialog({
           <RepoIntegrationForm
             key={formKey}
             teamId={teamId}
-            projectId={projectId}
             repo={repo}
             onOpenChange={onOpenChange}
             onDeleted={onDeleted}

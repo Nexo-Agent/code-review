@@ -60,6 +60,71 @@ class LlmProviderRepository:
             )
         return [_row_to_llm_provider(row) for row in rows]
 
+    async def list_paginated(
+        self,
+        *,
+        organization_id: UUID,
+        search: str = "",
+        limit: int,
+        offset: int,
+    ) -> list[LlmProviderRow]:
+        if search:
+            pattern = f"%{search}%"
+            rows = await self._conn.fetch(
+                f"""
+                SELECT {_LLM_SELECT}
+                FROM llm_providers
+                WHERE organization_id = $1 AND name ILIKE $2
+                ORDER BY is_default DESC, name ASC
+                LIMIT $3 OFFSET $4
+                """,
+                organization_id,
+                pattern,
+                limit,
+                offset,
+            )
+        else:
+            rows = await self._conn.fetch(
+                f"""
+                SELECT {_LLM_SELECT}
+                FROM llm_providers
+                WHERE organization_id = $1
+                ORDER BY is_default DESC, name ASC
+                LIMIT $2 OFFSET $3
+                """,
+                organization_id,
+                limit,
+                offset,
+            )
+        return [_row_to_llm_provider(row) for row in rows]
+
+    async def count(
+        self,
+        *,
+        organization_id: UUID,
+        search: str = "",
+    ) -> int:
+        if search:
+            pattern = f"%{search}%"
+            return (
+                await self._conn.fetchval(
+                    """
+                    SELECT COUNT(*)::int FROM llm_providers
+                    WHERE organization_id = $1 AND name ILIKE $2
+                    """,
+                    organization_id,
+                    pattern,
+                )
+                or 0
+            )
+        return (
+            await self._conn.fetchval(
+                "SELECT COUNT(*)::int FROM llm_providers WHERE organization_id = $1",
+                organization_id,
+            )
+            or 0
+        )
+
     async def get(self, provider_id: UUID) -> LlmProviderRow | None:
         row = await self._conn.fetchrow(
             f"""

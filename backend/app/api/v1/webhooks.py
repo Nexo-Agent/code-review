@@ -93,7 +93,7 @@ async def _enqueue_webhook_review(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Integration not found",
         )
-    repo_integration, team_id, project_id = resolved
+    repo_integration, team_id = resolved
 
     if not repo_integration.enabled:
         return JSONResponse(
@@ -144,7 +144,6 @@ async def _enqueue_webhook_review(
         delivery_id=event.delivery_id,
         repo_integration_id=repo_integration.id,
         team_id=team_id,
-        project_id=project_id,
         pr_title=event.pr_title,
     )
 

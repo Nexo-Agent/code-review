@@ -5,6 +5,7 @@ from app.repositories.llm_providers import LlmProviderRepository, LlmProviderRow
 from app.repositories.organizations import OrganizationRepository
 from app.schemas.llm_provider import (
     LlmProviderCreate,
+    LlmProviderListResponse,
     LlmProviderResponse,
     LlmProviderUpdate,
 )
@@ -31,10 +32,33 @@ def to_llm_provider_response(row: LlmProviderRow) -> LlmProviderResponse:
 
 
 async def list_llm_providers(conn) -> list[LlmProviderResponse]:
+    result = await list_llm_providers_paginated(conn, search="", limit=100, offset=0)
+    return result.items
+
+
+async def list_llm_providers_paginated(
+    conn,
+    *,
+    search: str | None,
+    limit: int,
+    offset: int,
+) -> LlmProviderListResponse:
     org = await OrganizationRepository(conn).get_default()
-    org_id = org.id if org else None
-    rows = await LlmProviderRepository(conn).list_all(organization_id=org_id)
-    return [to_llm_provider_response(row) for row in rows]
+    if org is None:
+        return LlmProviderListResponse(items=[], total=0)
+    repo = LlmProviderRepository(conn)
+    query = (search or "").strip()
+    rows = await repo.list_paginated(
+        organization_id=org.id,
+        search=query,
+        limit=limit,
+        offset=offset,
+    )
+    total = await repo.count(organization_id=org.id, search=query)
+    return LlmProviderListResponse(
+        items=[to_llm_provider_response(row) for row in rows],
+        total=total,
+    )
 
 
 async def create_llm_provider(conn, payload: LlmProviderCreate) -> LlmProviderResponse:

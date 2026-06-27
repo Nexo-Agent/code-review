@@ -3,7 +3,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.repositories.projects import DEFAULT_PROJECT_ID
 from app.repositories.reviews import ReviewRow
 from app.repositories.teams import DEFAULT_TEAM_ID
 from app.repositories.users import UserRow
@@ -27,7 +26,6 @@ def make_review_row(**overrides: object) -> ReviewRow:
         "delivery_id": None,
         "repo_integration_id": UUID("11111111-1111-1111-1111-111111111111"),
         "team_id": DEFAULT_TEAM_ID,
-        "project_id": DEFAULT_PROJECT_ID,
         "error_message": None,
         "started_at": None,
         "completed_at": None,

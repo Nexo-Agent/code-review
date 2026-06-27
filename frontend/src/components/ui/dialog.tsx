@@ -5,10 +5,70 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+let selectWasOpenOnPointerDown = false
+
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      selectWasOpenOnPointerDown =
+        document.querySelector(
+          '[data-slot="select-content"][data-state="open"]',
+        ) !== null
+    },
+    true,
+  )
+
+  document.addEventListener(
+    "pointerup",
+    () => {
+      selectWasOpenOnPointerDown = false
+    },
+    true,
+  )
+}
+
+function shouldPreventDialogDismiss(event: Event) {
+  if (selectWasOpenOnPointerDown) {
+    return true
+  }
+
+  const target =
+    "detail" in event &&
+    event.detail != null &&
+    typeof event.detail === "object" &&
+    "originalEvent" in event.detail &&
+    event.detail.originalEvent instanceof Event
+      ? event.detail.originalEvent.target
+      : event.target
+
+  if (target instanceof Element) {
+    return Boolean(
+      target.closest(
+        '[data-slot="select-content"], [role="listbox"], [data-radix-select-content]',
+      ),
+    )
+  }
+
+  return false
+}
+
 function Dialog({
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      onOpenChange={(open) => {
+        if (!open && selectWasOpenOnPointerDown) {
+          return
+        }
+        onOpenChange?.(open)
+      }}
+      {...props}
+    />
+  )
 }
 
 function DialogTrigger({
@@ -31,6 +91,7 @@ function DialogClose({
 
 function DialogOverlay({
   className,
+  onPointerDown,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
@@ -40,6 +101,12 @@ function DialogOverlay({
         "fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className
       )}
+      onPointerDown={(event) => {
+        if (selectWasOpenOnPointerDown) {
+          event.preventDefault()
+        }
+        onPointerDown?.(event)
+      }}
       {...props}
     />
   )
@@ -49,6 +116,8 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onPointerDownOutside,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -62,6 +131,18 @@ function DialogContent({
           "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className
         )}
+        onPointerDownOutside={(event) => {
+          if (shouldPreventDialogDismiss(event)) {
+            event.preventDefault()
+          }
+          onPointerDownOutside?.(event)
+        }}
+        onInteractOutside={(event) => {
+          if (shouldPreventDialogDismiss(event)) {
+            event.preventDefault()
+          }
+          onInteractOutside?.(event)
+        }}
         {...props}
       >
         {children}

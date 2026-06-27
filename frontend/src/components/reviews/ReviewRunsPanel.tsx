@@ -26,7 +26,7 @@ export function ReviewRunsPanel({
   review: Review
 }) {
   const runs = useReviews({
-    repo: review.repo_full_name,
+    repo: [review.repo_full_name],
     pr: review.pr_number,
   })
 

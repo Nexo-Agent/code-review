@@ -3,20 +3,20 @@ from uuid import UUID
 
 from coreview_shared.providers.git.azure_devops import parse_repo_full_name
 
-from app.repositories.projects import ProjectRepository
 from app.repositories.repo_integrations import (
     RepoIntegrationRepository,
     RepoIntegrationRow,
 )
 from app.repositories.teams import TeamRepository
 from app.schemas.repo_integration import (
+    OrgRepositoryListResponse,
     OrgRepositoryResponse,
     RepoIntegrationCreate,
+    RepoIntegrationListResponse,
     RepoIntegrationResponse,
     RepoIntegrationUpdate,
-    TeamRepositoryResponse,
 )
-from app.services.projects import _llm_provider_name, _validate_llm_provider_for_org
+from app.services.llm_validation import llm_provider_name, validate_llm_provider_for_org
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,10 @@ async def to_repo_integration_response(
     conn,
     row: RepoIntegrationRow,
 ) -> RepoIntegrationResponse:
-    llm_name = await _llm_provider_name(conn, row.llm_provider_id)
+    llm_name = await llm_provider_name(conn, row.llm_provider_id)
     return RepoIntegrationResponse(
         id=row.id,
-        project_id=row.project_id,
+        team_id=row.team_id,
         name=row.name,
         git_provider=row.git_provider,
         repo_full_name=row.repo_full_name,
@@ -67,58 +67,78 @@ async def to_repo_integration_response(
     )
 
 
-async def list_repo_integrations_for_project(
-    conn,
-    project_id: UUID,
-) -> list[RepoIntegrationResponse]:
-    project = await ProjectRepository(conn).get(project_id)
-    if project is None:
-        msg = "project not found"
-        raise ValueError(msg)
-    rows = await RepoIntegrationRepository(conn).list_for_project(project_id)
-    return [await to_repo_integration_response(conn, row) for row in rows]
-
-
-async def list_repo_integrations_for_team(
+async def list_repo_integrations_for_team_paginated(
     conn,
     team_id: UUID,
-) -> list[TeamRepositoryResponse]:
+    *,
+    search: str | None,
+    enabled: bool | None,
+    limit: int,
+    offset: int,
+) -> RepoIntegrationListResponse:
     team = await TeamRepository(conn).get(team_id)
     if team is None:
         msg = "team not found"
         raise ValueError(msg)
-    rows = await RepoIntegrationRepository(conn).list_for_team(team_id)
-    results: list[TeamRepositoryResponse] = []
-    for row, project_name in rows:
-        base = await to_repo_integration_response(conn, row)
-        results.append(
-            TeamRepositoryResponse(
-                **base.model_dump(),
-                project_name=project_name,
-            )
-        )
-    return results
+    repo = RepoIntegrationRepository(conn)
+    query = (search or "").strip()
+    rows = await repo.list_for_team_paginated(
+        team_id,
+        search=query,
+        enabled=enabled,
+        limit=limit,
+        offset=offset,
+    )
+    total = await repo.count_for_team(
+        team_id,
+        search=query,
+        enabled=enabled,
+    )
+    items = [await to_repo_integration_response(conn, row) for row in rows]
+    return RepoIntegrationListResponse(items=items, total=total)
 
 
-async def list_repo_integrations_for_teams(
+async def list_repo_integrations_for_teams_paginated(
     conn,
     team_ids: list[UUID],
-) -> list[OrgRepositoryResponse]:
+    *,
+    search: str | None,
+    filter_team_ids: list[UUID] | None,
+    enabled: bool | None,
+    git_provider: str | None,
+    limit: int,
+    offset: int,
+) -> OrgRepositoryListResponse:
     if not team_ids:
-        return []
-    rows = await RepoIntegrationRepository(conn).list_for_teams(team_ids)
+        return OrgRepositoryListResponse(items=[], total=0)
+    repo = RepoIntegrationRepository(conn)
+    query = (search or "").strip()
+    rows = await repo.list_for_teams_paginated(
+        team_ids,
+        search=query,
+        filter_team_ids=filter_team_ids,
+        enabled=enabled,
+        git_provider=git_provider,
+        limit=limit,
+        offset=offset,
+    )
+    total = await repo.count_for_teams(
+        team_ids,
+        search=query,
+        filter_team_ids=filter_team_ids,
+        enabled=enabled,
+        git_provider=git_provider,
+    )
     results: list[OrgRepositoryResponse] = []
-    for row, project_name, team_id, team_name in rows:
+    for row, _team_id, team_name in rows:
         base = await to_repo_integration_response(conn, row)
         results.append(
             OrgRepositoryResponse(
                 **base.model_dump(),
-                project_name=project_name,
-                team_id=team_id,
                 team_name=team_name,
             )
         )
-    return results
+    return OrgRepositoryListResponse(items=results, total=total)
 
 
 async def get_repo_integration(
@@ -134,21 +154,21 @@ async def get_repo_integration(
 
 async def create_repo_integration(
     conn,
-    project_id: UUID,
+    team_id: UUID,
     payload: RepoIntegrationCreate,
 ) -> RepoIntegrationResponse:
-    project = await ProjectRepository(conn).get(project_id)
-    if project is None:
-        msg = "project not found"
+    team = await TeamRepository(conn).get(team_id)
+    if team is None:
+        msg = "team not found"
         raise ValueError(msg)
-    await _validate_llm_provider_for_org(conn, payload.llm_provider_id)
+    await validate_llm_provider_for_org(conn, payload.llm_provider_id)
     repo = RepoIntegrationRepository(conn)
     ado_organization, ado_project = _infer_ado_org_project(
         payload.git_provider,
         payload.repo_full_name,
     )
     row = await repo.create(
-        project_id=project_id,
+        team_id=team_id,
         name=payload.name or _default_repo_name(payload.repo_full_name),
         git_provider=payload.git_provider,
         repo_full_name=payload.repo_full_name,
@@ -179,7 +199,7 @@ async def update_repo_integration(
         raise ValueError(msg)
     data = payload.model_dump(exclude_unset=True)
     if payload.llm_provider_id is not None:
-        await _validate_llm_provider_for_org(conn, payload.llm_provider_id)
+        await validate_llm_provider_for_org(conn, payload.llm_provider_id)
     git_provider = data.get("git_provider", current.git_provider)
     repo_full_name = data.get("repo_full_name", current.repo_full_name)
     ado_organization, ado_project = _infer_ado_org_project(

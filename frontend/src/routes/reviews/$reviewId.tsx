@@ -12,9 +12,8 @@ import {
 } from "@/components/patterns/status-badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useRepoIntegrations } from "@/hooks/use-settings"
+import { useRepoIntegration } from "@/hooks/use-settings"
 import { useRereviewReview, useReview } from "@/hooks/use-reviews"
-import { findRepoIntegration } from "@/lib/review-utils"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/reviews/$reviewId")({
@@ -25,13 +24,11 @@ function ReviewDetailPage() {
   const { reviewId } = Route.useParams()
   const navigate = useNavigate()
   const review = useReview(reviewId)
-  const repos = useRepoIntegrations()
   const rereview = useRereviewReview()
 
   const data = review.data
-  const repoIntegration = data
-    ? findRepoIntegration(repos.data, data.repo_full_name)
-    : undefined
+  const repoIntegrationQuery = useRepoIntegration(data?.repo_integration_id ?? "")
+  const repoIntegration = repoIntegrationQuery.data
 
   const canRereview =
     data?.status === "completed" || data?.status === "failed"

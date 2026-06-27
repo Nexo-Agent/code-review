@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
-import type { OrgRepository } from "@/api/team-types"
 import { AppShell } from "@/components/layout/AppShell"
-import { DataPanel } from "@/components/patterns/data-panel"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { MultiSelectFilter } from "@/components/patterns/multi-select-filter"
+import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -24,102 +23,152 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useOrgRepositories } from "@/hooks/use-teams"
+import { useOrgRepositoriesPage, useTeams } from "@/hooks/use-teams"
 import { GIT_PROVIDER_OPTIONS } from "@/lib/settings-constants"
-
-export const Route = createFileRoute("/repositories/")({
-  component: RepositoriesPage,
-})
+import { parsePageSearch } from "@/lib/pagination"
 
 type EnabledFilter = "all" | "enabled" | "disabled"
 
-function repoSearchText(repo: OrgRepository): string {
-  return [
-    repo.repo_full_name,
-    repo.name,
-    repo.team_name,
-    repo.project_name,
-    repo.llm_provider_name ?? "Org default",
-    repo.git_provider,
-  ]
-    .join(" ")
-    .toLowerCase()
+type RepositoriesSearch = {
+  page: number
+  q: string
+  team: string[]
+  enabled: EnabledFilter
+  git_provider: string
+}
+
+function parseRepositoriesSearch(
+  search: Record<string, unknown>,
+): RepositoriesSearch {
+  const base = parsePageSearch(search)
+  const teamRaw = search.team
+  const team =
+    typeof teamRaw === "string"
+      ? teamRaw.split(",").filter(Boolean)
+      : Array.isArray(teamRaw)
+        ? teamRaw.filter((value): value is string => typeof value === "string")
+        : []
+  const enabledRaw = search.enabled
+  const enabled: EnabledFilter =
+    enabledRaw === "enabled" || enabledRaw === "disabled" ? enabledRaw : "all"
+  const gitProvider =
+    typeof search.git_provider === "string" ? search.git_provider : "all"
+  return { ...base, team, enabled, git_provider: gitProvider }
+}
+
+export const Route = createFileRoute("/repositories/")({
+  validateSearch: parseRepositoriesSearch,
+  component: RepositoriesPage,
+})
+
+function RepositorySearchInput({
+  q,
+  onQueryChange,
+}: {
+  q: string
+  onQueryChange: (value: string) => void
+}) {
+  const [searchInput, setSearchInput] = useState(q)
+
+  useEffect(() => {
+    const trimmed = searchInput.trim()
+    if (trimmed === q) {
+      return
+    }
+    const timeout = window.setTimeout(() => {
+      onQueryChange(trimmed)
+    }, 300)
+    return () => window.clearTimeout(timeout)
+  }, [searchInput, q, onQueryChange])
+
+  return (
+    <Input
+      value={searchInput}
+      onChange={(event) => setSearchInput(event.target.value)}
+      placeholder="Search repositories or teams…"
+      className="max-w-md"
+    />
+  )
 }
 
 function RepositoriesPage() {
-  const repositories = useOrgRepositories()
-  const repoList = repositories.data ?? []
+  const navigate = Route.useNavigate()
+  const { page, q, team, enabled, git_provider } = Route.useSearch()
+  const teams = useTeams()
+  const repositories = useOrgRepositoriesPage({
+    page,
+    q,
+    team_id: team,
+    enabled,
+    git_provider,
+  })
 
-  const [search, setSearch] = useState("")
-  const [teamFilter, setTeamFilter] = useState<string[]>([])
-  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all")
-  const [gitProviderFilter, setGitProviderFilter] = useState("all")
+  const teamOptions = useMemo(
+    () =>
+      (teams.data?.items ?? []).map((row) => ({
+        value: row.id,
+        label: row.name,
+      })),
+    [teams.data?.items],
+  )
 
-  const teamOptions = useMemo(() => {
-    const teams = new Map<string, string>()
-    for (const repo of repoList) {
-      teams.set(repo.team_id, repo.team_name)
-    }
-    return [...teams.entries()].toSorted((a, b) => a[1].localeCompare(b[1]))
-  }, [repoList])
-
-  const filteredRepos = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return repoList.filter((repo) => {
-      if (teamFilter.length > 0 && !teamFilter.includes(repo.team_id)) {
-        return false
-      }
-      if (enabledFilter === "enabled" && !repo.enabled) {
-        return false
-      }
-      if (enabledFilter === "disabled" && repo.enabled) {
-        return false
-      }
-      if (gitProviderFilter !== "all" && repo.git_provider !== gitProviderFilter) {
-        return false
-      }
-      if (query && !repoSearchText(repo).includes(query)) {
-        return false
-      }
-      return true
-    })
-  }, [repoList, search, teamFilter, enabledFilter, gitProviderFilter])
-
+  const total = repositories.data?.total ?? 0
   const hasFilters =
-    search.trim() !== "" ||
-    teamFilter.length > 0 ||
-    enabledFilter !== "all" ||
-    gitProviderFilter !== "all"
+    q.trim() !== "" ||
+    team.length > 0 ||
+    enabled !== "all" ||
+    git_provider !== "all"
 
   const description = hasFilters
-    ? `${filteredRepos.length} of ${repoList.length} repositories`
-    : `${repoList.length} repositor${repoList.length === 1 ? "y" : "ies"}`
+    ? `${total} repositor${total === 1 ? "y" : "ies"} matching filters`
+    : `${total} repositor${total === 1 ? "y" : "ies"}`
+
+  function goToPage(nextPage: number) {
+    void navigate({ search: { page: nextPage, q, team, enabled, git_provider } })
+  }
+
+  function updateFilters(
+    patch: Partial<Pick<RepositoriesSearch, "team" | "enabled" | "git_provider">>,
+  ) {
+    void navigate({
+      search: {
+        page: 1,
+        q,
+        team: patch.team ?? team,
+        enabled: patch.enabled ?? enabled,
+        git_provider: patch.git_provider ?? git_provider,
+      },
+    })
+  }
 
   return (
     <AppShell title="Repositories" description={description}>
       <div className="mb-4 flex flex-col gap-3">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search repositories, teams, projects…"
-          className="max-w-md"
+        <RepositorySearchInput
+          key={q}
+          q={q}
+          onQueryChange={(trimmed) => {
+            void navigate({
+              search: { page: 1, q: trimmed, team, enabled, git_provider },
+              replace: true,
+            })
+          }}
         />
         <div className="flex flex-wrap gap-2">
           <MultiSelectFilter
-            options={teamOptions.map(([teamId, teamName]) => ({
-              value: teamId,
-              label: teamName,
-            }))}
-            selected={teamFilter}
-            onSelectedChange={setTeamFilter}
+            options={teamOptions}
+            selected={team}
+            onSelectedChange={(next) => updateFilters({ team: next })}
             emptyLabel="All teams"
             searchPlaceholder="Search teams…"
             className="w-44"
           />
 
           <Select
-            value={enabledFilter}
-            onValueChange={(value) => setEnabledFilter(value as EnabledFilter)}
+            value={enabled}
+            onValueChange={(value) =>
+              updateFilters({ enabled: value as EnabledFilter })
+            }
           >
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Status" />
@@ -133,7 +182,10 @@ function RepositoriesPage() {
             </SelectContent>
           </Select>
 
-          <Select value={gitProviderFilter} onValueChange={setGitProviderFilter}>
+          <Select
+            value={git_provider}
+            onValueChange={(value) => updateFilters({ git_provider: value })}
+          >
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Provider" />
             </SelectTrigger>
@@ -153,71 +205,63 @@ function RepositoriesPage() {
         </div>
       </div>
 
-      <DataPanel loading={repositories.isPending} error={repositories.isError}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Repository</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>LLM</TableHead>
-              <TableHead className="w-20 text-right">Enabled</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRepos.length ? (
-              filteredRepos.map((repo) => (
-                <TableRow key={repo.id}>
-                  <TableCell>
-                    <Link
-                      to="/teams/$teamId/projects/$projectId/repos/$repoId"
-                      params={{
-                        teamId: repo.team_id,
-                        projectId: repo.project_id,
-                        repoId: repo.id,
-                      }}
-                      className="font-medium hover:underline"
-                    >
-                      {repo.repo_full_name || repo.name || "All repositories"}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      to="/teams/$teamId"
-                      params={{ teamId: repo.team_id }}
-                      className="text-muted-foreground hover:underline"
-                    >
-                      {repo.team_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      to="/teams/$teamId/projects/$projectId"
-                      params={{
-                        teamId: repo.team_id,
-                        projectId: repo.project_id,
-                      }}
-                      className="text-muted-foreground hover:underline"
-                    >
-                      {repo.project_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{repo.llm_provider_name ?? "Org default"}</TableCell>
-                  <TableCell className="text-right">
-                    <Switch checked={repo.enabled} disabled />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <EmptyState colSpan={5}>
-                {repoList.length
-                  ? "No repositories match your search or filters."
-                  : "No repositories in your accessible teams yet."}
-              </EmptyState>
-            )}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      <PaginatedListPanel
+        query={repositories}
+        page={page}
+        onPageChange={goToPage}
+      >
+        {(repoList) => (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Repository</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead>LLM</TableHead>
+                <TableHead className="w-20 text-right">Enabled</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {repoList.length ? (
+                repoList.map((repo) => (
+                  <TableRow key={repo.id}>
+                    <TableCell>
+                      <Link
+                        to="/teams/$teamId/repos/$repoId"
+                        params={{
+                          teamId: repo.team_id,
+                          repoId: repo.id,
+                        }}
+                        className="font-medium hover:underline"
+                      >
+                        {repo.repo_full_name || repo.name || "All repositories"}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        to="/teams/$teamId"
+                        params={{ teamId: repo.team_id }}
+                        className="text-muted-foreground hover:underline"
+                      >
+                        {repo.team_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{repo.llm_provider_name ?? "Org default"}</TableCell>
+                    <TableCell className="text-right">
+                      <Switch checked={repo.enabled} disabled />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <EmptyState colSpan={4}>
+                  {hasFilters
+                    ? "No repositories match your search or filters."
+                    : "No repositories in your accessible teams yet."}
+                </EmptyState>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </PaginatedListPanel>
     </AppShell>
   )
 }

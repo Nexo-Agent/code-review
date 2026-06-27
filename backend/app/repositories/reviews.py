@@ -7,7 +7,7 @@ import asyncpg
 _REVIEW_SELECT = """
     id, provider, repo_full_name, pr_number, pr_title,
     pr_url, pr_author, head_sha, base_sha, base_ref, head_ref,
-    status, delivery_id, repo_integration_id, team_id, project_id,
+    status, delivery_id, repo_integration_id, team_id,
     error_message, started_at, completed_at, created_at,
     summary_comment_posted, inline_comments_posted, inline_comments_skipped
 """
@@ -30,7 +30,6 @@ class ReviewRow:
     delivery_id: str | None
     repo_integration_id: UUID | None
     team_id: UUID
-    project_id: UUID
     error_message: str | None
     started_at: datetime | None
     completed_at: datetime | None
@@ -58,16 +57,15 @@ class ReviewRepository:
     def __init__(self, conn: asyncpg.Connection) -> None:
         self._conn = conn
 
-    async def list_reviews(
+    def _review_filter_clauses(
         self,
         *,
         team_ids: list[UUID] | None = None,
         status: str | None = None,
-        repo_full_name: str | None = None,
+        repo_full_names: list[str] | None = None,
         pr_number: int | None = None,
-        limit: int = 50,
-        offset: int = 0,
-    ) -> list[ReviewRow]:
+        search: str | None = None,
+    ) -> tuple[list[str], list[object]]:
         clauses = ["1=1"]
         args: list[object] = []
         idx = 1
@@ -79,20 +77,50 @@ class ReviewRepository:
             clauses.append(f"status = ${idx}")
             args.append(status)
             idx += 1
-        if repo_full_name:
-            clauses.append(f"repo_full_name = ${idx}")
-            args.append(repo_full_name)
+        if repo_full_names:
+            clauses.append(f"repo_full_name = ANY(${idx}::text[])")
+            args.append(repo_full_names)
             idx += 1
         if pr_number is not None:
             clauses.append(f"pr_number = ${idx}")
             args.append(pr_number)
             idx += 1
+        if search:
+            pattern = f"%{search}%"
+            clauses.append(
+                f"(repo_full_name ILIKE ${idx} OR pr_title ILIKE ${idx} "
+                f"OR pr_author ILIKE ${idx} OR head_ref ILIKE ${idx} "
+                f"OR base_ref ILIKE ${idx} "
+                f"OR CAST(pr_number AS TEXT) ILIKE ${idx})"
+            )
+            args.append(pattern)
+        return clauses, args
+
+    async def list_reviews(
+        self,
+        *,
+        team_ids: list[UUID] | None = None,
+        status: str | None = None,
+        repo_full_names: list[str] | None = None,
+        pr_number: int | None = None,
+        search: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[ReviewRow]:
+        clauses, args = self._review_filter_clauses(
+            team_ids=team_ids,
+            status=status,
+            repo_full_names=repo_full_names,
+            pr_number=pr_number,
+            search=search,
+        )
+        idx = len(args) + 1
         args.extend([limit, offset])
         query = f"""
             SELECT r.id, r.provider, r.repo_full_name, r.pr_number, r.pr_title,
                    r.pr_url, r.pr_author, r.head_sha, r.base_sha, r.base_ref,
                    r.head_ref, r.status, r.delivery_id, r.repo_integration_id,
-                   r.team_id, r.project_id, r.error_message, r.started_at,
+                   r.team_id, r.error_message, r.started_at,
                    r.completed_at, r.created_at, r.summary_comment_posted,
                    r.inline_comments_posted, r.inline_comments_skipped,
                    (
@@ -113,28 +141,17 @@ class ReviewRepository:
         *,
         team_ids: list[UUID] | None = None,
         status: str | None = None,
-        repo_full_name: str | None = None,
+        repo_full_names: list[str] | None = None,
         pr_number: int | None = None,
+        search: str | None = None,
     ) -> int:
-        clauses = ["1=1"]
-        args: list[object] = []
-        idx = 1
-        if team_ids is not None:
-            clauses.append(f"team_id = ANY(${idx}::uuid[])")
-            args.append(team_ids)
-            idx += 1
-        if status:
-            clauses.append(f"status = ${idx}")
-            args.append(status)
-            idx += 1
-        if repo_full_name:
-            clauses.append(f"repo_full_name = ${idx}")
-            args.append(repo_full_name)
-            idx += 1
-        if pr_number is not None:
-            clauses.append(f"pr_number = ${idx}")
-            args.append(pr_number)
-            idx += 1
+        clauses, args = self._review_filter_clauses(
+            team_ids=team_ids,
+            status=status,
+            repo_full_names=repo_full_names,
+            pr_number=pr_number,
+            search=search,
+        )
         query = f"SELECT COUNT(*)::int FROM reviews WHERE {' AND '.join(clauses)}"
         return await self._conn.fetchval(query, *args) or 0
 
@@ -162,7 +179,6 @@ class ReviewRepository:
         delivery_id: str | None,
         repo_integration_id: UUID | None = None,
         team_id: UUID | None = None,
-        project_id: UUID | None = None,
         pr_title: str = "",
         pr_url: str = "",
         pr_author: str = "",
@@ -175,11 +191,11 @@ class ReviewRepository:
             INSERT INTO reviews (
                 provider, repo_full_name, pr_number, pr_title, pr_url, pr_author,
                 head_sha, base_sha, base_ref, head_ref, status,
-                delivery_id, repo_integration_id, team_id, project_id
+                delivery_id, repo_integration_id, team_id
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                'pending', $11, $12, $13, $14
+                'pending', $11, $12, $13
             )
             RETURNING {_REVIEW_SELECT}
             """,
@@ -196,7 +212,6 @@ class ReviewRepository:
             delivery_id,
             repo_integration_id,
             team_id,
-            project_id,
         )
         if row is None:
             existing = (
@@ -382,7 +397,6 @@ def _row_to_review(row: asyncpg.Record) -> ReviewRow:
         delivery_id=row["delivery_id"],
         repo_integration_id=row["repo_integration_id"],
         team_id=row["team_id"],
-        project_id=row["project_id"],
         error_message=row["error_message"],
         started_at=row["started_at"],
         completed_at=row["completed_at"],

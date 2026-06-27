@@ -54,6 +54,77 @@ class TeamRepository:
         )
         return [_row_to_team(row) for row in rows]
 
+    async def list_paginated(
+        self,
+        *,
+        search: str = "",
+        limit: int,
+        offset: int,
+        user_id: UUID | None = None,
+    ) -> list[TeamRow]:
+        clauses: list[str] = []
+        args: list[object] = []
+        idx = 1
+        if user_id is not None:
+            clauses.append(f"tm.user_id = ${idx}")
+            args.append(user_id)
+            idx += 1
+        if search:
+            pattern = f"%{search}%"
+            clauses.append(f"(t.name ILIKE ${idx} OR t.slug ILIKE ${idx})")
+            args.append(pattern)
+            idx += 1
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        if user_id is not None:
+            query = f"""
+                SELECT t.id, t.organization_id, t.name, t.slug, t.created_at
+                FROM teams t
+                JOIN team_members tm ON tm.team_id = t.id
+                {where}
+                ORDER BY t.name ASC
+                LIMIT ${idx} OFFSET ${idx + 1}
+            """
+        else:
+            query = f"""
+                SELECT id, organization_id, name, slug, created_at
+                FROM teams t
+                {where}
+                ORDER BY name ASC
+                LIMIT ${idx} OFFSET ${idx + 1}
+            """
+        args.extend([limit, offset])
+        rows = await self._conn.fetch(query, *args)
+        return [_row_to_team(row) for row in rows]
+
+    async def count(
+        self,
+        *,
+        search: str = "",
+        user_id: UUID | None = None,
+    ) -> int:
+        clauses: list[str] = []
+        args: list[object] = []
+        idx = 1
+        if user_id is not None:
+            clauses.append(f"tm.user_id = ${idx}")
+            args.append(user_id)
+            idx += 1
+        if search:
+            pattern = f"%{search}%"
+            clauses.append(f"(t.name ILIKE ${idx} OR t.slug ILIKE ${idx})")
+            args.append(pattern)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        if user_id is not None:
+            query = f"""
+                SELECT COUNT(*)::int
+                FROM teams t
+                JOIN team_members tm ON tm.team_id = t.id
+                {where}
+            """
+        else:
+            query = f"SELECT COUNT(*)::int FROM teams t {where}"
+        return await self._conn.fetchval(query, *args) or 0
+
     async def get(self, team_id: UUID) -> TeamRow | None:
         row = await self._conn.fetchrow(
             """
@@ -117,11 +188,10 @@ class TeamRepository:
             return {}
         rows = await self._conn.fetch(
             """
-            SELECT p.team_id, COUNT(ri.id)::int AS repo_count
+            SELECT ri.team_id, COUNT(ri.id)::int AS repo_count
             FROM repo_integrations ri
-            JOIN projects p ON p.id = ri.project_id
-            WHERE p.team_id = ANY($1::uuid[])
-            GROUP BY p.team_id
+            WHERE ri.team_id = ANY($1::uuid[])
+            GROUP BY ri.team_id
             """,
             team_ids,
         )

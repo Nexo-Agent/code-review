@@ -8,7 +8,9 @@ from app.repositories.teams import TeamRepository, TeamRow
 from app.repositories.users import UserRepository
 from app.schemas.team import (
     TeamCreate,
+    TeamListResponse,
     TeamMemberCreate,
+    TeamMemberListResponse,
     TeamMemberResponse,
     TeamResponse,
     TeamUpdate,
@@ -49,22 +51,42 @@ def to_team_response(
 
 
 async def list_teams(conn, *, user) -> list[TeamResponse]:
+    result = await list_teams_paginated(conn, user=user, search="", limit=100, offset=0)
+    return result.items
+
+
+async def list_teams_paginated(
+    conn,
+    *,
+    user,
+    search: str | None,
+    limit: int,
+    offset: int,
+) -> TeamListResponse:
     repo = TeamRepository(conn)
-    if user.is_org_admin:
-        rows = await repo.list_all()
-    else:
-        rows = await repo.list_for_user(user.id)
+    query = (search or "").strip()
+    user_id = None if user.is_org_admin else user.id
+    rows = await repo.list_paginated(
+        search=query,
+        limit=limit,
+        offset=offset,
+        user_id=user_id,
+    )
+    total = await repo.count(search=query, user_id=user_id)
     team_ids = [row.id for row in rows]
     repo_counts = await repo.count_repos_for_teams(team_ids)
     member_counts = await TeamMemberRepository(conn).count_members_for_teams(team_ids)
-    return [
-        to_team_response(
-            row,
-            repo_count=repo_counts.get(row.id, 0),
-            member_count=member_counts.get(row.id, 0),
-        )
-        for row in rows
-    ]
+    return TeamListResponse(
+        items=[
+            to_team_response(
+                row,
+                repo_count=repo_counts.get(row.id, 0),
+                member_count=member_counts.get(row.id, 0),
+            )
+            for row in rows
+        ],
+        total=total,
+    )
 
 
 async def create_team(conn, payload: TeamCreate) -> TeamResponse:
@@ -103,18 +125,43 @@ async def delete_team(conn, team_id: UUID) -> None:
 
 
 async def list_team_members(conn, team_id: UUID) -> list[TeamMemberResponse]:
-    rows = await TeamMemberRepository(conn).list_for_team(team_id)
-    return [
-        TeamMemberResponse(
-            team_id=row.team_id,
-            user_id=row.user_id,
-            role=row.role,
-            user_email=row.user_email,
-            user_name=row.user_name,
-            created_at=row.created_at,
-        )
-        for row in rows
-    ]
+    result = await list_team_members_paginated(
+        conn, team_id, search="", limit=100, offset=0
+    )
+    return result.items
+
+
+async def list_team_members_paginated(
+    conn,
+    team_id: UUID,
+    *,
+    search: str | None,
+    limit: int,
+    offset: int,
+) -> TeamMemberListResponse:
+    repo = TeamMemberRepository(conn)
+    query = (search or "").strip()
+    rows = await repo.list_for_team_paginated(
+        team_id,
+        search=query,
+        limit=limit,
+        offset=offset,
+    )
+    total = await repo.count_for_team(team_id, search=query)
+    return TeamMemberListResponse(
+        items=[
+            TeamMemberResponse(
+                team_id=row.team_id,
+                user_id=row.user_id,
+                role=row.role,
+                user_email=row.user_email,
+                user_name=row.user_name,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ],
+        total=total,
+    )
 
 
 async def add_team_member(

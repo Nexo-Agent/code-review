@@ -24,8 +24,7 @@ import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 import { Route as RepositoriesRepoIdRouteImport } from './routes/repositories/$repoId'
 import { Route as LlmProvidersProviderIdRouteImport } from './routes/llm-providers/$providerId'
 import { Route as TeamsTeamIdIndexRouteImport } from './routes/teams/$teamId/index'
-import { Route as TeamsTeamIdProjectsProjectIdIndexRouteImport } from './routes/teams/$teamId/projects/$projectId/index'
-import { Route as TeamsTeamIdProjectsProjectIdReposRepoIdRouteImport } from './routes/teams/$teamId/projects/$projectId/repos/$repoId'
+import { Route as TeamsTeamIdReposRepoIdRouteImport } from './routes/teams/$teamId/repos/$repoId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -103,18 +102,11 @@ const TeamsTeamIdIndexRoute = TeamsTeamIdIndexRouteImport.update({
   path: '/teams/$teamId/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TeamsTeamIdProjectsProjectIdIndexRoute =
-  TeamsTeamIdProjectsProjectIdIndexRouteImport.update({
-    id: '/teams/$teamId/projects/$projectId/',
-    path: '/teams/$teamId/projects/$projectId/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const TeamsTeamIdProjectsProjectIdReposRepoIdRoute =
-  TeamsTeamIdProjectsProjectIdReposRepoIdRouteImport.update({
-    id: '/teams/$teamId/projects/$projectId/repos/$repoId',
-    path: '/teams/$teamId/projects/$projectId/repos/$repoId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const TeamsTeamIdReposRepoIdRoute = TeamsTeamIdReposRepoIdRouteImport.update({
+  id: '/teams/$teamId/repos/$repoId',
+  path: '/teams/$teamId/repos/$repoId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -132,8 +124,7 @@ export interface FileRoutesByFullPath {
   '/teams/': typeof TeamsIndexRoute
   '/users/': typeof UsersIndexRoute
   '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
-  '/teams/$teamId/projects/$projectId/': typeof TeamsTeamIdProjectsProjectIdIndexRoute
-  '/teams/$teamId/projects/$projectId/repos/$repoId': typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
+  '/teams/$teamId/repos/$repoId': typeof TeamsTeamIdReposRepoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -151,8 +142,7 @@ export interface FileRoutesByTo {
   '/teams': typeof TeamsIndexRoute
   '/users': typeof UsersIndexRoute
   '/teams/$teamId': typeof TeamsTeamIdIndexRoute
-  '/teams/$teamId/projects/$projectId': typeof TeamsTeamIdProjectsProjectIdIndexRoute
-  '/teams/$teamId/projects/$projectId/repos/$repoId': typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
+  '/teams/$teamId/repos/$repoId': typeof TeamsTeamIdReposRepoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -171,8 +161,7 @@ export interface FileRoutesById {
   '/teams/': typeof TeamsIndexRoute
   '/users/': typeof UsersIndexRoute
   '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
-  '/teams/$teamId/projects/$projectId/': typeof TeamsTeamIdProjectsProjectIdIndexRoute
-  '/teams/$teamId/projects/$projectId/repos/$repoId': typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
+  '/teams/$teamId/repos/$repoId': typeof TeamsTeamIdReposRepoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,8 +181,7 @@ export interface FileRouteTypes {
     | '/teams/'
     | '/users/'
     | '/teams/$teamId/'
-    | '/teams/$teamId/projects/$projectId/'
-    | '/teams/$teamId/projects/$projectId/repos/$repoId'
+    | '/teams/$teamId/repos/$repoId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -211,8 +199,7 @@ export interface FileRouteTypes {
     | '/teams'
     | '/users'
     | '/teams/$teamId'
-    | '/teams/$teamId/projects/$projectId'
-    | '/teams/$teamId/projects/$projectId/repos/$repoId'
+    | '/teams/$teamId/repos/$repoId'
   id:
     | '__root__'
     | '/'
@@ -230,8 +217,7 @@ export interface FileRouteTypes {
     | '/teams/'
     | '/users/'
     | '/teams/$teamId/'
-    | '/teams/$teamId/projects/$projectId/'
-    | '/teams/$teamId/projects/$projectId/repos/$repoId'
+    | '/teams/$teamId/repos/$repoId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -250,8 +236,7 @@ export interface RootRouteChildren {
   TeamsIndexRoute: typeof TeamsIndexRoute
   UsersIndexRoute: typeof UsersIndexRoute
   TeamsTeamIdIndexRoute: typeof TeamsTeamIdIndexRoute
-  TeamsTeamIdProjectsProjectIdIndexRoute: typeof TeamsTeamIdProjectsProjectIdIndexRoute
-  TeamsTeamIdProjectsProjectIdReposRepoIdRoute: typeof TeamsTeamIdProjectsProjectIdReposRepoIdRoute
+  TeamsTeamIdReposRepoIdRoute: typeof TeamsTeamIdReposRepoIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -361,18 +346,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeamsTeamIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/teams/$teamId/projects/$projectId/': {
-      id: '/teams/$teamId/projects/$projectId/'
-      path: '/teams/$teamId/projects/$projectId'
-      fullPath: '/teams/$teamId/projects/$projectId/'
-      preLoaderRoute: typeof TeamsTeamIdProjectsProjectIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/teams/$teamId/projects/$projectId/repos/$repoId': {
-      id: '/teams/$teamId/projects/$projectId/repos/$repoId'
-      path: '/teams/$teamId/projects/$projectId/repos/$repoId'
-      fullPath: '/teams/$teamId/projects/$projectId/repos/$repoId'
-      preLoaderRoute: typeof TeamsTeamIdProjectsProjectIdReposRepoIdRouteImport
+    '/teams/$teamId/repos/$repoId': {
+      id: '/teams/$teamId/repos/$repoId'
+      path: '/teams/$teamId/repos/$repoId'
+      fullPath: '/teams/$teamId/repos/$repoId'
+      preLoaderRoute: typeof TeamsTeamIdReposRepoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -394,10 +372,7 @@ const rootRouteChildren: RootRouteChildren = {
   TeamsIndexRoute: TeamsIndexRoute,
   UsersIndexRoute: UsersIndexRoute,
   TeamsTeamIdIndexRoute: TeamsTeamIdIndexRoute,
-  TeamsTeamIdProjectsProjectIdIndexRoute:
-    TeamsTeamIdProjectsProjectIdIndexRoute,
-  TeamsTeamIdProjectsProjectIdReposRepoIdRoute:
-    TeamsTeamIdProjectsProjectIdReposRepoIdRoute,
+  TeamsTeamIdReposRepoIdRoute: TeamsTeamIdReposRepoIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

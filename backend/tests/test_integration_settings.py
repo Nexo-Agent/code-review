@@ -5,8 +5,8 @@ from app.config import ReviewRuntimeConfig
 from app.providers.opencode_config import build_opencode_config_from_llm_providers
 from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.organizations import DEFAULT_ORG_ID
-from app.repositories.projects import DEFAULT_PROJECT_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
+from app.repositories.teams import DEFAULT_TEAM_ID
 
 
 def _llm_row() -> LlmProviderRow:
@@ -31,7 +31,7 @@ def _repo_row() -> RepoIntegrationRow:
     now = datetime.now(UTC)
     return RepoIntegrationRow(
         id=uuid4(),
-        project_id=DEFAULT_PROJECT_ID,
+        team_id=DEFAULT_TEAM_ID,
         name="acme/app",
         git_provider="github",
         repo_full_name="acme/app",
@@ -97,7 +97,7 @@ def test_repo_integration_matches_repo() -> None:
 
     catch_all = RepoIntegrationRow(
         id=uuid4(),
-        project_id=DEFAULT_PROJECT_ID,
+        team_id=DEFAULT_TEAM_ID,
         name="All",
         git_provider="github",
         repo_full_name="",

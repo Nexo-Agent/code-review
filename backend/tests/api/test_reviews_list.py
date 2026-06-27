@@ -57,8 +57,9 @@ async def test_list_reviews_filters_by_pr_number(client: AsyncClient) -> None:
     mock_repo.list_reviews.assert_awaited_once_with(
         team_ids=[DEFAULT_TEAM_ID],
         status=None,
-        repo_full_name="owner/repo",
+        repo_full_names=["owner/repo"],
         pr_number=42,
-        limit=50,
+        search=None,
+        limit=20,
         offset=0,
     )

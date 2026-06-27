@@ -11,11 +11,11 @@ from app.providers.factory import build_providers
 from app.providers.opencode_config import build_opencode_config_from_llm_providers
 from app.repositories.llm_providers import LlmProviderRepository, LlmProviderRow
 from app.repositories.organizations import OrganizationRepository
-from app.repositories.projects import ProjectRepository
 from app.repositories.repo_integrations import (
     RepoIntegrationRepository,
     RepoIntegrationRow,
 )
+from app.repositories.teams import TeamRepository
 
 logger = logging.getLogger(__name__)
 
@@ -25,42 +25,25 @@ async def resolve_repo_integration(
     repo_full_name: str,
     *,
     integration_id: UUID | None = None,
-    project_id: UUID | None = None,
+    team_id: UUID | None = None,
 ) -> RepoIntegrationRow | None:
     repo = RepoIntegrationRepository(conn)
     if integration_id is not None:
         return await repo.get(integration_id)
-    return await repo.resolve_for_repo(repo_full_name, project_id=project_id)
+    return await repo.resolve_for_repo(repo_full_name, team_id=team_id)
 
 
 async def resolve_llm_provider_for_repo(
     conn,
     repo_integration: RepoIntegrationRow,
 ) -> LlmProviderRow | None:
-    project = await ProjectRepository(conn).get_with_team(repo_integration.project_id)
-    if project is None:
+    team = await TeamRepository(conn).get(repo_integration.team_id)
+    if team is None:
         return None
-    _project_row, organization_id = project
+    organization_id = team.organization_id
     llm_repo = LlmProviderRepository(conn)
     if repo_integration.llm_provider_id:
         row = await llm_repo.get(repo_integration.llm_provider_id)
-        if row is not None and row.enabled and row.organization_id == organization_id:
-            return row
-    return await llm_repo.get_default(organization_id=organization_id)
-
-
-async def resolve_llm_provider_for_project(
-    conn,
-    project_id: UUID,
-) -> LlmProviderRow | None:
-    project_repo = ProjectRepository(conn)
-    project = await project_repo.get_with_team(project_id)
-    if project is None:
-        return None
-    project_row, organization_id = project
-    llm_repo = LlmProviderRepository(conn)
-    if project_row.llm_provider_id:
-        row = await llm_repo.get(project_row.llm_provider_id)
         if row is not None and row.enabled and row.organization_id == organization_id:
             return row
     return await llm_repo.get_default(organization_id=organization_id)

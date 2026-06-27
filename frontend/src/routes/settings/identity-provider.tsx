@@ -29,12 +29,13 @@ import {
   useUploadSamlSpCert,
   useUpsertIdentityProvider,
 } from "@/hooks/use-identity-provider"
+import { DEFAULT_LIST_SEARCH } from "@/lib/pagination"
 
 export const Route = createFileRoute("/settings/identity-provider")({
   beforeLoad: ({ context }) => {
     const me = (context as { me?: { user: { is_org_admin: boolean } } }).me
     if (me && !me.user.is_org_admin) {
-      throw redirect({ to: "/teams" })
+      throw redirect({ to: "/teams", search: DEFAULT_LIST_SEARCH })
     }
   },
   component: IdentityProviderSettingsPage,

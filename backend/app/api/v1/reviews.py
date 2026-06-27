@@ -3,6 +3,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.pagination import PaginationParams
 from app.auth.dependencies import AuthContext, assert_review_access, get_auth_context
 from app.dependencies import get_conn
 from app.jobs.review import run_review
@@ -54,8 +55,8 @@ def _to_review_response(
         head_ref=row.head_ref,
         status=row.status,
         delivery_id=row.delivery_id,
+        repo_integration_id=row.repo_integration_id,
         team_id=row.team_id,
-        project_id=row.project_id,
         error_message=row.error_message,
         started_at=row.started_at,
         completed_at=row.completed_at,
@@ -71,10 +72,10 @@ def _to_review_response(
 @router.get("", response_model=ReviewListResponse)
 async def list_reviews(
     status_filter: str | None = Query(None, alias="status"),
-    repo: str | None = Query(None, alias="repo"),
+    repo: list[str] = Query(default=[]),
     pr: int | None = Query(None, alias="pr", ge=1),
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    q: str | None = Query(None, max_length=200),
+    pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
     auth: AuthContext = Depends(get_auth_context),
 ) -> ReviewListResponse:
@@ -82,19 +83,23 @@ async def list_reviews(
     team_ids = auth.accessible_team_ids
     if not team_ids:
         return ReviewListResponse(items=[], total=0)
+    search = (q or "").strip() or None
+    repo_names = repo or None
     rows = await repo_db.list_reviews(
         team_ids=team_ids,
         status=status_filter,
-        repo_full_name=repo,
+        repo_full_names=repo_names,
         pr_number=pr,
-        limit=limit,
-        offset=offset,
+        search=search,
+        limit=pagination.limit,
+        offset=pagination.offset,
     )
     total = await repo_db.count_reviews(
         team_ids=team_ids,
         status=status_filter,
-        repo_full_name=repo,
+        repo_full_names=repo_names,
         pr_number=pr,
+        search=search,
     )
     return ReviewListResponse(
         items=[_to_review_response(row) for row in rows],

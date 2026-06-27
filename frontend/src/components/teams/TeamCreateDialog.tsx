@@ -49,7 +49,7 @@ export function TeamCreateDialog({
           <DialogHeader>
             <DialogTitle>Create team</DialogTitle>
             <DialogDescription>
-              Teams isolate reviews and group projects for your organization.
+              Teams isolate reviews and repositories for your organization.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">

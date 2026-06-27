@@ -5,14 +5,14 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import type { Review } from "@/api/types"
 import { AppShell } from "@/components/layout/AppShell"
-import { DataPanel } from "@/components/patterns/data-panel"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { CodeHint } from "@/components/patterns/inline-error"
 import { MultiSelectFilter } from "@/components/patterns/multi-select-filter"
+import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
 import { StatusBadge } from "@/components/patterns/status-badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -31,11 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useReviews } from "@/hooks/use-reviews"
-
-export const Route = createFileRoute("/reviews/")({
-  component: ReviewsPage,
-})
+import { useReviewsPage } from "@/hooks/use-reviews"
+import { useOrgRepositoriesOptions } from "@/hooks/use-teams"
+import { parsePageSearch } from "@/lib/pagination"
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -44,61 +42,90 @@ const STATUS_OPTIONS = [
   { value: "failed", label: "Failed" },
 ] as const
 
+type ReviewsSearch = {
+  page: number
+  q: string
+  status: string
+  repo: string[]
+}
+
+function parseReviewsSearch(search: Record<string, unknown>): ReviewsSearch {
+  const base = parsePageSearch(search)
+  const status = typeof search.status === "string" ? search.status : "all"
+  const repoRaw = search.repo
+  const repo =
+    typeof repoRaw === "string"
+      ? repoRaw.split(",").filter(Boolean)
+      : Array.isArray(repoRaw)
+        ? repoRaw.filter((value): value is string => typeof value === "string")
+        : []
+  return { ...base, status, repo }
+}
+
+export const Route = createFileRoute("/reviews/")({
+  validateSearch: parseReviewsSearch,
+  component: ReviewsPage,
+})
+
 function lastRunAt(review: Review): string {
   const ts = review.completed_at ?? review.started_at
   if (!ts) return "—"
   return new Date(ts).toLocaleString()
 }
 
-function reviewSearchText(review: Review): string {
-  return [
-    String(review.pr_number),
-    review.pr_title,
-    review.repo_full_name,
-    review.pr_author,
-    review.status,
-    review.head_ref,
-    review.base_ref,
-  ]
-    .join(" ")
-    .toLowerCase()
+function ReviewSearchInput({
+  q,
+  onQueryChange,
+}: {
+  q: string
+  onQueryChange: (value: string) => void
+}) {
+  const [searchInput, setSearchInput] = useState(q)
+
+  useEffect(() => {
+    const trimmed = searchInput.trim()
+    if (trimmed === q) {
+      return
+    }
+    const timeout = window.setTimeout(() => {
+      onQueryChange(trimmed)
+    }, 300)
+    return () => window.clearTimeout(timeout)
+  }, [searchInput, q, onQueryChange])
+
+  return (
+    <Input
+      value={searchInput}
+      onChange={(event) => setSearchInput(event.target.value)}
+      placeholder="Search PR #, title, repository, author…"
+      className="max-w-md"
+    />
+  )
 }
 
 function ReviewsPage() {
-  const reviews = useReviews()
-  const reviewList = reviews.data?.items ?? []
+  const navigate = Route.useNavigate()
+  const { page, q, status, repo } = Route.useSearch()
+  const orgRepos = useOrgRepositoriesOptions()
+  const reviews = useReviewsPage({ page, q, status, repo })
 
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [repoFilter, setRepoFilter] = useState<string[]>([])
-
-  const repoOptions = useMemo(
-    () => [...new Set(reviewList.map((review) => review.repo_full_name))].toSorted(),
-    [reviewList],
-  )
-
-  const filteredReviews = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return reviewList.filter((review) => {
-      if (statusFilter !== "all" && review.status !== statusFilter) {
-        return false
+  const repoOptions = useMemo(() => {
+    const names = new Set<string>()
+    for (const row of orgRepos.data?.items ?? []) {
+      if (row.repo_full_name) {
+        names.add(row.repo_full_name)
       }
-      if (repoFilter.length > 0 && !repoFilter.includes(review.repo_full_name)) {
-        return false
-      }
-      if (query && !reviewSearchText(review).includes(query)) {
-        return false
-      }
-      return true
-    })
-  }, [reviewList, search, statusFilter, repoFilter])
+    }
+    return [...names].toSorted()
+  }, [orgRepos.data?.items])
 
+  const total = reviews.data?.total ?? 0
   const hasFilters =
-    search.trim() !== "" || statusFilter !== "all" || repoFilter.length > 0
+    q.trim() !== "" || status !== "all" || repo.length > 0
 
   const description = hasFilters
-    ? `${filteredReviews.length} of ${reviewList.length} pull request review${reviewList.length === 1 ? "" : "s"}`
-    : `${reviewList.length} pull request review${reviewList.length === 1 ? "" : "s"}`
+    ? `${total} pull request review${total === 1 ? "" : "s"} matching filters`
+    : `${total} pull request review${total === 1 ? "" : "s"}`
 
   const columns = useMemo<ColumnDef<Review>[]>(
     () => [
@@ -163,22 +190,46 @@ function ReviewsPage() {
   )
 
   const table = useReactTable({
-    data: filteredReviews,
+    data: reviews.data?.items ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   })
 
+  function goToPage(nextPage: number) {
+    void navigate({ search: { page: nextPage, q, status, repo } })
+  }
+
+  function updateFilters(
+    patch: Partial<Pick<ReviewsSearch, "status" | "repo">>,
+  ) {
+    void navigate({
+      search: {
+        page: 1,
+        q,
+        status: patch.status ?? status,
+        repo: patch.repo ?? repo,
+      },
+    })
+  }
+
   return (
     <AppShell title="Reviews" description={description}>
       <div className="mb-4 flex flex-col gap-3">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search PR #, title, repository, author…"
-          className="max-w-md"
+        <ReviewSearchInput
+          key={q}
+          q={q}
+          onQueryChange={(trimmed) => {
+            void navigate({
+              search: { page: 1, q: trimmed, status, repo },
+              replace: true,
+            })
+          }}
         />
         <div className="flex flex-wrap gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={status}
+            onValueChange={(value) => updateFilters({ status: value })}
+          >
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -195,9 +246,9 @@ function ReviewsPage() {
           </Select>
 
           <MultiSelectFilter
-            options={repoOptions.map((repo) => ({ value: repo, label: repo }))}
-            selected={repoFilter}
-            onSelectedChange={setRepoFilter}
+            options={repoOptions.map((name) => ({ value: name, label: name }))}
+            selected={repo}
+            onSelectedChange={(next) => updateFilters({ repo: next })}
             emptyLabel="All repositories"
             searchPlaceholder="Search repositories…"
             className="w-56"
@@ -205,58 +256,59 @@ function ReviewsPage() {
         </div>
       </div>
 
-      <DataPanel
-        loading={reviews.isPending}
-        error={reviews.isError}
-        errorMessage="Could not load reviews. Run migrations with"
-        errorHint={<CodeHint>make migrate</CodeHint>}
+      <PaginatedListPanel
+        query={reviews}
+        page={page}
+        onPageChange={goToPage}
       >
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
+        {(reviewList) => (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <EmptyState colSpan={columns.length}>
-                {reviewList.length ? (
-                  "No reviews match your search or filters."
-                ) : (
-                  <>
-                    No reviews yet — configure a GitHub webhook to{" "}
-                    <CodeHint>/api/v1/webhooks/github</CodeHint>
-                  </>
-                )}
-              </EmptyState>
-            )}
-          </TableBody>
-        </Table>
-      </DataPanel>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {reviewList.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <EmptyState colSpan={columns.length}>
+                  {hasFilters ? (
+                    "No reviews match your search or filters."
+                  ) : (
+                    <>
+                      No reviews yet — configure a GitHub webhook to{" "}
+                      <CodeHint>/api/v1/webhooks/github</CodeHint>
+                    </>
+                  )}
+                </EmptyState>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </PaginatedListPanel>
     </AppShell>
   )
 }

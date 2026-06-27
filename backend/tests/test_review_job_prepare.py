@@ -6,9 +6,9 @@ from uuid import UUID
 from app.config import CodeReviewSettings
 from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.organizations import DEFAULT_ORG_ID
-from app.repositories.projects import DEFAULT_PROJECT_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
 from app.repositories.reviews import ReviewRow
+from app.repositories.teams import DEFAULT_TEAM_ID
 from app.services.review_job_prepare import build_agent_environment
 from tests.conftest import make_review_row
 
@@ -25,7 +25,7 @@ def _repo_integration() -> RepoIntegrationRow:
     now = datetime.now(tz=UTC)
     return RepoIntegrationRow(
         id=UUID("11111111-1111-1111-1111-111111111111"),
-        project_id=DEFAULT_PROJECT_ID,
+        team_id=DEFAULT_TEAM_ID,
         name="org/repo",
         git_provider="github",
         repo_full_name="org/repo",

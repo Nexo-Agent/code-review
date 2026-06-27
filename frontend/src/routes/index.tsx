@@ -14,6 +14,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useHealth } from "@/hooks/use-health"
 import { useReviews } from "@/hooks/use-reviews"
 import { useLlmProviders, useRepoIntegrations } from "@/hooks/use-settings"
+import {
+  DEFAULT_LIST_SEARCH,
+  DEFAULT_REPOSITORIES_SEARCH,
+  DEFAULT_REVIEWS_SEARCH,
+} from "@/lib/pagination"
 
 export const Route = createFileRoute("/")({
   component: DashboardPage,
@@ -86,17 +91,22 @@ function DashboardPage() {
                   <dd>
                     <Link
                       to="/repositories"
+                      search={DEFAULT_REPOSITORIES_SEARCH}
                       className="font-medium hover:underline"
                     >
-                      {repos.data?.length ?? 0}
+                      {repos.data?.total ?? 0}
                     </Link>
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-muted-foreground">Reviews</dt>
                   <dd>
-                    <Link to="/reviews" className="font-medium hover:underline">
-                      {reviews.data?.items.length ?? 0}
+                    <Link
+                      to="/reviews"
+                      search={DEFAULT_REVIEWS_SEARCH}
+                      className="font-medium hover:underline"
+                    >
+                      {reviews.data?.total ?? 0}
                     </Link>
                   </dd>
                 </div>
@@ -105,9 +115,10 @@ function DashboardPage() {
                   <dd>
                     <Link
                       to="/llm-providers"
+                      search={DEFAULT_LIST_SEARCH}
                       className="font-medium hover:underline"
                     >
-                      {llmProviders.data?.length ?? 0}
+                      {llmProviders.data?.total ?? 0}
                     </Link>
                   </dd>
                 </div>
