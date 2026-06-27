@@ -15,6 +15,7 @@ class LlmProviderRow:
     model: str
     opencode_model: str
     is_default: bool
+    enabled: bool
     created_at: datetime
     updated_at: datetime
 
@@ -33,7 +34,7 @@ class LlmProviderRepository:
         rows = await self._conn.fetch(
             """
             SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, created_at, updated_at
+                   opencode_model, is_default, enabled, created_at, updated_at
             FROM llm_providers
             ORDER BY is_default DESC, name ASC
             """
@@ -44,7 +45,7 @@ class LlmProviderRepository:
         row = await self._conn.fetchrow(
             """
             SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, created_at, updated_at
+                   opencode_model, is_default, enabled, created_at, updated_at
             FROM llm_providers WHERE id = $1
             """,
             provider_id,
@@ -55,20 +56,9 @@ class LlmProviderRepository:
         row = await self._conn.fetchrow(
             """
             SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, created_at, updated_at
+                   opencode_model, is_default, enabled, created_at, updated_at
             FROM llm_providers
-            WHERE is_default = true
-            LIMIT 1
-            """
-        )
-        if row:
-            return _row_to_llm_provider(row)
-        row = await self._conn.fetchrow(
-            """
-            SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, created_at, updated_at
-            FROM llm_providers
-            ORDER BY created_at ASC
+            WHERE is_default = true AND enabled = true
             LIMIT 1
             """
         )
@@ -84,6 +74,7 @@ class LlmProviderRepository:
         model: str,
         opencode_model: str = "",
         is_default: bool = False,
+        enabled: bool = True,
     ) -> LlmProviderRow:
         if is_default:
             await self._conn.execute(
@@ -93,11 +84,11 @@ class LlmProviderRepository:
             """
             INSERT INTO llm_providers (
                 name, provider_id, base_url, api_token, model,
-                opencode_model, is_default
+                opencode_model, is_default, enabled
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id, name, provider_id, base_url, api_token, model,
-                      opencode_model, is_default, created_at, updated_at
+                      opencode_model, is_default, enabled, created_at, updated_at
             """,
             name,
             provider_id,
@@ -106,6 +97,7 @@ class LlmProviderRepository:
             model,
             opencode_model,
             is_default,
+            enabled,
         )
         if row is None:
             msg = "failed to create llm provider"
@@ -123,6 +115,7 @@ class LlmProviderRepository:
         model: str | None = None,
         opencode_model: str | None = None,
         is_default: bool | None = None,
+        enabled: bool | None = None,
         clear_api_token: bool = False,
     ) -> LlmProviderRow:
         current = await self.get(provider_id)
@@ -145,10 +138,11 @@ class LlmProviderRepository:
                 model = $6,
                 opencode_model = $7,
                 is_default = $8,
+                enabled = $9,
                 updated_at = now()
             WHERE id = $1
             RETURNING id, name, provider_id, base_url, api_token, model,
-                      opencode_model, is_default, created_at, updated_at
+                      opencode_model, is_default, enabled, created_at, updated_at
             """,
             provider_id,
             name if name is not None else current.name,
@@ -158,6 +152,7 @@ class LlmProviderRepository:
             model if model is not None else current.model,
             opencode_model if opencode_model is not None else current.opencode_model,
             is_default if is_default is not None else current.is_default,
+            enabled if enabled is not None else current.enabled,
             clear_api_token,
         )
         if row is None:
@@ -182,6 +177,7 @@ def _row_to_llm_provider(row: asyncpg.Record) -> LlmProviderRow:
         model=row["model"],
         opencode_model=row["opencode_model"],
         is_default=row["is_default"],
+        enabled=row["enabled"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

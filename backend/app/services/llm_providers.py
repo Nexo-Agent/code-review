@@ -22,6 +22,7 @@ def to_llm_provider_response(row: LlmProviderRow) -> LlmProviderResponse:
         opencode_model=row.opencode_model,
         resolved_opencode_model=row.resolved_opencode_model,
         is_default=row.is_default,
+        enabled=row.enabled,
         api_token_configured=bool(row.api_token),
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -43,6 +44,7 @@ async def create_llm_provider(conn, payload: LlmProviderCreate) -> LlmProviderRe
         model=payload.model,
         opencode_model=payload.opencode_model,
         is_default=payload.is_default,
+        enabled=payload.enabled,
     )
     await sync_opencode_config_from_db(conn)
     logger.info("Created LLM provider %s", row.name)
@@ -66,6 +68,7 @@ async def update_llm_provider(
         model=data.get("model"),
         opencode_model=data.get("opencode_model"),
         is_default=data.get("is_default"),
+        enabled=data.get("enabled"),
         clear_api_token=clear_api_token,
     )
     await sync_opencode_config_from_db(conn)

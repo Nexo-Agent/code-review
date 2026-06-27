@@ -18,6 +18,7 @@ def _llm_row() -> LlmProviderRow:
         model="my-model",
         opencode_model="",
         is_default=True,
+        enabled=True,
         created_at=now,
         updated_at=now,
     )

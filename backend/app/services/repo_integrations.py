@@ -1,6 +1,8 @@
 import logging
 from uuid import UUID
 
+from coreview_shared.providers.git.azure_devops import parse_repo_full_name
+
 from app.repositories.llm_providers import LlmProviderRepository
 from app.repositories.repo_integrations import (
     RepoIntegrationRepository,
@@ -14,6 +16,16 @@ from app.schemas.repo_integration import (
 from app.services.provider_resolution import sync_opencode_config_from_db
 
 logger = logging.getLogger(__name__)
+
+
+def _infer_ado_org_project(git_provider: str, repo_full_name: str) -> tuple[str, str]:
+    if git_provider != "azure-devops":
+        return "", ""
+    trimmed = repo_full_name.strip()
+    if not trimmed:
+        return "", ""
+    organization, project, _repo = parse_repo_full_name(trimmed)
+    return organization, project
 
 
 async def _llm_provider_name(conn, llm_provider_id: UUID | None) -> str | None:
@@ -64,6 +76,10 @@ async def create_repo_integration(
     payload: RepoIntegrationCreate,
 ) -> RepoIntegrationResponse:
     repo = RepoIntegrationRepository(conn)
+    ado_organization, ado_project = _infer_ado_org_project(
+        payload.git_provider,
+        payload.repo_full_name,
+    )
     row = await repo.create(
         name=payload.name or _default_repo_name(payload.repo_full_name),
         git_provider=payload.git_provider,
@@ -73,8 +89,8 @@ async def create_repo_integration(
         llm_provider_id=payload.llm_provider_id,
         system_prompt=payload.system_prompt,
         enabled=payload.enabled,
-        ado_organization=payload.ado_organization,
-        ado_project=payload.ado_project,
+        ado_organization=ado_organization,
+        ado_project=ado_project,
         ado_pat=payload.ado_pat,
         ado_webhook_username=payload.ado_webhook_username,
         ado_webhook_password=payload.ado_webhook_password,
@@ -91,7 +107,19 @@ async def update_repo_integration(
     payload: RepoIntegrationUpdate,
 ) -> RepoIntegrationResponse:
     repo = RepoIntegrationRepository(conn)
+    current = await repo.get(integration_id)
+    if current is None:
+        msg = "repo integration not found"
+        raise ValueError(msg)
     data = payload.model_dump(exclude_unset=True)
+    git_provider = data.get("git_provider", current.git_provider)
+    repo_full_name = data.get("repo_full_name", current.repo_full_name)
+    ado_organization, ado_project = _infer_ado_org_project(
+        git_provider,
+        repo_full_name,
+    )
+    data["ado_organization"] = ado_organization
+    data["ado_project"] = ado_project
     clear_webhook_secret = (
         "github_webhook_secret" in data and data["github_webhook_secret"] == ""
     )

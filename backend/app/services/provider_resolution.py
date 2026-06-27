@@ -32,7 +32,10 @@ async def resolve_llm_provider(
 ) -> LlmProviderRow | None:
     llm_repo = LlmProviderRepository(conn)
     if repo_integration.llm_provider_id:
-        return await llm_repo.get(repo_integration.llm_provider_id)
+        row = await llm_repo.get(repo_integration.llm_provider_id)
+        if row is None or not row.enabled:
+            return None
+        return row
     return None
 
 
@@ -88,7 +91,7 @@ async def sync_opencode_config_from_db(
 ) -> Path:
     infra = infra or get_code_review_settings()
     llm_repo = LlmProviderRepository(conn)
-    providers = await llm_repo.list_all()
+    providers = [provider for provider in await llm_repo.list_all() if provider.enabled]
     default = await llm_repo.get_default()
     config = build_opencode_config_from_llm_providers(providers, default, infra)
     path = output_path or opencode_generated_config_path()

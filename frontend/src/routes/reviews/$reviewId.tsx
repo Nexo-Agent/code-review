@@ -3,7 +3,10 @@ import { RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/AppShell"
-import { Badge } from "@/components/ui/badge"
+import {
+  SeverityBadge,
+  StatusBadge,
+} from "@/components/patterns/status-badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRereviewReview, useReview } from "@/hooks/use-reviews"
@@ -12,19 +15,6 @@ import { cn } from "@/lib/utils"
 export const Route = createFileRoute("/reviews/$reviewId")({
   component: ReviewDetailPage,
 })
-
-function severityClass(severity: string) {
-  switch (severity) {
-    case "critical":
-      return "bg-destructive/15 text-destructive"
-    case "warning":
-      return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-    case "info":
-      return "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-    default:
-      return "bg-muted text-muted-foreground"
-  }
-}
 
 function ReviewDetailPage() {
   const { reviewId } = Route.useParams()
@@ -64,7 +54,7 @@ function ReviewDetailPage() {
     <AppShell
       title={pageTitle}
       description={data?.pr_title?.trim() || undefined}
-      backTo={{ to: "/repositories", label: "Repositories" }}
+      backTo={{ to: "/reviews", label: "Reviews" }}
       actions={
         data && canRereview ? (
           <Button
@@ -80,7 +70,7 @@ function ReviewDetailPage() {
             Re-review
           </Button>
         ) : data ? (
-          <Badge variant="secondary">{data.status}</Badge>
+          <StatusBadge status={data.status} />
         ) : undefined
       }
     >
@@ -92,7 +82,7 @@ function ReviewDetailPage() {
       ) : review.isError || !data ? (
         <p className="text-destructive text-sm">Review not found.</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
             <span>
               SHA{" "}
@@ -113,32 +103,22 @@ function ReviewDetailPage() {
             ) : null}
           </div>
 
-          <div className="rounded-lg border">
-            <div className="flex items-center justify-between border-b px-3 py-2">
-              <h2 className="text-sm font-medium">
-                Findings ({data.findings.length})
-              </h2>
-            </div>
-            <div className="divide-y">
+          <section>
+            <h2 className="mb-2 text-sm font-medium">
+              Findings ({data.findings.length})
+            </h2>
+            <div className="divide-border/60 divide-y">
               {data.findings.length === 0 ? (
-                <p className="text-muted-foreground p-3 text-sm">
+                <p className="text-muted-foreground py-3 text-sm">
                   {data.status === "pending" || data.status === "running"
                     ? "Review in progress…"
                     : "No findings."}
                 </p>
               ) : (
                 data.findings.map((finding) => (
-                  <div key={finding.id} className="px-3 py-2.5">
+                  <div key={finding.id} className="py-3 first:pt-0">
                     <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "h-5 px-1.5 text-[10px]",
-                          severityClass(finding.severity),
-                        )}
-                      >
-                        {finding.severity}
-                      </Badge>
+                      <SeverityBadge severity={finding.severity} />
                       <span className="text-sm font-medium">
                         {finding.title}
                       </span>
@@ -156,7 +136,7 @@ function ReviewDetailPage() {
                 ))
               )}
             </div>
-          </div>
+          </section>
         </div>
       )}
     </AppShell>

@@ -7,6 +7,7 @@ export interface LlmProvider {
   opencode_model: string
   resolved_opencode_model: string
   is_default: boolean
+  enabled: boolean
   api_token_configured: boolean
   created_at: string
   updated_at: string
@@ -20,6 +21,7 @@ export interface LlmProviderCreate {
   model: string
   opencode_model?: string
   is_default?: boolean
+  enabled?: boolean
 }
 
 export interface LlmProviderUpdate {
@@ -30,6 +32,7 @@ export interface LlmProviderUpdate {
   model?: string
   opencode_model?: string
   is_default?: boolean
+  enabled?: boolean
 }
 
 export interface RepoIntegration {

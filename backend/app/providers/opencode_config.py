@@ -44,10 +44,6 @@ def build_opencode_config_from_llm_providers(
     agent_cfg = build_code_reviewer_agent_config(agent_name)
     if default is not None:
         agent_cfg["model"] = default.resolved_opencode_model
-    elif providers:
-        agent_cfg["model"] = providers[0].resolved_opencode_model
-    else:
-        agent_cfg["model"] = f"{agent_name}/default"
 
     provider_blocks = merge_llm_provider_blocks(providers) if providers else {}
 

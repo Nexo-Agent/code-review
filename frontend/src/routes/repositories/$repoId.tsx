@@ -9,8 +9,10 @@ import { useMemo, useState } from "react"
 
 import type { Review } from "@/api/types"
 import { AppShell } from "@/components/layout/AppShell"
+import { DataPanel } from "@/components/patterns/data-panel"
+import { EmptyState } from "@/components/patterns/empty-state"
+import { StatusBadge } from "@/components/patterns/status-badge"
 import { RepoIntegrationDialog } from "@/components/settings/RepoIntegrationDialog"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -28,19 +30,6 @@ import { cn } from "@/lib/utils"
 export const Route = createFileRoute("/repositories/$repoId")({
   component: RepositoryDetailPage,
 })
-
-function statusClass(status: string) {
-  switch (status) {
-    case "completed":
-      return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-    case "failed":
-      return "bg-destructive/15 text-destructive"
-    case "running":
-      return "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-    default:
-      return "bg-muted text-muted-foreground"
-  }
-}
 
 function lastRunAt(review: Review): string {
   const ts = review.completed_at ?? review.started_at
@@ -101,14 +90,7 @@ function RepositoryDetailPage() {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => (
-          <Badge
-            variant="secondary"
-            className={cn(statusClass(row.original.status))}
-          >
-            {row.original.status}
-          </Badge>
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "findings_count",
@@ -154,7 +136,6 @@ function RepositoryDetailPage() {
     <AppShell
       title={title}
       description={repo?.name || undefined}
-      backTo={{ to: "/repositories", label: "Repositories" }}
       actions={
         repo ? (
           <Button
@@ -187,62 +168,50 @@ function RepositoryDetailPage() {
       ) : repoQuery.isError || !repo ? (
         <p className="text-destructive text-sm">Repository not found.</p>
       ) : (
-        <div className="rounded-lg border">
-          {reviews.isPending ? (
-            <div className="flex flex-col gap-1.5 p-3">
-              <Skeleton className="h-7 w-full" />
-              <Skeleton className="h-7 w-full" />
-            </div>
-          ) : reviews.isError ? (
-            <p className="text-destructive p-3 text-sm">
-              Could not load reviews.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                {reviewTable.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
+        <DataPanel
+          loading={reviews.isPending}
+          error={reviews.isError}
+          errorMessage="Could not load reviews."
+        >
+          <Table>
+            <TableHeader>
+              {reviewTable.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {reviewTable.getRowModel().rows.length ? (
+                reviewTable.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
                     ))}
                   </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {reviewTable.getRowModel().rows.length ? (
-                  reviewTable.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={reviewColumns.length}
-                      className="text-muted-foreground h-12 text-center"
-                    >
-                      No reviews yet for this repository.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+                ))
+              ) : (
+                <EmptyState colSpan={reviewColumns.length}>
+                  No reviews yet for this repository.
+                </EmptyState>
+              )}
+            </TableBody>
+          </Table>
+        </DataPanel>
       )}
     </AppShell>
   )

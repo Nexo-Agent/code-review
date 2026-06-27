@@ -339,6 +339,7 @@ def test_build_opencode_config_uses_openai_compatible_provider() -> None:
         model="my-model",
         opencode_model="",
         is_default=True,
+        enabled=True,
         created_at=now,
         updated_at=now,
     )

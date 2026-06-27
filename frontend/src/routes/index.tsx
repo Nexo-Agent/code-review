@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 
 import { AppShell } from "@/components/layout/AppShell"
+import { CodeHint, InlineError } from "@/components/patterns/inline-error"
+import { HealthBadge } from "@/components/patterns/status-badge"
 import {
   Card,
   CardContent,
@@ -10,6 +12,7 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useHealth } from "@/hooks/use-health"
+import { useReviews } from "@/hooks/use-reviews"
 import { useLlmProviders, useRepoIntegrations } from "@/hooks/use-settings"
 
 export const Route = createFileRoute("/")({
@@ -20,13 +23,14 @@ function DashboardPage() {
   const health = useHealth()
   const repos = useRepoIntegrations()
   const llmProviders = useLlmProviders()
+  const reviews = useReviews()
 
   return (
     <AppShell title="Dashboard">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">System status</CardTitle>
+            <CardTitle className="text-sm font-medium">System status</CardTitle>
             <CardDescription>API and database connectivity</CardDescription>
           </CardHeader>
           <CardContent>
@@ -36,19 +40,23 @@ function DashboardPage() {
                 <Skeleton className="h-3.5 w-48" />
               </div>
             ) : health.isError ? (
-              <p className="text-destructive text-sm">
-                Failed to reach API. Start backend with{" "}
-                <code className="text-xs">make dev</code>.
-              </p>
+              <InlineError
+                message="Failed to reach API. Start backend with"
+                hint={<CodeHint>make dev</CodeHint>}
+              />
             ) : (
               <dl className="grid gap-1.5 text-sm">
-                <div className="flex justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <dt className="text-muted-foreground">Status</dt>
-                  <dd className="font-medium">{health.data.status}</dd>
+                  <dd>
+                    <HealthBadge value={health.data.status} />
+                  </dd>
                 </div>
-                <div className="flex justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <dt className="text-muted-foreground">Database</dt>
-                  <dd className="font-medium">{health.data.db}</dd>
+                  <dd>
+                    <HealthBadge value={health.data.db} />
+                  </dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">Version</dt>
@@ -61,12 +69,13 @@ function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Overview</CardTitle>
+            <CardTitle className="text-sm font-medium">Overview</CardTitle>
             <CardDescription>Configured resources</CardDescription>
           </CardHeader>
           <CardContent>
-            {repos.isPending || llmProviders.isPending ? (
+            {repos.isPending || llmProviders.isPending || reviews.isPending ? (
               <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3.5 w-32" />
                 <Skeleton className="h-3.5 w-32" />
                 <Skeleton className="h-3.5 w-32" />
               </div>
@@ -80,6 +89,14 @@ function DashboardPage() {
                       className="font-medium hover:underline"
                     >
                       {repos.data?.length ?? 0}
+                    </Link>
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Reviews</dt>
+                  <dd>
+                    <Link to="/reviews" className="font-medium hover:underline">
+                      {reviews.data?.items.length ?? 0}
                     </Link>
                   </dd>
                 </div>

@@ -62,6 +62,7 @@ def _llm_provider() -> LlmProviderRow:
         model="gpt-4o",
         opencode_model="",
         is_default=True,
+        enabled=True,
         created_at=now,
         updated_at=now,
     )

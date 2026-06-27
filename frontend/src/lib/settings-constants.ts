@@ -7,14 +7,10 @@ export const GIT_PROVIDER_OPTIONS = [
 ] as const
 
 export const LLM_PROVIDER_ID_OPTIONS = [
-  { value: "openai-compat", label: "OpenAI Compatible API" },
   { value: "openai", label: "OpenAI" },
   { value: "anthropic", label: "Anthropic" },
   { value: "google", label: "Google" },
-  { value: "deepseek", label: "DeepSeek" },
-  { value: "groq", label: "Groq" },
-  { value: "openrouter", label: "OpenRouter" },
-  { value: "ollama", label: "Ollama (local)" },
+  { value: "openai-compat", label: "OpenAI Compatible API" },
 ] as const
 
 export function llmProviderIdOptions(current?: string) {
@@ -33,9 +29,10 @@ export function emptyLlmForm(): LlmProviderCreate {
     name: "",
     provider_id: "openai-compat",
     base_url: "https://api.openai.com/v1",
-    model: "gpt-4o",
+    model: "",
     api_token: "",
     is_default: false,
+    enabled: true,
   }
 }
 
@@ -46,8 +43,6 @@ export function emptyRepoForm(): RepoIntegrationCreate {
     repo_full_name: "",
     github_webhook_secret: "",
     github_token: "",
-    ado_organization: "",
-    ado_project: "",
     ado_pat: "",
     ado_webhook_username: "",
     ado_webhook_password: "",

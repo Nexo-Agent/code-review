@@ -48,10 +48,10 @@ CREATE TABLE IF NOT EXISTS integration_settings (
   github_repo_full_name TEXT NOT NULL DEFAULT '',
   github_webhook_secret TEXT NOT NULL DEFAULT '',
   github_token TEXT NOT NULL DEFAULT '',
-  llm_provider_id TEXT NOT NULL DEFAULT 'openai-compat',
-  llm_base_url TEXT NOT NULL DEFAULT 'https://api.openai.com/v1',
+  llm_provider_id TEXT NOT NULL DEFAULT '',
+  llm_base_url TEXT NOT NULL DEFAULT '',
   llm_api_token TEXT NOT NULL DEFAULT '',
-  llm_model TEXT NOT NULL DEFAULT 'gpt-4o',
+  llm_model TEXT NOT NULL DEFAULT '',
   opencode_model TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS llm_providers (
   provider_id TEXT NOT NULL,
   base_url TEXT NOT NULL DEFAULT 'https://api.openai.com/v1',
   api_token TEXT NOT NULL DEFAULT '',
-  model TEXT NOT NULL DEFAULT 'gpt-4o',
+  model TEXT NOT NULL DEFAULT '',
   opencode_model TEXT NOT NULL DEFAULT '',
   is_default BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { to: "/", label: "Dashboard", exact: true },
   { to: "/repositories", label: "Repositories", exact: false },
+  { to: "/reviews", label: "Reviews", exact: false },
   { to: "/llm-providers", label: "LLM Providers", exact: false },
 ] as const
 
@@ -27,8 +28,8 @@ export function AppShell({
 
   return (
     <div className="bg-background flex h-svh overflow-hidden">
-      <aside className="bg-card flex w-44 shrink-0 flex-col border-r">
-        <div className="flex h-11 items-center border-b px-3">
+      <aside className="bg-muted/30 flex w-44 shrink-0 flex-col">
+        <div className="flex h-11 items-center px-3">
           <span className="truncate text-sm font-semibold tracking-tight">
             Cogito Review
           </span>
@@ -56,13 +57,13 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {showHeader ? (
-          <header className="bg-background flex h-11 shrink-0 items-center gap-2 border-b px-4">
+          <header className="bg-background flex h-11 shrink-0 items-center gap-2 border-b border-border/50 px-4">
             {backTo ? (
               <ButtonLink to={backTo.to} label={backTo.label} />
             ) : null}
             <div className="min-w-0 flex-1">
               {title ? (
-                <h1 className="truncate text-base font-semibold leading-tight">
+                <h1 className="truncate text-base font-semibold leading-tight tracking-tight">
                   {title}
                 </h1>
               ) : null}
@@ -85,13 +86,15 @@ export function AppShell({
 }
 
 function ButtonLink({ to, label }: { to: string; label?: string }) {
+  const text = label ?? "Back"
   return (
     <Link
       to={to}
+      title={text}
       className="text-muted-foreground hover:text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-1 text-xs transition-colors"
     >
       <ChevronLeft className="size-3.5" />
-      {label ? <span className="hidden sm:inline">{label}</span> : null}
+      <span>{text}</span>
     </Link>
   )
 }

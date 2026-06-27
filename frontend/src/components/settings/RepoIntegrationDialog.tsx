@@ -8,8 +8,8 @@ import type {
   RepoIntegrationUpdate,
 } from "@/api/settings-types"
 import { Field } from "@/components/forms/Field"
+import { ConfirmDialog } from "@/components/patterns/confirm-dialog"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
   useCreateRepoIntegration,
@@ -46,10 +52,7 @@ function repoFormFromIntegration(
     name: repo.name,
     git_provider: repo.git_provider,
     repo_full_name: repo.repo_full_name,
-    ado_organization: repo.ado_organization,
-    ado_project: repo.ado_project,
     llm_provider_id: repo.llm_provider_id,
-    enabled: repo.enabled,
   }
 }
 
@@ -70,6 +73,7 @@ function RepoIntegrationForm({
   const deleteRepo = useDeleteRepoIntegration()
 
   const [form, setForm] = useState(() => repoFormFromIntegration(repo))
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [webhookSecret, setWebhookSecret] = useState("")
   const [githubToken, setGithubToken] = useState("")
   const [adoPat, setAdoPat] = useState("")
@@ -90,12 +94,9 @@ function RepoIntegrationForm({
           git_provider: form.git_provider,
           repo_full_name: form.repo_full_name,
           llm_provider_id: form.llm_provider_id,
-          enabled: form.enabled,
           system_prompt: systemPrompt,
         }
         if (isAzureDevOps) {
-          payload.ado_organization = form.ado_organization
-          payload.ado_project = form.ado_project
           if (adoPat) payload.ado_pat = adoPat
           if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
           if (adoWebhookPassword) payload.ado_webhook_password = adoWebhookPassword
@@ -106,7 +107,7 @@ function RepoIntegrationForm({
         await updateRepo.mutateAsync({ id: repo.id, payload })
         toast.success("Repository updated")
       } else {
-        const payload = { ...form, system_prompt: systemPrompt }
+        const payload = { ...form, system_prompt: systemPrompt, enabled: true }
         if (isAzureDevOps) {
           if (adoPat) payload.ado_pat = adoPat
           if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
@@ -126,18 +127,12 @@ function RepoIntegrationForm({
     }
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!repo) return
-    if (
-      !confirm(
-        `Delete repository "${repo.repo_full_name || "All repositories"}"?`,
-      )
-    ) {
-      return
-    }
     try {
       await deleteRepo.mutateAsync(repo.id)
       toast.success("Repository deleted")
+      setDeleteConfirmOpen(false)
       onOpenChange(false)
       onDeleted?.()
     } catch {
@@ -147,6 +142,16 @@ function RepoIntegrationForm({
 
   return (
     <>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete repository?"
+        description={`Delete repository "${repo?.repo_full_name || "All repositories"}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleteRepo.isPending}
+        onConfirm={confirmDelete}
+      />
       <DialogHeader className="shrink-0 border-b px-6 py-4">
         <DialogTitle>
           {isEdit ? "Edit repository" : "Add repository"}
@@ -169,19 +174,26 @@ function RepoIntegrationForm({
           <Field label="Git provider">
             <Select
               value={form.git_provider ?? "github"}
-              onChange={(e) =>
-                setForm({ ...form, git_provider: e.target.value })
+              onValueChange={(value) =>
+                setForm({ ...form, git_provider: value })
               }
             >
-              {GIT_PROVIDER_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  disabled={"disabled" in option && option.disabled}
-                >
-                  {option.label}
-                </option>
-              ))}
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select git provider" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectGroup>
+                  {GIT_PROVIDER_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      disabled={"disabled" in option && option.disabled}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </Field>
           <Field
@@ -192,11 +204,6 @@ function RepoIntegrationForm({
             }
           >
             <Input
-              placeholder={
-                isAzureDevOps
-                  ? "fabrikam/MyProject/MyRepo — empty = all repositories"
-                  : "empty = all repositories"
-              }
               value={form.repo_full_name ?? ""}
               onChange={(e) =>
                 setForm({ ...form, repo_full_name: e.target.value })
@@ -205,24 +212,6 @@ function RepoIntegrationForm({
           </Field>
           {isAzureDevOps ? (
             <>
-              <Field label="Organization">
-                <Input
-                  value={form.ado_organization ?? ""}
-                  onChange={(e) =>
-                    setForm({ ...form, ado_organization: e.target.value })
-                  }
-                  placeholder="fabrikam"
-                />
-              </Field>
-              <Field label="Project">
-                <Input
-                  value={form.ado_project ?? ""}
-                  onChange={(e) =>
-                    setForm({ ...form, ado_project: e.target.value })
-                  }
-                  placeholder="MyProject"
-                />
-              </Field>
               <Field
                 label={
                   isEdit ? "PAT (leave blank to keep)" : "Personal Access Token"
@@ -317,20 +306,27 @@ function RepoIntegrationForm({
           )}
           <Field label="LLM provider">
             <Select
-              value={form.llm_provider_id ?? ""}
-              onChange={(e) =>
+              value={form.llm_provider_id ?? "__none__"}
+              onValueChange={(value) =>
                 setForm({
                   ...form,
-                  llm_provider_id: e.target.value || null,
+                  llm_provider_id: value === "__none__" ? null : value,
                 })
               }
             >
-              <option value="">Default LLM</option>
-              {llmProviders.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select LLM provider" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectGroup>
+                  <SelectItem value="__none__">Select LLM provider</SelectItem>
+                  {llmProviders.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </Field>
           {isEdit ? (
@@ -343,18 +339,6 @@ function RepoIntegrationForm({
               />
             </Field>
           ) : null}
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="repo-enabled"
-              checked={form.enabled ?? true}
-              onCheckedChange={(checked) =>
-                setForm({ ...form, enabled: checked === true })
-              }
-            />
-            <Label htmlFor="repo-enabled" className="font-normal">
-              Enabled
-            </Label>
-          </div>
         </div>
 
         <DialogFooter className="shrink-0 border-t px-6 py-4">
@@ -363,7 +347,7 @@ function RepoIntegrationForm({
               type="button"
               variant="destructive"
               disabled={isPending}
-              onClick={handleDelete}
+              onClick={() => setDeleteConfirmOpen(true)}
               className="mr-auto"
             >
               Delete

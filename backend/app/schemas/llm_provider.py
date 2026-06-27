@@ -13,6 +13,7 @@ class LlmProviderResponse(BaseModel):
     opencode_model: str
     resolved_opencode_model: str
     is_default: bool
+    enabled: bool
     api_token_configured: bool
     created_at: datetime
     updated_at: datetime
@@ -26,6 +27,7 @@ class LlmProviderCreate(BaseModel):
     model: str = Field(min_length=1, max_length=128)
     opencode_model: str = Field(default="", max_length=128)
     is_default: bool = False
+    enabled: bool = True
 
 
 class LlmProviderUpdate(BaseModel):
@@ -39,3 +41,4 @@ class LlmProviderUpdate(BaseModel):
     model: str | None = Field(default=None, min_length=1, max_length=128)
     opencode_model: str | None = Field(default=None, max_length=128)
     is_default: bool | None = None
+    enabled: bool | None = None

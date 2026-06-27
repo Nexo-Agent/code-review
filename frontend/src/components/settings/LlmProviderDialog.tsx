@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import type { LlmProvider, LlmProviderCreate } from "@/api/settings-types"
 import { Field } from "@/components/forms/Field"
+import { ConfirmDialog } from "@/components/patterns/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -15,7 +16,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   useCreateLlmProvider,
   useDeleteLlmProvider,
@@ -63,6 +71,7 @@ function LlmProviderForm({
 
   const [form, setForm] = useState(() => llmFormFromProvider(provider))
   const [apiToken, setApiToken] = useState("")
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const isPending =
     createLlm.isPending || updateLlm.isPending || deleteLlm.isPending
@@ -97,12 +106,12 @@ function LlmProviderForm({
     }
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!provider) return
-    if (!confirm(`Delete LLM provider "${provider.name}"?`)) return
     try {
       await deleteLlm.mutateAsync(provider.id)
       toast.success("LLM provider deleted")
+      setDeleteConfirmOpen(false)
       onOpenChange(false)
       onDeleted?.()
     } catch {
@@ -112,6 +121,16 @@ function LlmProviderForm({
 
   return (
     <>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete LLM provider?"
+        description={`Delete LLM provider "${provider?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleteLlm.isPending}
+        onConfirm={confirmDelete}
+      />
       <DialogHeader className="shrink-0 border-b px-6 py-4">
         <DialogTitle>
           {isEdit ? "Edit LLM provider" : "Add LLM provider"}
@@ -134,17 +153,23 @@ function LlmProviderForm({
           </Field>
           <Field label="Provider ID">
             <Select
-              required
               value={form.provider_id}
-              onChange={(e) =>
-                setForm({ ...form, provider_id: e.target.value })
+              onValueChange={(value) =>
+                setForm({ ...form, provider_id: value })
               }
             >
-              {llmProviderIdOptions(form.provider_id).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select provider" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectGroup>
+                  {llmProviderIdOptions(form.provider_id).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </Field>
           <Field label="Base URL">
@@ -159,6 +184,7 @@ function LlmProviderForm({
               required
               value={form.model}
               onChange={(e) => setForm({ ...form, model: e.target.value })}
+              placeholder="e.g. gpt-4o"
             />
           </Field>
           <Field
@@ -201,7 +227,7 @@ function LlmProviderForm({
               type="button"
               variant="destructive"
               disabled={isPending}
-              onClick={handleDelete}
+              onClick={() => setDeleteConfirmOpen(true)}
               className="mr-auto"
             >
               Delete
