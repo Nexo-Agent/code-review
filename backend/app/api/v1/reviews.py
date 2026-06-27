@@ -45,7 +45,12 @@ def _to_review_response(
         repo_full_name=row.repo_full_name,
         pr_number=row.pr_number,
         pr_title=row.pr_title,
+        pr_url=row.pr_url,
+        pr_author=row.pr_author,
         head_sha=row.head_sha,
+        base_sha=row.base_sha,
+        base_ref=row.base_ref,
+        head_ref=row.head_ref,
         status=row.status,
         delivery_id=row.delivery_id,
         error_message=row.error_message,
@@ -53,6 +58,9 @@ def _to_review_response(
         completed_at=row.completed_at,
         created_at=row.created_at,
         findings_count=findings_count,
+        summary_comment_posted=row.summary_comment_posted,
+        inline_comments_posted=row.inline_comments_posted,
+        inline_comments_skipped=row.inline_comments_skipped,
         findings=[_to_finding_response(f) for f in finding_rows],
     )
 
@@ -61,6 +69,7 @@ def _to_review_response(
 async def list_reviews(
     status_filter: str | None = Query(None, alias="status"),
     repo: str | None = Query(None, alias="repo"),
+    pr: int | None = Query(None, alias="pr", ge=1),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     conn: asyncpg.Connection = Depends(get_conn),
@@ -69,6 +78,7 @@ async def list_reviews(
     rows = await repo_db.list_reviews(
         status=status_filter,
         repo_full_name=repo,
+        pr_number=pr,
         limit=limit,
         offset=offset,
     )

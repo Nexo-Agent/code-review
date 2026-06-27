@@ -3,13 +3,18 @@ import { RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { AppShell } from "@/components/layout/AppShell"
+import { BackLink } from "@/components/patterns/back-link"
+import { ReviewFindingsPanel } from "@/components/reviews/ReviewFindingsPanel"
+import { ReviewMetadataPanel } from "@/components/reviews/ReviewMetadataPanel"
+import { ReviewRunsPanel } from "@/components/reviews/ReviewRunsPanel"
 import {
-  SeverityBadge,
   StatusBadge,
 } from "@/components/patterns/status-badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useRepoIntegrations } from "@/hooks/use-settings"
 import { useRereviewReview, useReview } from "@/hooks/use-reviews"
+import { findRepoIntegration } from "@/lib/review-utils"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/reviews/$reviewId")({
@@ -20,12 +25,13 @@ function ReviewDetailPage() {
   const { reviewId } = Route.useParams()
   const navigate = useNavigate()
   const review = useReview(reviewId)
+  const repos = useRepoIntegrations()
   const rereview = useRereviewReview()
 
   const data = review.data
-  const githubUrl = data
-    ? `https://github.com/${data.repo_full_name}/pull/${data.pr_number}`
-    : null
+  const repoIntegration = data
+    ? findRepoIntegration(repos.data, data.repo_full_name)
+    : undefined
 
   const canRereview =
     data?.status === "completed" || data?.status === "failed"
@@ -46,97 +52,62 @@ function ReviewDetailPage() {
     }
   }
 
-  const pageTitle = data
-    ? `${data.repo_full_name}#${data.pr_number}`
-    : "Review"
+  const prTitle = data?.pr_title?.trim()
+  const pageTitle = prTitle || (data ? `#${data.pr_number}` : "Review")
+  const pageDescription = data
+    ? `${data.repo_full_name} · #${data.pr_number}`
+    : undefined
 
   return (
     <AppShell
       title={pageTitle}
-      description={data?.pr_title?.trim() || undefined}
-      backTo={{ to: "/reviews", label: "Reviews" }}
+      description={pageDescription}
+      mainClassName="flex min-h-0 flex-col overflow-hidden p-0"
       actions={
-        data && canRereview ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleRereview}
-            disabled={rereview.isPending}
-          >
-            <RefreshCw
-              className={cn("size-3.5", rereview.isPending && "animate-spin")}
-            />
-            Re-review
-          </Button>
-        ) : data ? (
-          <StatusBadge status={data.status} />
+        data ? (
+          <div className="flex items-center gap-2">
+            <StatusBadge status={data.status} />
+            {canRereview ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRereview}
+                disabled={rereview.isPending}
+              >
+                <RefreshCw
+                  className={cn(
+                    "size-3.5",
+                    rereview.isPending && "animate-spin",
+                  )}
+                />
+                Re-review
+              </Button>
+            ) : null}
+          </div>
         ) : undefined
       }
     >
       {review.isPending ? (
-        <div className="space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-24 w-full" />
+        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row lg:gap-0">
+          <Skeleton className="min-h-0 flex-1" />
+          <Skeleton className="min-h-0 flex-1 lg:w-80 xl:w-96 lg:shrink-0" />
         </div>
       ) : review.isError || !data ? (
-        <p className="text-destructive text-sm">Review not found.</p>
+        <p className="text-destructive p-4 text-sm">Review not found.</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            <span>
-              SHA{" "}
-              <code className="text-foreground">{data.head_sha.slice(0, 7)}</code>
-            </span>
-            {githubUrl ? (
-              <a
-                href={githubUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline"
-              >
-                View on GitHub
-              </a>
-            ) : null}
-            {data.error_message ? (
-              <span className="text-destructive">{data.error_message}</span>
-            ) : null}
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div className="border-border/50 min-h-0 flex-1 overflow-y-auto p-4 lg:border-r">
+            <BackLink to="/reviews" label="Reviews" />
+            <ReviewFindingsPanel review={data} />
           </div>
-
-          <section>
-            <h2 className="mb-2 text-sm font-medium">
-              Findings ({data.findings.length})
-            </h2>
-            <div className="divide-border/60 divide-y">
-              {data.findings.length === 0 ? (
-                <p className="text-muted-foreground py-3 text-sm">
-                  {data.status === "pending" || data.status === "running"
-                    ? "Review in progress…"
-                    : "No findings."}
-                </p>
-              ) : (
-                data.findings.map((finding) => (
-                  <div key={finding.id} className="py-3 first:pt-0">
-                    <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                      <SeverityBadge severity={finding.severity} />
-                      <span className="text-sm font-medium">
-                        {finding.title}
-                      </span>
-                      {finding.file_path ? (
-                        <code className="text-muted-foreground text-xs">
-                          {finding.file_path}
-                          {finding.line_start ? `:${finding.line_start}` : ""}
-                        </code>
-                      ) : null}
-                    </div>
-                    <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                      {finding.body}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+          <aside className="border-border/50 flex min-h-0 flex-1 shrink-0 flex-col gap-4 overflow-y-auto border-t p-4 lg:w-80 lg:flex-none lg:border-t-0 xl:w-96">
+            <ReviewMetadataPanel
+              review={data}
+              repoIntegration={repoIntegration}
+            />
+            <ReviewRunsPanel review={data} />
+          </aside>
         </div>
       )}
     </AppShell>

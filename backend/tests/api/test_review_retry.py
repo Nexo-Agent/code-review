@@ -14,6 +14,7 @@ from app.services.review_rereview import (
     ReviewNotFoundError,
     prepare_rereview,
 )
+from tests.conftest import make_review_row
 
 
 def _review_row(
@@ -21,18 +22,12 @@ def _review_row(
     status: str = "completed",
     head_sha: str = "abc123" * 5 + "ab",
 ) -> ReviewRow:
-    return ReviewRow(
-        id=uuid4(),
-        provider="github",
+    return make_review_row(
         repo_full_name="owner/repo",
-        pr_number=42,
-        pr_title="",
         head_sha=head_sha,
         status=status,
         delivery_id=None,
         repo_integration_id=uuid4(),
-        error_message=None,
-        started_at=None,
         completed_at=datetime.now(UTC),
         created_at=datetime.now(UTC),
     )
@@ -74,14 +69,18 @@ async def client() -> AsyncClient:
 @pytest.mark.asyncio
 async def test_retry_review_same_head_sha(client: AsyncClient) -> None:
     review = _review_row(status="completed")
-    reset_review = _review_row(status="pending", head_sha=review.head_sha)
-    reset_review = ReviewRow(
+    reset_review = make_review_row(
         id=review.id,
         provider=review.provider,
         repo_full_name=review.repo_full_name,
         pr_number=review.pr_number,
         pr_title=review.pr_title,
+        pr_url=review.pr_url,
+        pr_author=review.pr_author,
         head_sha=review.head_sha,
+        base_sha=review.base_sha,
+        base_ref=review.base_ref,
+        head_ref=review.head_ref,
         status="pending",
         delivery_id=review.delivery_id,
         repo_integration_id=review.repo_integration_id,
@@ -160,13 +159,18 @@ async def test_retry_review_in_progress(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_prepare_rereview_resets_same_commit() -> None:
     review = _review_row(status="failed")
-    reset_review = ReviewRow(
+    reset_review = make_review_row(
         id=review.id,
         provider=review.provider,
         repo_full_name=review.repo_full_name,
         pr_number=review.pr_number,
         pr_title=review.pr_title,
+        pr_url=review.pr_url,
+        pr_author=review.pr_author,
         head_sha=review.head_sha,
+        base_sha=review.base_sha,
+        base_ref=review.base_ref,
+        head_ref=review.head_ref,
         status="pending",
         delivery_id=review.delivery_id,
         repo_integration_id=review.repo_integration_id,
@@ -212,6 +216,7 @@ async def test_prepare_rereview_creates_new_review_for_new_commit() -> None:
     mock_repo.reset_for_retry = AsyncMock()
 
     conn = AsyncMock()
+    metadata = _pr_metadata(head_sha=new_sha)
     with (
         patch(
             "app.services.review_rereview.ReviewRepository",
@@ -219,7 +224,7 @@ async def test_prepare_rereview_creates_new_review_for_new_commit() -> None:
         ),
         patch(
             "app.services.review_rereview.resolve_latest_pr_metadata",
-            AsyncMock(return_value=_pr_metadata(head_sha=new_sha)),
+            AsyncMock(return_value=metadata),
         ),
     ):
         result = await prepare_rereview(conn, review.id)
@@ -227,4 +232,8 @@ async def test_prepare_rereview_creates_new_review_for_new_commit() -> None:
     assert result.id == new_review.id
     assert result.head_sha == new_sha
     mock_repo.create.assert_awaited_once()
+    create_kwargs = mock_repo.create.await_args.kwargs
+    assert create_kwargs["pr_url"] == metadata.html_url
+    assert create_kwargs["pr_author"] == metadata.author
+    assert create_kwargs["base_sha"] == metadata.base_sha
     mock_repo.reset_for_retry.assert_not_awaited()

@@ -238,6 +238,11 @@ export interface components {
              * @default false
              */
             is_default: boolean;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
         };
         /** LlmProviderResponse */
         LlmProviderResponse: {
@@ -260,6 +265,8 @@ export interface components {
             resolved_opencode_model: string;
             /** Is Default */
             is_default: boolean;
+            /** Enabled */
+            enabled: boolean;
             /** Api Token Configured */
             api_token_configured: boolean;
             /**
@@ -292,6 +299,8 @@ export interface components {
             opencode_model?: string | null;
             /** Is Default */
             is_default?: boolean | null;
+            /** Enabled */
+            enabled?: boolean | null;
         };
         /** RepoIntegrationCreate */
         RepoIntegrationCreate: {
@@ -506,8 +515,33 @@ export interface components {
              * @default
              */
             pr_title: string;
+            /**
+             * Pr Url
+             * @default
+             */
+            pr_url: string;
+            /**
+             * Pr Author
+             * @default
+             */
+            pr_author: string;
             /** Head Sha */
             head_sha: string;
+            /**
+             * Base Sha
+             * @default
+             */
+            base_sha: string;
+            /**
+             * Base Ref
+             * @default
+             */
+            base_ref: string;
+            /**
+             * Head Ref
+             * @default
+             */
+            head_ref: string;
             /** Status */
             status: string;
             /** Delivery Id */
@@ -528,6 +562,21 @@ export interface components {
              * @default 0
              */
             findings_count: number;
+            /**
+             * Summary Comment Posted
+             * @default false
+             */
+            summary_comment_posted: boolean;
+            /**
+             * Inline Comments Posted
+             * @default 0
+             */
+            inline_comments_posted: number;
+            /**
+             * Inline Comments Skipped
+             * @default 0
+             */
+            inline_comments_skipped: number;
             /** Findings */
             findings?: components["schemas"]["ReviewFindingResponse"][];
         };
@@ -578,6 +627,7 @@ export interface operations {
             query?: {
                 status?: string | null;
                 repo?: string | null;
+                pr?: number | null;
                 limit?: number;
                 offset?: number;
             };

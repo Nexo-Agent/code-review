@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router"
-import { ChevronLeft } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
@@ -15,16 +14,16 @@ export function AppShell({
   children,
   title,
   description,
-  backTo,
   actions,
+  mainClassName,
 }: {
   children: ReactNode
   title?: string
   description?: string
-  backTo?: { to: string; label?: string }
   actions?: ReactNode
+  mainClassName?: string
 }) {
-  const showHeader = title || description || backTo || actions
+  const showHeader = title || description || actions
 
   return (
     <div className="bg-background flex h-svh overflow-hidden">
@@ -57,44 +56,36 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {showHeader ? (
-          <header className="bg-background flex h-11 shrink-0 items-center gap-2 border-b border-border/50 px-4">
-            {backTo ? (
-              <ButtonLink to={backTo.to} label={backTo.label} />
-            ) : null}
+          <header className="bg-background flex shrink-0 items-start gap-3 border-b border-border/50 px-4 py-3">
             <div className="min-w-0 flex-1">
               {title ? (
-                <h1 className="truncate text-base font-semibold leading-tight tracking-tight">
+                <h1 className="line-clamp-2 text-base leading-snug font-semibold tracking-tight">
                   {title}
                 </h1>
               ) : null}
               {description ? (
-                <p className="text-muted-foreground truncate text-xs leading-tight">
+                <p className="text-muted-foreground mt-0.5 truncate text-xs">
                   {description}
                 </p>
               ) : null}
             </div>
             {actions ? (
-              <div className="flex shrink-0 items-center gap-2">{actions}</div>
+              <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                {actions}
+              </div>
             ) : null}
           </header>
         ) : null}
 
-        <main className="flex-1 overflow-y-auto p-4">{children}</main>
+        <main
+          className={cn(
+            "flex-1 overflow-y-auto p-4",
+            mainClassName,
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
-  )
-}
-
-function ButtonLink({ to, label }: { to: string; label?: string }) {
-  const text = label ?? "Back"
-  return (
-    <Link
-      to={to}
-      title={text}
-      className="text-muted-foreground hover:text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-1 text-xs transition-colors"
-    >
-      <ChevronLeft className="size-3.5" />
-      <span>{text}</span>
-    </Link>
   )
 }

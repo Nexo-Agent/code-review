@@ -8,24 +8,14 @@ from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.repo_integrations import RepoIntegrationRow
 from app.repositories.reviews import ReviewRow
 from app.services.review_job_prepare import build_agent_environment
+from tests.conftest import make_review_row
 
 
 def _review_row() -> ReviewRow:
-    now = datetime.now(tz=UTC)
-    return ReviewRow(
+    return make_review_row(
         id=UUID("550e8400-e29b-41d4-a716-446655440000"),
-        provider="github",
-        repo_full_name="org/repo",
-        pr_number=42,
         pr_title="Fix login bug",
-        head_sha="abc123",
-        status="pending",
         delivery_id="del-1",
-        repo_integration_id=UUID("11111111-1111-1111-1111-111111111111"),
-        error_message=None,
-        started_at=None,
-        completed_at=None,
-        created_at=now,
     )
 
 

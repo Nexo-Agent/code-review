@@ -24,6 +24,7 @@ class ReviewCallbackRequest(BaseModel):
     base_ref: str = ""
     pr_title: str = ""
     pr_url: str = ""
+    pr_author: str = ""
 
 
 class ReviewCallbackFinding(BaseModel):

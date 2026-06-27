@@ -57,6 +57,11 @@ async def prepare_rereview(conn, review_id: UUID) -> ReviewRow:
             delivery_id=None,
             repo_integration_id=review.repo_integration_id,
             pr_title=metadata.title or review.pr_title,
+            pr_url=metadata.html_url,
+            pr_author=metadata.author,
+            base_sha=metadata.base_sha,
+            base_ref=metadata.base_ref,
+            head_ref=metadata.head_ref,
         )
 
     updated = await repo_db.reset_for_retry(review_id)

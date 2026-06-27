@@ -4,6 +4,14 @@ from uuid import UUID
 
 import asyncpg
 
+_REVIEW_SELECT = """
+    id, provider, repo_full_name, pr_number, pr_title,
+    pr_url, pr_author, head_sha, base_sha, base_ref, head_ref,
+    status, delivery_id, repo_integration_id, error_message,
+    started_at, completed_at, created_at,
+    summary_comment_posted, inline_comments_posted, inline_comments_skipped
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class ReviewRow:
@@ -12,7 +20,12 @@ class ReviewRow:
     repo_full_name: str
     pr_number: int
     pr_title: str
+    pr_url: str
+    pr_author: str
     head_sha: str
+    base_sha: str
+    base_ref: str
+    head_ref: str
     status: str
     delivery_id: str | None
     repo_integration_id: UUID | None
@@ -20,6 +33,9 @@ class ReviewRow:
     started_at: datetime | None
     completed_at: datetime | None
     created_at: datetime
+    summary_comment_posted: bool = False
+    inline_comments_posted: int = 0
+    inline_comments_skipped: int = 0
     findings_count: int = 0
 
 
@@ -45,6 +61,7 @@ class ReviewRepository:
         *,
         status: str | None = None,
         repo_full_name: str | None = None,
+        pr_number: int | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[ReviewRow]:
@@ -59,11 +76,18 @@ class ReviewRepository:
             clauses.append(f"repo_full_name = ${idx}")
             args.append(repo_full_name)
             idx += 1
+        if pr_number is not None:
+            clauses.append(f"pr_number = ${idx}")
+            args.append(pr_number)
+            idx += 1
         args.extend([limit, offset])
         query = f"""
             SELECT r.id, r.provider, r.repo_full_name, r.pr_number, r.pr_title,
-                   r.head_sha, r.status, r.delivery_id, r.repo_integration_id,
+                   r.pr_url, r.pr_author, r.head_sha, r.base_sha, r.base_ref,
+                   r.head_ref, r.status, r.delivery_id, r.repo_integration_id,
                    r.error_message, r.started_at, r.completed_at, r.created_at,
+                   r.summary_comment_posted, r.inline_comments_posted,
+                   r.inline_comments_skipped,
                    (
                        SELECT COUNT(*)::int
                        FROM review_findings rf
@@ -79,24 +103,14 @@ class ReviewRepository:
 
     async def get(self, review_id: UUID) -> ReviewRow | None:
         row = await self._conn.fetchrow(
-            """
-            SELECT id, provider, repo_full_name, pr_number, pr_title, head_sha,
-                   status, delivery_id, repo_integration_id, error_message,
-                   started_at, completed_at, created_at
-            FROM reviews WHERE id = $1
-            """,
+            f"SELECT {_REVIEW_SELECT} FROM reviews WHERE id = $1",
             review_id,
         )
         return _row_to_review(row) if row else None
 
     async def get_by_delivery_id(self, delivery_id: str) -> ReviewRow | None:
         row = await self._conn.fetchrow(
-            """
-            SELECT id, provider, repo_full_name, pr_number, pr_title, head_sha,
-                   status, delivery_id, repo_integration_id, error_message,
-                   started_at, completed_at, created_at
-            FROM reviews WHERE delivery_id = $1
-            """,
+            f"SELECT {_REVIEW_SELECT} FROM reviews WHERE delivery_id = $1",
             delivery_id,
         )
         return _row_to_review(row) if row else None
@@ -111,23 +125,32 @@ class ReviewRepository:
         delivery_id: str | None,
         repo_integration_id: UUID | None = None,
         pr_title: str = "",
+        pr_url: str = "",
+        pr_author: str = "",
+        base_sha: str = "",
+        base_ref: str = "",
+        head_ref: str = "",
     ) -> ReviewRow:
         row = await self._conn.fetchrow(
-            """
+            f"""
             INSERT INTO reviews (
-                provider, repo_full_name, pr_number, pr_title, head_sha, status,
+                provider, repo_full_name, pr_number, pr_title, pr_url, pr_author,
+                head_sha, base_sha, base_ref, head_ref, status,
                 delivery_id, repo_integration_id
             )
-            VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
-            RETURNING id, provider, repo_full_name, pr_number, pr_title, head_sha,
-                      status, delivery_id, repo_integration_id, error_message,
-                      started_at, completed_at, created_at
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12)
+            RETURNING {_REVIEW_SELECT}
             """,
             provider,
             repo_full_name,
             pr_number,
             pr_title,
+            pr_url,
+            pr_author,
             head_sha,
+            base_sha,
+            base_ref,
+            head_ref,
             delivery_id,
             repo_integration_id,
         )
@@ -151,7 +174,7 @@ class ReviewRepository:
         set_completed: bool = False,
     ) -> ReviewRow | None:
         row = await self._conn.fetchrow(
-            """
+            f"""
             UPDATE reviews
             SET status = $2,
                 error_message = COALESCE($3, error_message),
@@ -161,9 +184,7 @@ class ReviewRepository:
                 END,
                 completed_at = CASE WHEN $5 THEN now() ELSE completed_at END
             WHERE id = $1
-            RETURNING id, provider, repo_full_name, pr_number, pr_title, head_sha,
-                      status, delivery_id, repo_integration_id, error_message,
-                      started_at, completed_at, created_at
+            RETURNING {_REVIEW_SELECT}
             """,
             review_id,
             status,
@@ -173,13 +194,60 @@ class ReviewRepository:
         )
         return _row_to_review(row) if row else None
 
-    async def update_pr_title(self, review_id: UUID, pr_title: str) -> None:
-        if not pr_title:
-            return
+    async def update_request_metadata(
+        self,
+        review_id: UUID,
+        *,
+        pr_title: str = "",
+        pr_url: str = "",
+        pr_author: str = "",
+        head_sha: str = "",
+        base_sha: str = "",
+        base_ref: str = "",
+        head_ref: str = "",
+    ) -> None:
         await self._conn.execute(
-            "UPDATE reviews SET pr_title = $2 WHERE id = $1",
+            """
+            UPDATE reviews
+            SET pr_title = CASE WHEN $2 <> '' THEN $2 ELSE pr_title END,
+                pr_url = CASE WHEN $3 <> '' THEN $3 ELSE pr_url END,
+                pr_author = CASE WHEN $4 <> '' THEN $4 ELSE pr_author END,
+                head_sha = CASE WHEN $5 <> '' THEN $5 ELSE head_sha END,
+                base_sha = CASE WHEN $6 <> '' THEN $6 ELSE base_sha END,
+                base_ref = CASE WHEN $7 <> '' THEN $7 ELSE base_ref END,
+                head_ref = CASE WHEN $8 <> '' THEN $8 ELSE head_ref END
+            WHERE id = $1
+            """,
             review_id,
             pr_title,
+            pr_url,
+            pr_author,
+            head_sha,
+            base_sha,
+            base_ref,
+            head_ref,
+        )
+
+    async def update_delivery_stats(
+        self,
+        review_id: UUID,
+        *,
+        summary_comment_posted: bool,
+        inline_comments_posted: int,
+        inline_comments_skipped: int,
+    ) -> None:
+        await self._conn.execute(
+            """
+            UPDATE reviews
+            SET summary_comment_posted = $2,
+                inline_comments_posted = $3,
+                inline_comments_skipped = $4
+            WHERE id = $1
+            """,
+            review_id,
+            summary_comment_posted,
+            inline_comments_posted,
+            inline_comments_skipped,
         )
 
     async def reset_for_retry(self, review_id: UUID) -> ReviewRow | None:
@@ -189,16 +257,17 @@ class ReviewRepository:
                 review_id,
             )
             row = await self._conn.fetchrow(
-                """
+                f"""
                 UPDATE reviews
                 SET status = 'pending',
                     error_message = NULL,
                     started_at = NULL,
-                    completed_at = NULL
+                    completed_at = NULL,
+                    summary_comment_posted = false,
+                    inline_comments_posted = 0,
+                    inline_comments_skipped = 0
                 WHERE id = $1
-                RETURNING id, provider, repo_full_name, pr_number, pr_title, head_sha,
-                          status, delivery_id, repo_integration_id, error_message,
-                          started_at, completed_at, created_at
+                RETURNING {_REVIEW_SELECT}
                 """,
                 review_id,
             )
@@ -259,7 +328,12 @@ def _row_to_review(row: asyncpg.Record) -> ReviewRow:
         repo_full_name=row["repo_full_name"],
         pr_number=row["pr_number"],
         pr_title=row["pr_title"],
+        pr_url=row["pr_url"],
+        pr_author=row["pr_author"],
         head_sha=row["head_sha"],
+        base_sha=row["base_sha"],
+        base_ref=row["base_ref"],
+        head_ref=row["head_ref"],
         status=row["status"],
         delivery_id=row["delivery_id"],
         repo_integration_id=row["repo_integration_id"],
@@ -267,6 +341,9 @@ def _row_to_review(row: asyncpg.Record) -> ReviewRow:
         started_at=row["started_at"],
         completed_at=row["completed_at"],
         created_at=row["created_at"],
+        summary_comment_posted=row["summary_comment_posted"],
+        inline_comments_posted=row["inline_comments_posted"],
+        inline_comments_skipped=row["inline_comments_skipped"],
         findings_count=row["findings_count"] if "findings_count" in row else 0,
     )
 

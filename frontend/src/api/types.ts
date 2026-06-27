@@ -21,7 +21,12 @@ export interface Review {
   repo_full_name: string
   pr_number: number
   pr_title: string
+  pr_url: string
+  pr_author: string
   head_sha: string
+  base_sha: string
+  base_ref: string
+  head_ref: string
   status: string
   delivery_id: string | null
   error_message: string | null
@@ -29,6 +34,9 @@ export interface Review {
   completed_at: string | null
   created_at: string
   findings_count: number
+  summary_comment_posted: boolean
+  inline_comments_posted: number
+  inline_comments_skipped: number
   findings: ReviewFinding[]
 }
 

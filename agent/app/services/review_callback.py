@@ -60,6 +60,7 @@ def request_from_metadata(
         base_ref=metadata.base_ref,
         pr_title=metadata.title,
         pr_url=metadata.html_url,
+        pr_author=metadata.author,
     )
 
 

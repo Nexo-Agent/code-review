@@ -12,7 +12,7 @@ from app.dependencies import get_conn
 from app.main import create_app
 from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.repo_integrations import RepoIntegrationRow
-from app.repositories.reviews import ReviewRow
+from tests.conftest import make_review_row
 
 
 @pytest.fixture
@@ -89,19 +89,13 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
     body = json.dumps(payload).encode()
     delivery_id = str(uuid4())
 
-    review_row = ReviewRow(
-        id=uuid4(),
+    review_row = make_review_row(
         provider="github",
         repo_full_name="owner/repo",
         pr_number=42,
-        pr_title="",
         head_sha="abc123" * 5 + "ab",
-        status="pending",
         delivery_id=delivery_id,
         repo_integration_id=repo_integration.id,
-        error_message=None,
-        started_at=None,
-        completed_at=None,
         created_at=datetime.now(UTC),
     )
 

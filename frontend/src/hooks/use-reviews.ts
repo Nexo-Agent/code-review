@@ -3,10 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import type { Review, ReviewList } from "@/api/types"
 
-export function useReviews(params?: { status?: string; repo?: string }) {
+export function useReviews(params?: {
+  status?: string
+  repo?: string
+  pr?: number
+}) {
   const search = new URLSearchParams()
   if (params?.status) search.set("status", params.status)
   if (params?.repo) search.set("repo", params.repo)
+  if (params?.pr != null) search.set("pr", String(params.pr))
 
   const query = search.toString()
   const path = query ? `/reviews?${query}` : "/reviews"

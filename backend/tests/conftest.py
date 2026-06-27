@@ -1,4 +1,38 @@
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
+
 import pytest
+
+from app.repositories.reviews import ReviewRow
+
+
+def make_review_row(**overrides: object) -> ReviewRow:
+    now = datetime.now(tz=UTC)
+    defaults: dict[str, object] = {
+        "id": uuid4(),
+        "provider": "github",
+        "repo_full_name": "org/repo",
+        "pr_number": 42,
+        "pr_title": "",
+        "pr_url": "",
+        "pr_author": "",
+        "head_sha": "abc123",
+        "base_sha": "",
+        "base_ref": "",
+        "head_ref": "",
+        "status": "pending",
+        "delivery_id": None,
+        "repo_integration_id": UUID("11111111-1111-1111-1111-111111111111"),
+        "error_message": None,
+        "started_at": None,
+        "completed_at": None,
+        "created_at": now,
+        "summary_comment_posted": False,
+        "inline_comments_posted": 0,
+        "inline_comments_skipped": 0,
+    }
+    defaults.update(overrides)
+    return ReviewRow(**defaults)  # type: ignore[arg-type]
 
 
 def pytest_configure(config: pytest.Config) -> None:

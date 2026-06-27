@@ -40,7 +40,8 @@
         "head_ref": { "type": "string" },
         "base_ref": { "type": "string" },
         "pr_title": { "type": "string" },
-        "pr_url": { "type": "string" }
+        "pr_url": { "type": "string" },
+        "pr_author": { "type": "string" }
       }
     },
     "result": {
