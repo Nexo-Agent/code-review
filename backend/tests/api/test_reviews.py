@@ -8,22 +8,35 @@ from uuid import uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.auth.dependencies import AuthContext, get_auth_context
 from app.dependencies import get_conn
 from app.main import create_app
 from app.repositories.llm_providers import LlmProviderRow
+from app.repositories.organizations import DEFAULT_ORG_ID
+from app.repositories.projects import DEFAULT_PROJECT_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
-from tests.conftest import make_review_row
+from app.repositories.teams import DEFAULT_TEAM_ID
+from tests.conftest import make_dev_user, make_review_row
 
 
 @pytest.fixture
 async def client() -> AsyncClient:
     app = create_app()
     mock_conn = AsyncMock()
+    dev_user = make_dev_user()
 
     async def override_get_conn():
         yield mock_conn
 
+    async def override_auth_context():
+        return AuthContext(
+            user=dev_user,
+            accessible_team_ids=[DEFAULT_TEAM_ID],
+            auth_enabled=False,
+        )
+
     app.dependency_overrides[get_conn] = override_get_conn
+    app.dependency_overrides[get_auth_context] = override_auth_context
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -34,6 +47,7 @@ def _llm_row() -> LlmProviderRow:
     now = datetime.now(UTC)
     return LlmProviderRow(
         id=uuid4(),
+        organization_id=DEFAULT_ORG_ID,
         name="Default",
         provider_id="openai-compat",
         base_url="https://api.example.com/v1",
@@ -51,12 +65,13 @@ def _repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
     now = datetime.now(UTC)
     return RepoIntegrationRow(
         id=uuid4(),
+        project_id=DEFAULT_PROJECT_ID,
         name="owner/repo",
         git_provider="github",
         repo_full_name="owner/repo",
+        llm_provider_id=None,
         github_webhook_secret="webhook-secret",
         github_token="gh-token",
-        llm_provider_id=llm.id,
         system_prompt="",
         enabled=True,
         ado_organization="",
@@ -103,13 +118,18 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
     mock_repo.get_by_delivery_id = AsyncMock(return_value=None)
     mock_repo.create = AsyncMock(return_value=review_row)
 
+    mock_integration_repo = MagicMock()
+    mock_integration_repo.get_with_team = AsyncMock(
+        return_value=(repo_integration, DEFAULT_TEAM_ID, DEFAULT_PROJECT_ID)
+    )
+
     with (
         patch(
-            "app.api.v1.webhooks.resolve_repo_integration",
-            AsyncMock(return_value=repo_integration),
+            "app.api.v1.webhooks.RepoIntegrationRepository",
+            return_value=mock_integration_repo,
         ),
         patch(
-            "app.api.v1.webhooks.resolve_llm_provider",
+            "app.api.v1.webhooks.resolve_llm_provider_for_repo",
             AsyncMock(return_value=llm),
         ),
         patch("app.api.v1.webhooks.run_review") as mock_task,
@@ -117,7 +137,7 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
     ):
         mock_task.delay = MagicMock()
         response = await client.post(
-            "/api/v1/webhooks/github",
+            f"/api/v1/webhooks/github/{repo_integration.id}",
             content=body,
             headers={
                 "X-GitHub-Event": "pull_request",
@@ -132,7 +152,7 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_github_webhook_rejects_unconfigured_repo(client: AsyncClient) -> None:
+async def test_github_webhook_legacy_endpoint_deprecated(client: AsyncClient) -> None:
     body = json.dumps(
         {
             "action": "opened",
@@ -141,19 +161,14 @@ async def test_github_webhook_rejects_unconfigured_repo(client: AsyncClient) -> 
         }
     ).encode()
 
-    with patch(
-        "app.api.v1.webhooks.resolve_repo_integration",
-        AsyncMock(return_value=None),
-    ):
-        response = await client.post(
-            "/api/v1/webhooks/github",
-            content=body,
-            headers={
-                "X-GitHub-Event": "pull_request",
-                "X-Hub-Signature-256": _sign_payload(body, "any-secret"),
-                "Content-Type": "application/json",
-            },
-        )
+    response = await client.post(
+        "/api/v1/webhooks/github",
+        content=body,
+        headers={
+            "X-GitHub-Event": "pull_request",
+            "X-Hub-Signature-256": _sign_payload(body, "secret"),
+            "Content-Type": "application/json",
+        },
+    )
 
-    assert response.status_code == 202
-    assert response.json()["detail"] == "repository not configured for review"
+    assert response.status_code == 410

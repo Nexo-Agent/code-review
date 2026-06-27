@@ -5,6 +5,8 @@ from uuid import UUID
 
 from app.config import CodeReviewSettings
 from app.repositories.llm_providers import LlmProviderRow
+from app.repositories.organizations import DEFAULT_ORG_ID
+from app.repositories.projects import DEFAULT_PROJECT_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
 from app.repositories.reviews import ReviewRow
 from app.services.review_job_prepare import build_agent_environment
@@ -23,12 +25,13 @@ def _repo_integration() -> RepoIntegrationRow:
     now = datetime.now(tz=UTC)
     return RepoIntegrationRow(
         id=UUID("11111111-1111-1111-1111-111111111111"),
+        project_id=DEFAULT_PROJECT_ID,
         name="org/repo",
         git_provider="github",
         repo_full_name="org/repo",
+        llm_provider_id=None,
         github_webhook_secret="secret",
         github_token="ghp_test",
-        llm_provider_id=UUID("22222222-2222-2222-2222-222222222222"),
         system_prompt="Focus on security only.",
         enabled=True,
         ado_organization="",
@@ -45,6 +48,7 @@ def _llm_provider() -> LlmProviderRow:
     now = datetime.now(tz=UTC)
     return LlmProviderRow(
         id=UUID("22222222-2222-2222-2222-222222222222"),
+        organization_id=DEFAULT_ORG_ID,
         name="default",
         provider_id="openai-compat",
         base_url="https://api.example.com/v1",

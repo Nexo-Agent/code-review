@@ -27,7 +27,6 @@ export function useCreateLlmProvider() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "llm-providers"] })
-      queryClient.invalidateQueries({ queryKey: ["settings", "repos"] })
     },
   })
 }
@@ -48,7 +47,6 @@ export function useUpdateLlmProvider() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "llm-providers"] })
-      queryClient.invalidateQueries({ queryKey: ["settings", "repos"] })
     },
   })
 }
@@ -60,9 +58,32 @@ export function useDeleteLlmProvider() {
       api<void>(`/settings/llm-providers/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "llm-providers"] })
-      queryClient.invalidateQueries({ queryKey: ["settings", "repos"] })
     },
   })
+}
+
+function reposPath(teamId: string, projectId: string) {
+  return `/teams/${teamId}/projects/${projectId}/repos`
+}
+
+export function useProjectRepos(teamId: string, projectId: string) {
+  return useQuery({
+    queryKey: ["teams", teamId, "projects", projectId, "repos"],
+    queryFn: () => api<RepoIntegration[]>(reposPath(teamId, projectId)),
+    enabled: Boolean(teamId) && Boolean(projectId),
+  })
+}
+
+export function useProjectRepo(
+  teamId: string,
+  projectId: string,
+  repoId: string,
+) {
+  const query = useProjectRepos(teamId, projectId)
+  return {
+    ...query,
+    data: query.data?.find((repo) => repo.id === repoId),
+  }
 }
 
 export function useRepoIntegrations() {
@@ -88,21 +109,26 @@ export function useLlmProvider(id: string) {
   }
 }
 
-export function useCreateRepoIntegration() {
+export function useCreateRepoIntegration(teamId: string, projectId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: RepoIntegrationCreate) =>
-      api<RepoIntegration>("/settings/repos", {
+      api<RepoIntegration>(reposPath(teamId, projectId), {
         method: "POST",
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["teams", teamId, "projects", projectId, "repos"],
+      })
+      queryClient.invalidateQueries({ queryKey: ["teams", teamId, "repositories"] })
+      queryClient.invalidateQueries({ queryKey: ["repositories"] })
       queryClient.invalidateQueries({ queryKey: ["settings", "repos"] })
     },
   })
 }
 
-export function useUpdateRepoIntegration() {
+export function useUpdateRepoIntegration(teamId: string, projectId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
@@ -112,22 +138,32 @@ export function useUpdateRepoIntegration() {
       id: string
       payload: RepoIntegrationUpdate
     }) =>
-      api<RepoIntegration>(`/settings/repos/${id}`, {
+      api<RepoIntegration>(`${reposPath(teamId, projectId)}/${id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["teams", teamId, "projects", projectId, "repos"],
+      })
+      queryClient.invalidateQueries({ queryKey: ["teams", teamId, "repositories"] })
+      queryClient.invalidateQueries({ queryKey: ["repositories"] })
       queryClient.invalidateQueries({ queryKey: ["settings", "repos"] })
     },
   })
 }
 
-export function useDeleteRepoIntegration() {
+export function useDeleteRepoIntegration(teamId: string, projectId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
-      api<void>(`/settings/repos/${id}`, { method: "DELETE" }),
+      api<void>(`${reposPath(teamId, projectId)}/${id}`, { method: "DELETE" }),
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["teams", teamId, "projects", projectId, "repos"],
+      })
+      queryClient.invalidateQueries({ queryKey: ["teams", teamId, "repositories"] })
+      queryClient.invalidateQueries({ queryKey: ["repositories"] })
       queryClient.invalidateQueries({ queryKey: ["settings", "repos"] })
     },
   })

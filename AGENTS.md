@@ -18,7 +18,7 @@ Production ships as a single Docker image (API + bundled SPA). Architecture diag
 
 Three layers with clear boundaries:
 
-1. **Backend (API)** — Configuration management, webhooks, frontend API. Stores repo integrations and LLM providers in Postgres.
+1. **Backend (API)** — Configuration management, webhooks, frontend API. Stores organizations, teams, projects, repo integrations, and LLM providers in Postgres.
 2. **Job (Celery worker)** — Reads review + integration config from DB, builds a full `COGITO_REVIEW_*` env dict, spawns a one-shot agent container via the Docker runtime provider.
 3. **Agent (stateless container)** — Receives all execution config via env (materializes ephemeral `opencode.json` locally). Uses a persistent repo mirror + per-PR git worktree under `/workspaces`, runs LLM review, posts to GitHub. Reports progress and findings via **HTTP callback** (schema v1, HMAC-signed); it does **not** connect to Postgres.
 
@@ -50,6 +50,44 @@ Protocols, GitHub Git/CI implementations, runtime specs (Docker/K8s), OpenCode L
 Backend-specific: `backend/app/providers/factory.py`, `opencode_config.py` (multi-provider DB merge). Agent-specific: `agent/app/providers/factory.py`, MCP toolbase in `agent/app/toolbase/`.
 
 Agent skills bundled into the Docker image live in `agent/skills/code-reviewer/` (OpenCode). IDE/dev skills remain in `.agents/skills/`. MCP tools are in `agent/app/toolbase/`.
+
+### Organization / Team / Project hierarchy
+
+Self-hosted deployments use a single **organization** (singleton per install):
+
+| Entity | Purpose |
+|--------|---------|
+| **Organization** | Owns the LLM provider pool (`llm_providers.organization_id`) |
+| **Team** | Isolation boundary — users only see reviews for teams they belong to |
+| **Project** | Business grouping of repos; selects one LLM from the org pool (`projects.llm_provider_id`) |
+| **Repository** (`repo_integrations`) | Git credentials, system prompt, webhook secret; scoped to a project |
+
+Migration `008_teams_projects_auth.sql` backfills a default org/team/project for existing installs. Reviews store denormalized `team_id` and `project_id`.
+
+**LLM resolution at review time:** `project.llm_provider_id` → org default (`is_default=true`) via `resolve_llm_provider_for_project()`. Repos do **not** store LLM config.
+
+**Webhooks (per integration):**
+
+```
+POST /api/v1/webhooks/github/{integration_id}
+POST /api/v1/webhooks/azure-devops/{integration_id}
+```
+
+Global `/webhooks/github` and `/webhooks/azure-devops` are deprecated (410). Configure the per-repo URL in the repo detail UI.
+
+### Authentication (OIDC BFF)
+
+When `COGITO_REVIEW_AUTH_ENABLED=true`, the backend runs OAuth2 authorization code flow and stores sessions in Redis (cookie `cogito_session`). The SPA uses `credentials: "include"` and never holds access tokens.
+
+| Route | Auth |
+|-------|------|
+| `/api/v1/auth/login`, `/callback`, `/logout`, `/me` | Public (except `/me` needs session) |
+| `/api/v1/teams`, `/projects`, `/reviews`, `/settings/llm-providers` | Session cookie |
+| `/api/v1/webhooks/*`, `/api/v1/agent/*`, `/api/v1/health` | Exempt (HMAC / machine) |
+
+Dev default: `COGITO_REVIEW_AUTH_ENABLED=false` uses a bypass org-admin user. Users are JIT-created on first OIDC login; org admins assign team membership via `POST/DELETE /api/v1/teams/{team_id}/members`.
+
+See `.env.example` for `COGITO_REVIEW_OIDC_*`, `COGITO_REVIEW_SESSION_*`, and `COGITO_REVIEW_BOOTSTRAP_ORG_ADMIN_EMAIL`.
 
 ## Prerequisites
 
@@ -84,7 +122,8 @@ On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if H
 
 - Root `.env` is loaded by Makefile, backend (`pydantic-settings`), and Compose.
 - **Infrastructure env vars** use prefix `COGITO_REVIEW_*` (Redis, Docker, OpenCode, MCP). See `.env.example`.
-- **Dynamic settings** (repos, webhook secrets, GitHub tokens, LLM providers) are stored in Postgres and edited at `/settings` — do not hardcode secrets.
+- **Dynamic settings** (repos, webhook secrets, GitHub tokens, LLM providers, teams, projects) are stored in Postgres and edited in the UI — do not hardcode secrets.
+- **Frontend routes:** `/teams`, `/teams/$teamId/projects/$projectId/repos/$repoId`, `/reviews`, `/llm-providers` (org admin only). Legacy `/repositories/*` redirects to `/teams`.
 - After changing API routes or Pydantic schemas, run `make openapi` to refresh `openapi.json` and `frontend/src/api/generated/schema.ts`.
 - After adding LLM providers via Settings, each new review spawns a fresh agent container with the latest config injected via env.
 - Compose layout: `docker-compose.yaml` (base) + `docker-compose.override.yaml` (dev, auto-merged). Production uses only the base file: `make prod`.
@@ -97,6 +136,7 @@ shared/                 # coreview-shared — protocols, providers, callback sch
   coreview_shared/
 backend/
   app/
+    auth/             # OIDC client, Redis session, FastAPI dependencies
     api/v1/           # Versioned HTTP routes
     repositories/     # asyncpg data access (dataclass rows)
     schemas/          # Pydantic request/response models
@@ -185,7 +225,8 @@ Add or update tests for behavior you change. API tests use `httpx.AsyncClient` w
 ## Security considerations
 
 - Treat Server Actions / public API routes as untrusted: validate input, authenticate webhooks (GitHub HMAC)
-- Webhook endpoint: `POST /api/v1/webhooks/github`
+- Webhook endpoints: `POST /api/v1/webhooks/github/{integration_id}` (and ADO variant)
+- Enable OIDC in production: `COGITO_REVIEW_AUTH_ENABLED=true`; set strong `COGITO_REVIEW_SESSION_SECRET`
 - Never log or commit `COGITO_REVIEW_*` tokens, webhook secrets, or GitHub PATs
 - Worker mounts Docker socket for isolated git workspaces — keep runtime images minimal (`alpine/git`)
 - Dynamic credentials belong in Postgres (Settings UI), not in source code

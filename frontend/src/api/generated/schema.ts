@@ -21,6 +21,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Me */
+        get: operations["get_me_api_v1_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Users */
+        get: operations["get_users_api_v1_auth_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Login */
+        get: operations["login_api_v1_auth_login_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Callback */
+        get: operations["callback_api_v1_auth_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_api_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reviews": {
         parameters: {
             query?: never;
@@ -72,6 +157,202 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Org Repositories */
+        get: operations["get_org_repositories_api_v1_repositories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Org Members */
+        get: operations["get_org_members_api_v1_members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Teams */
+        get: operations["get_teams_api_v1_teams_get"];
+        put?: never;
+        /** Post Team */
+        post: operations["post_team_api_v1_teams_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Team Repositories */
+        get: operations["get_team_repositories_api_v1_teams__team_id__repositories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Team */
+        put: operations["put_team_api_v1_teams__team_id__put"];
+        post?: never;
+        /** Delete Team Route */
+        delete: operations["delete_team_route_api_v1_teams__team_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Team Members */
+        get: operations["get_team_members_api_v1_teams__team_id__members_get"];
+        put?: never;
+        /** Post Team Member */
+        post: operations["post_team_member_api_v1_teams__team_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Team Member */
+        delete: operations["delete_team_member_api_v1_teams__team_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Projects */
+        get: operations["get_projects_api_v1_teams__team_id__projects_get"];
+        put?: never;
+        /** Post Project */
+        post: operations["post_project_api_v1_teams__team_id__projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Route */
+        get: operations["get_project_route_api_v1_teams__team_id__projects__project_id__get"];
+        /** Put Project */
+        put: operations["put_project_api_v1_teams__team_id__projects__project_id__put"];
+        post?: never;
+        /** Delete Project Route */
+        delete: operations["delete_project_route_api_v1_teams__team_id__projects__project_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/projects/{project_id}/repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Repos */
+        get: operations["get_repos_api_v1_teams__team_id__projects__project_id__repos_get"];
+        put?: never;
+        /** Post Repo */
+        post: operations["post_repo_api_v1_teams__team_id__projects__project_id__repos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/projects/{project_id}/repos/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Repo */
+        get: operations["get_repo_api_v1_teams__team_id__projects__project_id__repos__integration_id__get"];
+        /** Put Repo */
+        put: operations["put_repo_api_v1_teams__team_id__projects__project_id__repos__integration_id__put"];
+        post?: never;
+        /** Delete Repo */
+        delete: operations["delete_repo_api_v1_teams__team_id__projects__project_id__repos__integration_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/llm-providers": {
         parameters: {
             query?: never;
@@ -115,11 +396,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Repo Integrations */
-        get: operations["get_repo_integrations_api_v1_settings_repos_get"];
+        /**
+         * Get Repo Integrations Legacy
+         * @description Legacy flat list — returns repos in projects under accessible teams.
+         */
+        get: operations["get_repo_integrations_legacy_api_v1_settings_repos_get"];
         put?: never;
-        /** Post Repo Integration */
-        post: operations["post_repo_integration_api_v1_settings_repos_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -133,12 +416,45 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        /** Put Repo Integration */
-        put: operations["put_repo_integration_api_v1_settings_repos__integration_id__put"];
+        /** Get Repo Integration Legacy */
+        get: operations["get_repo_integration_legacy_api_v1_settings_repos__integration_id__get"];
+        put?: never;
         post?: never;
-        /** Remove Repo Integration */
-        delete: operations["remove_repo_integration_api_v1_settings_repos__integration_id__delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/github/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Github Webhook For Integration */
+        post: operations["github_webhook_for_integration_api_v1_webhooks_github__integration_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/azure-devops/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Azure Devops Webhook For Integration */
+        post: operations["azure_devops_webhook_for_integration_api_v1_webhooks_azure_devops__integration_id__post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -153,8 +469,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Github Webhook */
-        post: operations["github_webhook_api_v1_webhooks_github_post"];
+        /** Github Webhook Legacy */
+        post: operations["github_webhook_legacy_api_v1_webhooks_github_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -170,8 +486,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Azure Devops Webhook */
-        post: operations["azure_devops_webhook_api_v1_webhooks_azure_devops_post"];
+        /** Azure Devops Webhook Legacy */
+        post: operations["azure_devops_webhook_legacy_api_v1_webhooks_azure_devops_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -302,6 +618,157 @@ export interface components {
             /** Enabled */
             enabled?: boolean | null;
         };
+        /** MeResponse */
+        MeResponse: {
+            user: components["schemas"]["UserResponse"];
+            /** Team Ids */
+            team_ids: string[];
+            /** Auth Enabled */
+            auth_enabled: boolean;
+        };
+        /** OrgMemberResponse */
+        OrgMemberResponse: {
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+            /** Team Name */
+            team_name: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** User Email */
+            user_email: string;
+            /** User Name */
+            user_name: string;
+            /** Role */
+            role: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** OrgRepositoryResponse */
+        OrgRepositoryResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Git Provider */
+            git_provider: string;
+            /** Repo Full Name */
+            repo_full_name: string;
+            /** Llm Provider Id */
+            llm_provider_id: string | null;
+            /** Llm Provider Name */
+            llm_provider_name: string | null;
+            /** System Prompt */
+            system_prompt: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Github Webhook Secret Configured */
+            github_webhook_secret_configured: boolean;
+            /** Github Token Configured */
+            github_token_configured: boolean;
+            /** Ado Organization */
+            ado_organization: string;
+            /** Ado Project */
+            ado_project: string;
+            /** Ado Pat Configured */
+            ado_pat_configured: boolean;
+            /** Ado Webhook Configured */
+            ado_webhook_configured: boolean;
+            /** Webhook Url */
+            webhook_url: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Project Name */
+            project_name: string;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+            /** Team Name */
+            team_name: string;
+        };
+        /** ProjectCreate */
+        ProjectCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
+        };
+        /** ProjectResponse */
+        ProjectResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Llm Provider Id */
+            llm_provider_id: string | null;
+            /** Llm Provider Name */
+            llm_provider_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ProjectUpdate */
+        ProjectUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
+            /**
+             * Clear Llm Provider Id
+             * @default false
+             */
+            clear_llm_provider_id: boolean;
+        };
         /** RepoIntegrationCreate */
         RepoIntegrationCreate: {
             /**
@@ -355,14 +822,14 @@ export interface components {
              * @default
              */
             ado_webhook_password: string;
-            /** Llm Provider Id */
-            llm_provider_id?: string | null;
             /**
              * System Prompt
              * @description Custom OpenCode agent system prompt; empty uses the default
              * @default
              */
             system_prompt: string;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
             /**
              * Enabled
              * @default true
@@ -376,6 +843,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
             /** Name */
             name: string;
             /** Git Provider */
@@ -402,6 +874,8 @@ export interface components {
             ado_pat_configured: boolean;
             /** Ado Webhook Configured */
             ado_webhook_configured: boolean;
+            /** Webhook Url */
+            webhook_url: string;
             /**
              * Created At
              * Format: date-time
@@ -450,13 +924,6 @@ export interface components {
              * @description Omit to keep; empty string clears
              */
             ado_webhook_password?: string | null;
-            /** Llm Provider Id */
-            llm_provider_id?: string | null;
-            /**
-             * Clear Llm Provider Id
-             * @default false
-             */
-            clear_llm_provider_id: boolean;
             /**
              * System Prompt
              * @description Custom OpenCode agent system prompt; empty string resets to default
@@ -464,6 +931,13 @@ export interface components {
             system_prompt?: string | null;
             /** Enabled */
             enabled?: boolean | null;
+            /** Llm Provider Id */
+            llm_provider_id?: string | null;
+            /**
+             * Clear Llm Provider Id
+             * @default false
+             */
+            clear_llm_provider_id: boolean;
         };
         /** ReviewFindingResponse */
         ReviewFindingResponse: {
@@ -546,6 +1020,16 @@ export interface components {
             status: string;
             /** Delivery Id */
             delivery_id: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
             /** Error Message */
             error_message: string | null;
             /** Started At */
@@ -579,6 +1063,159 @@ export interface components {
             inline_comments_skipped: number;
             /** Findings */
             findings?: components["schemas"]["ReviewFindingResponse"][];
+        };
+        /** TeamCreate */
+        TeamCreate: {
+            /** Name */
+            name: string;
+            /** Slug */
+            slug?: string | null;
+        };
+        /** TeamMemberCreate */
+        TeamMemberCreate: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /**
+             * Role
+             * @default member
+             */
+            role: string;
+        };
+        /** TeamMemberResponse */
+        TeamMemberResponse: {
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Role */
+            role: string;
+            /** User Email */
+            user_email: string;
+            /** User Name */
+            user_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** TeamRepositoryResponse */
+        TeamRepositoryResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Git Provider */
+            git_provider: string;
+            /** Repo Full Name */
+            repo_full_name: string;
+            /** Llm Provider Id */
+            llm_provider_id: string | null;
+            /** Llm Provider Name */
+            llm_provider_name: string | null;
+            /** System Prompt */
+            system_prompt: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Github Webhook Secret Configured */
+            github_webhook_secret_configured: boolean;
+            /** Github Token Configured */
+            github_token_configured: boolean;
+            /** Ado Organization */
+            ado_organization: string;
+            /** Ado Project */
+            ado_project: string;
+            /** Ado Pat Configured */
+            ado_pat_configured: boolean;
+            /** Ado Webhook Configured */
+            ado_webhook_configured: boolean;
+            /** Webhook Url */
+            webhook_url: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Project Name */
+            project_name: string;
+        };
+        /** TeamResponse */
+        TeamResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Repo Count
+             * @default 0
+             */
+            repo_count: number;
+            /**
+             * Member Count
+             * @default 0
+             */
+            member_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** TeamUpdate */
+        TeamUpdate: {
+            /** Name */
+            name?: string | null;
+        };
+        /** UserResponse */
+        UserResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email: string;
+            /** Name */
+            name: string;
+            /** Is Org Admin */
+            is_org_admin: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -622,6 +1259,138 @@ export interface operations {
             };
         };
     };
+    get_me_api_v1_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_users_api_v1_auth_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_api_v1_auth_login_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    callback_api_v1_auth_callback_get: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_reviews_api_v1_reviews_get: {
         parameters: {
             query?: {
@@ -633,7 +1402,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -664,7 +1435,9 @@ export interface operations {
             path: {
                 review_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -695,7 +1468,9 @@ export interface operations {
             path: {
                 review_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -719,12 +1494,698 @@ export interface operations {
             };
         };
     };
+    get_org_repositories_api_v1_repositories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgRepositoryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_org_members_api_v1_members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgMemberResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_teams_api_v1_teams_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_team_api_v1_teams_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_repositories_api_v1_teams__team_id__repositories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRepositoryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_team_api_v1_teams__team_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_team_route_api_v1_teams__team_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_members_api_v1_teams__team_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_team_member_api_v1_teams__team_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamMemberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_team_member_api_v1_teams__team_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                user_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_projects_api_v1_teams__team_id__projects_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_project_api_v1_teams__team_id__projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_route_api_v1_teams__team_id__projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_project_api_v1_teams__team_id__projects__project_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_project_route_api_v1_teams__team_id__projects__project_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repos_api_v1_teams__team_id__projects__project_id__repos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_repo_api_v1_teams__team_id__projects__project_id__repos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoIntegrationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repo_api_v1_teams__team_id__projects__project_id__repos__integration_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+                integration_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_repo_api_v1_teams__team_id__projects__project_id__repos__integration_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+                integration_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoIntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_repo_api_v1_teams__team_id__projects__project_id__repos__integration_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                project_id: string;
+                integration_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_llm_providers_api_v1_settings_llm_providers_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -737,6 +2198,15 @@ export interface operations {
                     "application/json": components["schemas"]["LlmProviderResponse"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     post_llm_provider_api_v1_settings_llm_providers_post: {
@@ -744,7 +2214,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -779,7 +2251,9 @@ export interface operations {
             path: {
                 provider_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -814,7 +2288,9 @@ export interface operations {
             path: {
                 provider_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -836,12 +2312,14 @@ export interface operations {
             };
         };
     };
-    get_repo_integrations_api_v1_settings_repos_get: {
+    get_repo_integrations_legacy_api_v1_settings_repos_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -854,30 +2332,6 @@ export interface operations {
                     "application/json": components["schemas"]["RepoIntegrationResponse"][];
                 };
             };
-        };
-    };
-    post_repo_integration_api_v1_settings_repos_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RepoIntegrationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepoIntegrationResponse"];
-                };
-            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -889,20 +2343,18 @@ export interface operations {
             };
         };
     };
-    put_repo_integration_api_v1_settings_repos__integration_id__put: {
+    get_repo_integration_legacy_api_v1_settings_repos__integration_id__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 integration_id: string;
             };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RepoIntegrationUpdate"];
+            cookie?: {
+                cogito_session?: string | null;
             };
         };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -924,10 +2376,14 @@ export interface operations {
             };
         };
     };
-    remove_repo_integration_api_v1_settings_repos__integration_id__delete: {
+    github_webhook_for_integration_api_v1_webhooks_github__integration_id__post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-GitHub-Event"?: string | null;
+                "X-GitHub-Delivery"?: string | null;
+                "X-Hub-Signature-256"?: string | null;
+            };
             path: {
                 integration_id: string;
             };
@@ -936,37 +2392,6 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    github_webhook_api_v1_webhooks_github_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-GitHub-Event"?: string | null;
-                "X-GitHub-Delivery"?: string | null;
-                "X-Hub-Signature-256"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -986,13 +2411,15 @@ export interface operations {
             };
         };
     };
-    azure_devops_webhook_api_v1_webhooks_azure_devops_post: {
+    azure_devops_webhook_for_integration_api_v1_webhooks_azure_devops__integration_id__post: {
         parameters: {
             query?: never;
             header?: {
                 Authorization?: string | null;
             };
-            path?: never;
+            path: {
+                integration_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -1013,6 +2440,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    github_webhook_legacy_api_v1_webhooks_github_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    azure_devops_webhook_legacy_api_v1_webhooks_azure_devops_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

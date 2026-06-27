@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
 
 import { AppShell } from "@/components/layout/AppShell"
 import { LlmProviderForm } from "@/components/settings/LlmProviderDialog"
@@ -6,6 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useLlmProvider, useLlmProviders } from "@/hooks/use-settings"
 
 export const Route = createFileRoute("/llm-providers/$providerId")({
+  beforeLoad: ({ context }) => {
+    const me = (context as { me?: { user: { is_org_admin: boolean } } }).me
+    if (me && !me.user.is_org_admin) {
+      throw redirect({ to: "/teams" })
+    }
+  },
   component: LlmProviderDetailPage,
 })
 

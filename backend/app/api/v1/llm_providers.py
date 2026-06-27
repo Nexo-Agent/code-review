@@ -3,6 +3,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.auth.dependencies import AuthContext, get_auth_context, require_org_admin_user
 from app.dependencies import get_conn
 from app.schemas.llm_provider import (
     LlmProviderCreate,
@@ -22,6 +23,7 @@ router = APIRouter()
 @router.get("", response_model=list[LlmProviderResponse])
 async def get_llm_providers(
     conn: asyncpg.Connection = Depends(get_conn),
+    _auth: AuthContext = Depends(get_auth_context),
 ) -> list[LlmProviderResponse]:
     return await list_llm_providers(conn)
 
@@ -34,6 +36,7 @@ async def get_llm_providers(
 async def post_llm_provider(
     payload: LlmProviderCreate,
     conn: asyncpg.Connection = Depends(get_conn),
+    _admin=Depends(require_org_admin_user),
 ) -> LlmProviderResponse:
     return await create_llm_provider(conn, payload)
 
@@ -43,6 +46,7 @@ async def put_llm_provider(
     provider_id: UUID,
     payload: LlmProviderUpdate,
     conn: asyncpg.Connection = Depends(get_conn),
+    _admin=Depends(require_org_admin_user),
 ) -> LlmProviderResponse:
     try:
         return await update_llm_provider(conn, provider_id, payload)
@@ -54,5 +58,6 @@ async def put_llm_provider(
 async def remove_llm_provider(
     provider_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
+    _admin=Depends(require_org_admin_user),
 ) -> None:
     await delete_llm_provider(conn, provider_id)

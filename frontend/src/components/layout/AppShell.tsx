@@ -1,13 +1,24 @@
 import { Link } from "@tanstack/react-router"
+import { ChevronUp } from "lucide-react"
 import type { ReactNode } from "react"
 
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useLogout, useMe } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 
-const navItems = [
+const baseNavItems = [
   { to: "/", label: "Dashboard", exact: true },
+  { to: "/teams", label: "Teams", exact: false },
   { to: "/repositories", label: "Repositories", exact: false },
+  { to: "/members", label: "Members", exact: false },
   { to: "/reviews", label: "Reviews", exact: false },
-  { to: "/llm-providers", label: "LLM Providers", exact: false },
 ] as const
 
 export function AppShell({
@@ -23,11 +34,18 @@ export function AppShell({
   actions?: ReactNode
   mainClassName?: string
 }) {
+  const me = useMe()
+  const logout = useLogout()
   const showHeader = title || description || actions
+  const isOrgAdmin = me.data?.user.is_org_admin ?? false
+
+  const navItems = isOrgAdmin
+    ? [...baseNavItems, { to: "/llm-providers", label: "LLM Providers", exact: false }]
+    : baseNavItems
 
   return (
     <div className="bg-background flex h-svh overflow-hidden">
-      <aside className="bg-muted/30 flex w-44 shrink-0 flex-col">
+      <aside className="bg-muted/30 flex w-52 shrink-0 flex-col">
         <div className="flex h-11 items-center px-3">
           <span className="truncate text-sm font-semibold tracking-tight">
             Cogito Review
@@ -52,6 +70,39 @@ export function AppShell({
             </Link>
           ))}
         </nav>
+        <div className="border-t p-2">
+          {me.data ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between gap-2 px-2.5 font-medium"
+                >
+                  <span className="truncate">
+                    {me.data.user.name || me.data.user.email}
+                  </span>
+                  <ChevronUp className="text-muted-foreground shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                className="w-(--radix-dropdown-menu-trigger-width)"
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    disabled={logout.isPending}
+                    onClick={() => logout.mutate()}
+                  >
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

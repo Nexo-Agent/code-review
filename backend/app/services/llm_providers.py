@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 
 from app.repositories.llm_providers import LlmProviderRepository, LlmProviderRow
+from app.repositories.organizations import OrganizationRepository
 from app.schemas.llm_provider import (
     LlmProviderCreate,
     LlmProviderResponse,
@@ -30,13 +31,20 @@ def to_llm_provider_response(row: LlmProviderRow) -> LlmProviderResponse:
 
 
 async def list_llm_providers(conn) -> list[LlmProviderResponse]:
-    rows = await LlmProviderRepository(conn).list_all()
+    org = await OrganizationRepository(conn).get_default()
+    org_id = org.id if org else None
+    rows = await LlmProviderRepository(conn).list_all(organization_id=org_id)
     return [to_llm_provider_response(row) for row in rows]
 
 
 async def create_llm_provider(conn, payload: LlmProviderCreate) -> LlmProviderResponse:
+    org = await OrganizationRepository(conn).get_default()
+    if org is None:
+        msg = "organization not configured"
+        raise ValueError(msg)
     repo = LlmProviderRepository(conn)
     row = await repo.create(
+        organization_id=org.id,
         name=payload.name,
         provider_id=payload.provider_id,
         base_url=payload.base_url,

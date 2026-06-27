@@ -4,13 +4,12 @@ from uuid import UUID
 from coreview_shared.runtime.specs import ReviewJobRequest
 
 from app.config import CodeReviewSettings, get_code_review_settings
-from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.repo_integrations import (
     RepoIntegrationRepository,
     RepoIntegrationRow,
 )
 from app.repositories.reviews import ReviewRepository, ReviewRow
-from app.services.provider_resolution import resolve_llm_provider
+from app.services.provider_resolution import resolve_llm_provider_for_repo
 
 
 async def resolve_repo_integration_for_review(
@@ -46,7 +45,7 @@ def build_agent_environment(
     review_id: str,
     review: ReviewRow,
     repo_integration: RepoIntegrationRow,
-    llm_provider: LlmProviderRow,
+    llm_provider,
     infra: CodeReviewSettings,
 ) -> dict[str, str]:
     if not infra.agent_callback_url.strip():
@@ -105,7 +104,7 @@ async def prepare_review_job(
         repo_integration_id=review.repo_integration_id,
         repo_full_name=review.repo_full_name,
     )
-    llm_provider = await resolve_llm_provider(conn, repo_integration)
+    llm_provider = await resolve_llm_provider_for_repo(conn, repo_integration)
     if llm_provider is None:
         msg = "No LLM provider configured"
         raise ValueError(msg)

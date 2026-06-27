@@ -2,7 +2,6 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import type {
-  LlmProvider,
   RepoIntegration,
   RepoIntegrationCreate,
   RepoIntegrationUpdate,
@@ -31,15 +30,17 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   useCreateRepoIntegration,
   useDeleteRepoIntegration,
+  useLlmProviders,
   useUpdateRepoIntegration,
 } from "@/hooks/use-settings"
 import { emptyRepoForm, GIT_PROVIDER_OPTIONS } from "@/lib/settings-constants"
 
 type RepoIntegrationDialogProps = {
+  teamId: string
+  projectId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   repo?: RepoIntegration | null
-  llmProviders: LlmProvider[]
   sessionKey: number
   onDeleted?: () => void
 }
@@ -57,22 +58,31 @@ function repoFormFromIntegration(
 }
 
 function RepoIntegrationForm({
+  teamId,
+  projectId,
   repo,
-  llmProviders,
   onOpenChange,
   onDeleted,
 }: {
+  teamId: string
+  projectId: string
   repo?: RepoIntegration | null
-  llmProviders: LlmProvider[]
   onOpenChange: (open: boolean) => void
   onDeleted?: () => void
 }) {
   const isEdit = Boolean(repo)
-  const createRepo = useCreateRepoIntegration()
-  const updateRepo = useUpdateRepoIntegration()
-  const deleteRepo = useDeleteRepoIntegration()
+  const llmProviders = useLlmProviders()
+  const createRepo = useCreateRepoIntegration(teamId, projectId)
+  const updateRepo = useUpdateRepoIntegration(teamId, projectId)
+  const deleteRepo = useDeleteRepoIntegration(teamId, projectId)
+  const enabledLlmProviders = (llmProviders.data ?? []).filter(
+    (provider) => provider.enabled,
+  )
 
   const [form, setForm] = useState(() => repoFormFromIntegration(repo))
+  const [llmProviderId, setLlmProviderId] = useState(
+    () => repo?.llm_provider_id ?? "__default__",
+  )
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [webhookSecret, setWebhookSecret] = useState("")
   const [githubToken, setGithubToken] = useState("")
@@ -93,8 +103,11 @@ function RepoIntegrationForm({
           name: form.name,
           git_provider: form.git_provider,
           repo_full_name: form.repo_full_name,
-          llm_provider_id: form.llm_provider_id,
           system_prompt: systemPrompt,
+          clear_llm_provider_id: llmProviderId === "__default__",
+        }
+        if (llmProviderId !== "__default__") {
+          payload.llm_provider_id = llmProviderId
         }
         if (isAzureDevOps) {
           if (adoPat) payload.ado_pat = adoPat
@@ -107,7 +120,13 @@ function RepoIntegrationForm({
         await updateRepo.mutateAsync({ id: repo.id, payload })
         toast.success("Repository updated")
       } else {
-        const payload = { ...form, system_prompt: systemPrompt, enabled: true }
+        const payload: RepoIntegrationCreate = {
+          ...form,
+          system_prompt: systemPrompt,
+          enabled: true,
+          llm_provider_id:
+            llmProviderId === "__default__" ? null : llmProviderId,
+        }
         if (isAzureDevOps) {
           if (adoPat) payload.ado_pat = adoPat
           if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
@@ -157,9 +176,7 @@ function RepoIntegrationForm({
           {isEdit ? "Edit repository" : "Add repository"}
         </DialogTitle>
         <DialogDescription>
-          {isEdit
-            ? "Webhook credentials, LLM mapping, and review prompt."
-            : "Map a repository to webhook credentials and an optional LLM provider."}
+          Git credentials, LLM provider, and review prompt for this repository.
         </DialogDescription>
       </DialogHeader>
 
@@ -209,6 +226,23 @@ function RepoIntegrationForm({
                 setForm({ ...form, repo_full_name: e.target.value })
               }
             />
+          </Field>
+          <Field label="LLM provider (from org pool)">
+            <Select value={llmProviderId} onValueChange={setLlmProviderId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Org default" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectGroup>
+                  <SelectItem value="__default__">Org default</SelectItem>
+                  {enabledLlmProviders.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </Field>
           {isAzureDevOps ? (
             <>
@@ -304,31 +338,6 @@ function RepoIntegrationForm({
               </Field>
             </>
           )}
-          <Field label="LLM provider">
-            <Select
-              value={form.llm_provider_id ?? "__none__"}
-              onValueChange={(value) =>
-                setForm({
-                  ...form,
-                  llm_provider_id: value === "__none__" ? null : value,
-                })
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select LLM provider" />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectGroup>
-                  <SelectItem value="__none__">Select LLM provider</SelectItem>
-                  {llmProviders.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
           {isEdit ? (
             <Field label="System prompt">
               <Textarea
@@ -371,10 +380,11 @@ function RepoIntegrationForm({
 }
 
 export function RepoIntegrationDialog({
+  teamId,
+  projectId,
   open,
   onOpenChange,
   repo,
-  llmProviders,
   sessionKey,
   onDeleted,
 }: RepoIntegrationDialogProps) {
@@ -386,8 +396,9 @@ export function RepoIntegrationDialog({
         {open ? (
           <RepoIntegrationForm
             key={formKey}
+            teamId={teamId}
+            projectId={projectId}
             repo={repo}
-            llmProviders={llmProviders}
             onOpenChange={onOpenChange}
             onDeleted={onDeleted}
           />

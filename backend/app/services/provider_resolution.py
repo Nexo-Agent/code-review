@@ -10,6 +10,8 @@ from app.paths import opencode_generated_config_path
 from app.providers.factory import build_providers
 from app.providers.opencode_config import build_opencode_config_from_llm_providers
 from app.repositories.llm_providers import LlmProviderRepository, LlmProviderRow
+from app.repositories.organizations import OrganizationRepository
+from app.repositories.projects import ProjectRepository
 from app.repositories.repo_integrations import (
     RepoIntegrationRepository,
     RepoIntegrationRow,
@@ -21,22 +23,47 @@ logger = logging.getLogger(__name__)
 async def resolve_repo_integration(
     conn,
     repo_full_name: str,
+    *,
+    integration_id: UUID | None = None,
+    project_id: UUID | None = None,
 ) -> RepoIntegrationRow | None:
     repo = RepoIntegrationRepository(conn)
-    return await repo.resolve_for_repo(repo_full_name)
+    if integration_id is not None:
+        return await repo.get(integration_id)
+    return await repo.resolve_for_repo(repo_full_name, project_id=project_id)
 
 
-async def resolve_llm_provider(
+async def resolve_llm_provider_for_repo(
     conn,
     repo_integration: RepoIntegrationRow,
 ) -> LlmProviderRow | None:
+    project = await ProjectRepository(conn).get_with_team(repo_integration.project_id)
+    if project is None:
+        return None
+    _project_row, organization_id = project
     llm_repo = LlmProviderRepository(conn)
     if repo_integration.llm_provider_id:
         row = await llm_repo.get(repo_integration.llm_provider_id)
-        if row is None or not row.enabled:
-            return None
-        return row
-    return None
+        if row is not None and row.enabled and row.organization_id == organization_id:
+            return row
+    return await llm_repo.get_default(organization_id=organization_id)
+
+
+async def resolve_llm_provider_for_project(
+    conn,
+    project_id: UUID,
+) -> LlmProviderRow | None:
+    project_repo = ProjectRepository(conn)
+    project = await project_repo.get_with_team(project_id)
+    if project is None:
+        return None
+    project_row, organization_id = project
+    llm_repo = LlmProviderRepository(conn)
+    if project_row.llm_provider_id:
+        row = await llm_repo.get(project_row.llm_provider_id)
+        if row is not None and row.enabled and row.organization_id == organization_id:
+            return row
+    return await llm_repo.get_default(organization_id=organization_id)
 
 
 async def resolve_llm_provider_by_id(
@@ -70,13 +97,19 @@ def build_review_runtime_config(
 async def build_providers_for_repo(
     conn,
     repo_full_name: str,
+    *,
+    repo_integration_id: UUID | None = None,
     infra: CodeReviewSettings | None = None,
 ) -> ProviderBundle:
-    repo_integration = await resolve_repo_integration(conn, repo_full_name)
+    repo_integration = await resolve_repo_integration(
+        conn,
+        repo_full_name,
+        integration_id=repo_integration_id,
+    )
     if repo_integration is None:
         msg = f"No repository integration configured for {repo_full_name}"
         raise ValueError(msg)
-    llm_provider = await resolve_llm_provider(conn, repo_integration)
+    llm_provider = await resolve_llm_provider_for_repo(conn, repo_integration)
     if llm_provider is None:
         msg = "No LLM provider configured"
         raise ValueError(msg)
@@ -90,9 +123,15 @@ async def sync_opencode_config_from_db(
     infra: CodeReviewSettings | None = None,
 ) -> Path:
     infra = infra or get_code_review_settings()
+    org = await OrganizationRepository(conn).get_default()
+    org_id = org.id if org else None
     llm_repo = LlmProviderRepository(conn)
-    providers = [provider for provider in await llm_repo.list_all() if provider.enabled]
-    default = await llm_repo.get_default()
+    providers = [
+        provider
+        for provider in await llm_repo.list_all(organization_id=org_id)
+        if provider.enabled
+    ]
+    default = await llm_repo.get_default(organization_id=org_id)
     config = build_opencode_config_from_llm_providers(providers, default, infra)
     path = output_path or opencode_generated_config_path()
     path.parent.mkdir(parents=True, exist_ok=True)

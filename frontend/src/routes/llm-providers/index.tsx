@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -21,6 +21,12 @@ import {
 import { useLlmProviders, useUpdateLlmProvider } from "@/hooks/use-settings"
 
 export const Route = createFileRoute("/llm-providers/")({
+  beforeLoad: ({ context }) => {
+    const me = (context as { me?: { user: { is_org_admin: boolean } } }).me
+    if (me && !me.user.is_org_admin) {
+      throw redirect({ to: "/teams" })
+    }
+  },
   component: LlmProvidersPage,
 })
 

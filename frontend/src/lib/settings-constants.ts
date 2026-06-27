@@ -15,10 +15,7 @@ export const LLM_PROVIDER_ID_OPTIONS = [
 
 export function llmProviderIdOptions(current?: string) {
   const options = [...LLM_PROVIDER_ID_OPTIONS]
-  if (
-    current &&
-    !options.some((option) => option.value === current)
-  ) {
+  if (current && !options.some((option) => option.value === current)) {
     return [{ value: current, label: current }, ...options]
   }
   return options
@@ -46,7 +43,6 @@ export function emptyRepoForm(): RepoIntegrationCreate {
     ado_pat: "",
     ado_webhook_username: "",
     ado_webhook_password: "",
-    llm_provider_id: null,
     enabled: true,
   }
 }

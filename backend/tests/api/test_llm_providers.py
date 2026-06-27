@@ -3,16 +3,25 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.auth.dependencies import get_current_user
 from app.main import create_app
+from tests.conftest import make_dev_user
 
 
 @pytest.fixture
 async def client_with_db() -> AsyncClient:
     app = create_app()
+    dev_user = make_dev_user()
+
+    async def override_get_current_user():
+        return dev_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.integration

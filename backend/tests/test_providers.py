@@ -328,10 +328,12 @@ def test_build_opencode_config_uses_openai_compatible_provider() -> None:
 
     from app.providers.opencode_config import build_opencode_config_from_llm_providers
     from app.repositories.llm_providers import LlmProviderRow
+    from app.repositories.organizations import DEFAULT_ORG_ID
 
     now = datetime.now(UTC)
     llm = LlmProviderRow(
         id=uuid4(),
+        organization_id=DEFAULT_ORG_ID,
         name="Default",
         provider_id="openai-compat",
         base_url="https://llm.example.com/v1",

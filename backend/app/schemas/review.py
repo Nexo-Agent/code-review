@@ -29,6 +29,8 @@ class ReviewResponse(BaseModel):
     head_ref: str = ""
     status: str
     delivery_id: str | None
+    team_id: UUID
+    project_id: UUID
     error_message: str | None
     started_at: datetime | None
     completed_at: datetime | None

@@ -56,6 +56,8 @@ async def prepare_rereview(conn, review_id: UUID) -> ReviewRow:
             head_sha=metadata.head_sha,
             delivery_id=None,
             repo_integration_id=review.repo_integration_id,
+            team_id=review.team_id,
+            project_id=review.project_id,
             pr_title=metadata.title or review.pr_title,
             pr_url=metadata.html_url,
             pr_author=metadata.author,

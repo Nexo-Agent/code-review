@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class RepoIntegrationResponse(BaseModel):
     id: UUID
+    project_id: UUID
     name: str
     git_provider: str
     repo_full_name: str
@@ -19,6 +20,7 @@ class RepoIntegrationResponse(BaseModel):
     ado_project: str
     ado_pat_configured: bool
     ado_webhook_configured: bool
+    webhook_url: str
     created_at: datetime
     updated_at: datetime
 
@@ -37,12 +39,12 @@ class RepoIntegrationCreate(BaseModel):
     ado_pat: str = Field(default="", max_length=512)
     ado_webhook_username: str = Field(default="", max_length=128)
     ado_webhook_password: str = Field(default="", max_length=512)
-    llm_provider_id: UUID | None = None
     system_prompt: str = Field(
         default="",
         max_length=16384,
         description="Custom OpenCode agent system prompt; empty uses the default",
     )
+    llm_provider_id: UUID | None = None
     enabled: bool = True
 
 
@@ -72,8 +74,6 @@ class RepoIntegrationUpdate(BaseModel):
         default=None,
         description="Omit to keep; empty string clears",
     )
-    llm_provider_id: UUID | None = None
-    clear_llm_provider_id: bool = False
     system_prompt: str | None = Field(
         default=None,
         max_length=16384,
@@ -82,3 +82,14 @@ class RepoIntegrationUpdate(BaseModel):
         ),
     )
     enabled: bool | None = None
+    llm_provider_id: UUID | None = None
+    clear_llm_provider_id: bool = False
+
+
+class TeamRepositoryResponse(RepoIntegrationResponse):
+    project_name: str
+
+
+class OrgRepositoryResponse(TeamRepositoryResponse):
+    team_id: UUID
+    team_name: str

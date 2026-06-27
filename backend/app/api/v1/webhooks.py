@@ -1,5 +1,6 @@
 import json
 import logging
+from uuid import UUID
 
 import asyncpg
 from coreview_shared.providers.git.azure_devops import _organization_from_base_url
@@ -10,12 +11,12 @@ from app.api.v1.reviews import _to_review_response
 from app.dependencies import get_conn
 from app.jobs.review import run_review
 from app.providers.factory import build_providers
+from app.repositories.repo_integrations import RepoIntegrationRepository
 from app.repositories.reviews import ReviewRepository
 from app.schemas.review import ReviewResponse
 from app.services.provider_resolution import (
     build_review_runtime_config,
-    resolve_llm_provider,
-    resolve_repo_integration,
+    resolve_llm_provider_for_repo,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,9 +64,21 @@ def _extract_ado_repo_full_name(body: bytes) -> str | None:
         return None
 
 
+def _assert_repo_matches_integration(
+    repo_integration,
+    repo_full_name: str,
+) -> None:
+    if not repo_integration.matches_repo(repo_full_name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Webhook repo does not match integration configuration",
+        )
+
+
 async def _enqueue_webhook_review(
     conn: asyncpg.Connection,
     *,
+    integration_id: UUID,
     body: bytes,
     repo_full_name: str,
     headers: dict[str, str],
@@ -73,8 +86,16 @@ async def _enqueue_webhook_review(
     webhook_secret_resolver,
     expected_git_provider: str,
 ) -> ReviewResponse | JSONResponse:
-    repo_integration = await resolve_repo_integration(conn, repo_full_name)
-    if repo_integration is None or not repo_integration.enabled:
+    repo_repo = RepoIntegrationRepository(conn)
+    resolved = await repo_repo.get_with_team(integration_id)
+    if resolved is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration not found",
+        )
+    repo_integration, team_id, project_id = resolved
+
+    if not repo_integration.enabled:
         return JSONResponse(
             status_code=202,
             content={"detail": "repository not configured for review"},
@@ -85,7 +106,9 @@ async def _enqueue_webhook_review(
             content={"detail": "repository not configured for review"},
         )
 
-    llm_provider = await resolve_llm_provider(conn, repo_integration)
+    _assert_repo_matches_integration(repo_integration, repo_full_name)
+
+    llm_provider = await resolve_llm_provider_for_repo(conn, repo_integration)
     if llm_provider is None:
         return JSONResponse(
             status_code=202,
@@ -120,6 +143,8 @@ async def _enqueue_webhook_review(
         head_sha=event.head_sha,
         delivery_id=event.delivery_id,
         repo_integration_id=repo_integration.id,
+        team_id=team_id,
+        project_id=project_id,
         pr_title=event.pr_title,
     )
 
@@ -134,8 +159,13 @@ async def _enqueue_webhook_review(
     return _to_review_response(review)
 
 
-@router.post("/github", status_code=status.HTTP_202_ACCEPTED, response_model=None)
-async def github_webhook(
+@router.post(
+    "/github/{integration_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=None,
+)
+async def github_webhook_for_integration(
+    integration_id: UUID,
     request: Request,
     conn: asyncpg.Connection = Depends(get_conn),
     x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
@@ -152,6 +182,7 @@ async def github_webhook(
 
     return await _enqueue_webhook_review(
         conn,
+        integration_id=integration_id,
         body=body,
         repo_full_name=repo_full_name,
         headers={
@@ -164,8 +195,13 @@ async def github_webhook(
     )
 
 
-@router.post("/azure-devops", status_code=status.HTTP_202_ACCEPTED, response_model=None)
-async def azure_devops_webhook(
+@router.post(
+    "/azure-devops/{integration_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=None,
+)
+async def azure_devops_webhook_for_integration(
+    integration_id: UUID,
     request: Request,
     conn: asyncpg.Connection = Depends(get_conn),
     authorization: str | None = Header(None, alias="Authorization"),
@@ -178,15 +214,9 @@ async def azure_devops_webhook(
             detail="invalid webhook payload",
         )
 
-    repo_integration = await resolve_repo_integration(conn, repo_full_name)
-    if repo_integration is None:
-        return JSONResponse(
-            status_code=202,
-            content={"detail": "repository not configured for review"},
-        )
-
     return await _enqueue_webhook_review(
         conn,
+        integration_id=integration_id,
         body=body,
         repo_full_name=repo_full_name,
         headers={},
@@ -195,4 +225,38 @@ async def azure_devops_webhook(
             f"{integration.ado_webhook_username}:{integration.ado_webhook_password}"
         ),
         expected_git_provider="azure-devops",
+    )
+
+
+@router.post("/github", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def github_webhook_legacy(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> JSONResponse:
+    logger.warning("Deprecated global GitHub webhook endpoint used")
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": (
+                "Use per-integration webhook URL: "
+                "/api/v1/webhooks/github/{integration_id}"
+            )
+        },
+    )
+
+
+@router.post("/azure-devops", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def azure_devops_webhook_legacy(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> JSONResponse:
+    logger.warning("Deprecated global Azure DevOps webhook endpoint used")
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": (
+                "Use per-integration webhook URL: "
+                "/api/v1/webhooks/azure-devops/{integration_id}"
+            )
+        },
     )

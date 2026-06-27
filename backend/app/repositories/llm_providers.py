@@ -8,6 +8,7 @@ import asyncpg
 @dataclass(frozen=True, slots=True)
 class LlmProviderRow:
     id: UUID
+    organization_id: UUID
     name: str
     provider_id: str
     base_url: str
@@ -26,47 +27,77 @@ class LlmProviderRow:
         return f"{self.provider_id}/{self.model}"
 
 
+_LLM_SELECT = """
+    id, organization_id, name, provider_id, base_url, api_token,
+    model, opencode_model, is_default, enabled, created_at, updated_at
+"""
+
+
 class LlmProviderRepository:
     def __init__(self, conn: asyncpg.Connection) -> None:
         self._conn = conn
 
-    async def list_all(self) -> list[LlmProviderRow]:
-        rows = await self._conn.fetch(
-            """
-            SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, enabled, created_at, updated_at
-            FROM llm_providers
-            ORDER BY is_default DESC, name ASC
-            """
-        )
+    async def list_all(
+        self, *, organization_id: UUID | None = None
+    ) -> list[LlmProviderRow]:
+        if organization_id is not None:
+            rows = await self._conn.fetch(
+                f"""
+                SELECT {_LLM_SELECT}
+                FROM llm_providers
+                WHERE organization_id = $1
+                ORDER BY is_default DESC, name ASC
+                """,
+                organization_id,
+            )
+        else:
+            rows = await self._conn.fetch(
+                f"""
+                SELECT {_LLM_SELECT}
+                FROM llm_providers
+                ORDER BY is_default DESC, name ASC
+                """
+            )
         return [_row_to_llm_provider(row) for row in rows]
 
     async def get(self, provider_id: UUID) -> LlmProviderRow | None:
         row = await self._conn.fetchrow(
-            """
-            SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, enabled, created_at, updated_at
+            f"""
+            SELECT {_LLM_SELECT}
             FROM llm_providers WHERE id = $1
             """,
             provider_id,
         )
         return _row_to_llm_provider(row) if row else None
 
-    async def get_default(self) -> LlmProviderRow | None:
-        row = await self._conn.fetchrow(
-            """
-            SELECT id, name, provider_id, base_url, api_token, model,
-                   opencode_model, is_default, enabled, created_at, updated_at
-            FROM llm_providers
-            WHERE is_default = true AND enabled = true
-            LIMIT 1
-            """
-        )
+    async def get_default(
+        self, *, organization_id: UUID | None = None
+    ) -> LlmProviderRow | None:
+        if organization_id is not None:
+            row = await self._conn.fetchrow(
+                f"""
+                SELECT {_LLM_SELECT}
+                FROM llm_providers
+                WHERE is_default = true AND enabled = true AND organization_id = $1
+                LIMIT 1
+                """,
+                organization_id,
+            )
+        else:
+            row = await self._conn.fetchrow(
+                f"""
+                SELECT {_LLM_SELECT}
+                FROM llm_providers
+                WHERE is_default = true AND enabled = true
+                LIMIT 1
+                """
+            )
         return _row_to_llm_provider(row) if row else None
 
     async def create(
         self,
         *,
+        organization_id: UUID,
         name: str,
         provider_id: str,
         base_url: str,
@@ -78,18 +109,22 @@ class LlmProviderRepository:
     ) -> LlmProviderRow:
         if is_default:
             await self._conn.execute(
-                "UPDATE llm_providers SET is_default = false WHERE is_default = true"
+                """
+                UPDATE llm_providers SET is_default = false
+                WHERE is_default = true AND organization_id = $1
+                """,
+                organization_id,
             )
         row = await self._conn.fetchrow(
-            """
+            f"""
             INSERT INTO llm_providers (
-                name, provider_id, base_url, api_token, model,
+                organization_id, name, provider_id, base_url, api_token, model,
                 opencode_model, is_default, enabled
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, name, provider_id, base_url, api_token, model,
-                      opencode_model, is_default, enabled, created_at, updated_at
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING {_LLM_SELECT}
             """,
+            organization_id,
             name,
             provider_id,
             base_url,
@@ -125,11 +160,15 @@ class LlmProviderRepository:
 
         if is_default:
             await self._conn.execute(
-                "UPDATE llm_providers SET is_default = false WHERE is_default = true"
+                """
+                UPDATE llm_providers SET is_default = false
+                WHERE is_default = true AND organization_id = $1
+                """,
+                current.organization_id,
             )
 
         row = await self._conn.fetchrow(
-            """
+            f"""
             UPDATE llm_providers
             SET name = $2,
                 provider_id = $3,
@@ -141,8 +180,7 @@ class LlmProviderRepository:
                 enabled = $10,
                 updated_at = now()
             WHERE id = $1
-            RETURNING id, name, provider_id, base_url, api_token, model,
-                      opencode_model, is_default, enabled, created_at, updated_at
+            RETURNING {_LLM_SELECT}
             """,
             provider_id,
             name if name is not None else current.name,
@@ -170,6 +208,7 @@ class LlmProviderRepository:
 def _row_to_llm_provider(row: asyncpg.Record) -> LlmProviderRow:
     return LlmProviderRow(
         id=row["id"],
+        organization_id=row["organization_id"],
         name=row["name"],
         provider_id=row["provider_id"],
         base_url=row["base_url"],

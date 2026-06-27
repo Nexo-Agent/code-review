@@ -21,7 +21,18 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers,
+    credentials: "include",
   })
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    const onLoginPage = window.location.pathname === "/login"
+    if (!onLoginPage) {
+      const returnTo = encodeURIComponent(
+        window.location.pathname + window.location.search,
+      )
+      window.location.href = `/login?return_to=${returnTo}`
+    }
+  }
 
   if (!response.ok) {
     const body = await response.text()
@@ -33,4 +44,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>
+}
+
+export function apiBaseUrl(): string {
+  return baseUrl.replace(/\/api\/v1$/, "")
 }

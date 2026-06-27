@@ -3,56 +3,46 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.auth.dependencies import AuthContext, get_auth_context
 from app.dependencies import get_conn
-from app.schemas.repo_integration import (
-    RepoIntegrationCreate,
-    RepoIntegrationResponse,
-    RepoIntegrationUpdate,
-)
-from app.services.repo_integrations import (
-    create_repo_integration,
-    delete_repo_integration,
-    list_repo_integrations,
-    update_repo_integration,
-)
+from app.repositories.projects import ProjectRepository
+from app.repositories.repo_integrations import RepoIntegrationRepository
+from app.schemas.repo_integration import RepoIntegrationResponse
+from app.services.repo_integrations import to_repo_integration_response
 
 router = APIRouter()
 
 
 @router.get("", response_model=list[RepoIntegrationResponse])
-async def get_repo_integrations(
+async def get_repo_integrations_legacy(
     conn: asyncpg.Connection = Depends(get_conn),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> list[RepoIntegrationResponse]:
-    return await list_repo_integrations(conn)
+    """Legacy flat list — returns repos in projects under accessible teams."""
+    if not auth.accessible_team_ids:
+        return []
+    project_repo = ProjectRepository(conn)
+    repo_repo = RepoIntegrationRepository(conn)
+    result: list[RepoIntegrationResponse] = []
+    for team_id in auth.accessible_team_ids:
+        projects = await project_repo.list_for_team(team_id)
+        for project in projects:
+            rows = await repo_repo.list_for_project(project.id)
+            for row in rows:
+                result.append(to_repo_integration_response(row))
+    return result
 
 
-@router.post(
-    "",
-    response_model=RepoIntegrationResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def post_repo_integration(
-    payload: RepoIntegrationCreate,
-    conn: asyncpg.Connection = Depends(get_conn),
-) -> RepoIntegrationResponse:
-    return await create_repo_integration(conn, payload)
-
-
-@router.put("/{integration_id}", response_model=RepoIntegrationResponse)
-async def put_repo_integration(
-    integration_id: UUID,
-    payload: RepoIntegrationUpdate,
-    conn: asyncpg.Connection = Depends(get_conn),
-) -> RepoIntegrationResponse:
-    try:
-        return await update_repo_integration(conn, integration_id, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@router.delete("/{integration_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_repo_integration(
+@router.get("/{integration_id}", response_model=RepoIntegrationResponse)
+async def get_repo_integration_legacy(
     integration_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
-) -> None:
-    await delete_repo_integration(conn, integration_id)
+    auth: AuthContext = Depends(get_auth_context),
+) -> RepoIntegrationResponse:
+    row = await RepoIntegrationRepository(conn).get(integration_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    project = await ProjectRepository(conn).get(row.project_id)
+    if project is None or project.team_id not in auth.accessible_team_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return to_repo_integration_response(row)

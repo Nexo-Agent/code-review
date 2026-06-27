@@ -3,6 +3,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.auth.dependencies import AuthContext, assert_review_access, get_auth_context
 from app.dependencies import get_conn
 from app.jobs.review import run_review
 from app.repositories.reviews import ReviewFindingRow, ReviewRepository, ReviewRow
@@ -53,6 +54,8 @@ def _to_review_response(
         head_ref=row.head_ref,
         status=row.status,
         delivery_id=row.delivery_id,
+        team_id=row.team_id,
+        project_id=row.project_id,
         error_message=row.error_message,
         started_at=row.started_at,
         completed_at=row.completed_at,
@@ -73,18 +76,29 @@ async def list_reviews(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     conn: asyncpg.Connection = Depends(get_conn),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> ReviewListResponse:
     repo_db = ReviewRepository(conn)
+    team_ids = auth.accessible_team_ids
+    if not team_ids:
+        return ReviewListResponse(items=[], total=0)
     rows = await repo_db.list_reviews(
+        team_ids=team_ids,
         status=status_filter,
         repo_full_name=repo,
         pr_number=pr,
         limit=limit,
         offset=offset,
     )
+    total = await repo_db.count_reviews(
+        team_ids=team_ids,
+        status=status_filter,
+        repo_full_name=repo,
+        pr_number=pr,
+    )
     return ReviewListResponse(
         items=[_to_review_response(row) for row in rows],
-        total=len(rows),
+        total=total,
     )
 
 
@@ -92,11 +106,13 @@ async def list_reviews(
 async def get_review(
     review_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> ReviewResponse:
     repo_db = ReviewRepository(conn)
     row = await repo_db.get(review_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    await assert_review_access(conn, auth.user, row.team_id)
     findings = await repo_db.list_findings(review_id)
     return _to_review_response(row, findings)
 
@@ -105,7 +121,13 @@ async def get_review(
 async def retry_review(
     review_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> ReviewResponse:
+    repo_db = ReviewRepository(conn)
+    existing = await repo_db.get(review_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    await assert_review_access(conn, auth.user, existing.team_id)
     try:
         review = await prepare_rereview(conn, review_id)
     except ReviewNotFoundError:

@@ -37,6 +37,7 @@ export interface LlmProviderUpdate {
 
 export interface RepoIntegration {
   id: string
+  project_id: string
   name: string
   git_provider: string
   repo_full_name: string
@@ -50,6 +51,7 @@ export interface RepoIntegration {
   ado_project: string
   ado_pat_configured: boolean
   ado_webhook_configured: boolean
+  webhook_url: string
   created_at: string
   updated_at: string
 }
@@ -65,8 +67,8 @@ export interface RepoIntegrationCreate {
   ado_pat?: string
   ado_webhook_username?: string
   ado_webhook_password?: string
-  llm_provider_id?: string | null
   system_prompt?: string
+  llm_provider_id?: string | null
   enabled?: boolean
 }
 
@@ -81,8 +83,8 @@ export interface RepoIntegrationUpdate {
   ado_pat?: string
   ado_webhook_username?: string
   ado_webhook_password?: string
+  system_prompt?: string
   llm_provider_id?: string | null
   clear_llm_provider_id?: boolean
-  system_prompt?: string
   enabled?: boolean
 }

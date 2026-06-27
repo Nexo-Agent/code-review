@@ -7,8 +7,8 @@ import asyncpg
 _REVIEW_SELECT = """
     id, provider, repo_full_name, pr_number, pr_title,
     pr_url, pr_author, head_sha, base_sha, base_ref, head_ref,
-    status, delivery_id, repo_integration_id, error_message,
-    started_at, completed_at, created_at,
+    status, delivery_id, repo_integration_id, team_id, project_id,
+    error_message, started_at, completed_at, created_at,
     summary_comment_posted, inline_comments_posted, inline_comments_skipped
 """
 
@@ -29,6 +29,8 @@ class ReviewRow:
     status: str
     delivery_id: str | None
     repo_integration_id: UUID | None
+    team_id: UUID
+    project_id: UUID
     error_message: str | None
     started_at: datetime | None
     completed_at: datetime | None
@@ -59,6 +61,7 @@ class ReviewRepository:
     async def list_reviews(
         self,
         *,
+        team_ids: list[UUID] | None = None,
         status: str | None = None,
         repo_full_name: str | None = None,
         pr_number: int | None = None,
@@ -68,6 +71,10 @@ class ReviewRepository:
         clauses = ["1=1"]
         args: list[object] = []
         idx = 1
+        if team_ids is not None:
+            clauses.append(f"team_id = ANY(${idx}::uuid[])")
+            args.append(team_ids)
+            idx += 1
         if status:
             clauses.append(f"status = ${idx}")
             args.append(status)
@@ -85,9 +92,9 @@ class ReviewRepository:
             SELECT r.id, r.provider, r.repo_full_name, r.pr_number, r.pr_title,
                    r.pr_url, r.pr_author, r.head_sha, r.base_sha, r.base_ref,
                    r.head_ref, r.status, r.delivery_id, r.repo_integration_id,
-                   r.error_message, r.started_at, r.completed_at, r.created_at,
-                   r.summary_comment_posted, r.inline_comments_posted,
-                   r.inline_comments_skipped,
+                   r.team_id, r.project_id, r.error_message, r.started_at,
+                   r.completed_at, r.created_at, r.summary_comment_posted,
+                   r.inline_comments_posted, r.inline_comments_skipped,
                    (
                        SELECT COUNT(*)::int
                        FROM review_findings rf
@@ -100,6 +107,36 @@ class ReviewRepository:
         """
         rows = await self._conn.fetch(query, *args)
         return [_row_to_review(row) for row in rows]
+
+    async def count_reviews(
+        self,
+        *,
+        team_ids: list[UUID] | None = None,
+        status: str | None = None,
+        repo_full_name: str | None = None,
+        pr_number: int | None = None,
+    ) -> int:
+        clauses = ["1=1"]
+        args: list[object] = []
+        idx = 1
+        if team_ids is not None:
+            clauses.append(f"team_id = ANY(${idx}::uuid[])")
+            args.append(team_ids)
+            idx += 1
+        if status:
+            clauses.append(f"status = ${idx}")
+            args.append(status)
+            idx += 1
+        if repo_full_name:
+            clauses.append(f"repo_full_name = ${idx}")
+            args.append(repo_full_name)
+            idx += 1
+        if pr_number is not None:
+            clauses.append(f"pr_number = ${idx}")
+            args.append(pr_number)
+            idx += 1
+        query = f"SELECT COUNT(*)::int FROM reviews WHERE {' AND '.join(clauses)}"
+        return await self._conn.fetchval(query, *args) or 0
 
     async def get(self, review_id: UUID) -> ReviewRow | None:
         row = await self._conn.fetchrow(
@@ -124,6 +161,8 @@ class ReviewRepository:
         head_sha: str,
         delivery_id: str | None,
         repo_integration_id: UUID | None = None,
+        team_id: UUID | None = None,
+        project_id: UUID | None = None,
         pr_title: str = "",
         pr_url: str = "",
         pr_author: str = "",
@@ -136,9 +175,12 @@ class ReviewRepository:
             INSERT INTO reviews (
                 provider, repo_full_name, pr_number, pr_title, pr_url, pr_author,
                 head_sha, base_sha, base_ref, head_ref, status,
-                delivery_id, repo_integration_id
+                delivery_id, repo_integration_id, team_id, project_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12)
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                'pending', $11, $12, $13, $14
+            )
             RETURNING {_REVIEW_SELECT}
             """,
             provider,
@@ -153,6 +195,8 @@ class ReviewRepository:
             head_ref,
             delivery_id,
             repo_integration_id,
+            team_id,
+            project_id,
         )
         if row is None:
             existing = (
@@ -337,6 +381,8 @@ def _row_to_review(row: asyncpg.Record) -> ReviewRow:
         status=row["status"],
         delivery_id=row["delivery_id"],
         repo_integration_id=row["repo_integration_id"],
+        team_id=row["team_id"],
+        project_id=row["project_id"],
         error_message=row["error_message"],
         started_at=row["started_at"],
         completed_at=row["completed_at"],
