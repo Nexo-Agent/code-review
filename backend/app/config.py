@@ -81,12 +81,7 @@ class CodeReviewSettings(BaseSettings):
     agent_callback_url: str = "http://localhost:8000/api/v1/agent/review-events"
     agent_callback_secret: str = ""
     auth_enabled: bool = False
-    oidc_issuer: str = ""
-    oidc_client_id: str = ""
-    oidc_client_secret: str = ""
-    oidc_redirect_uri: str = "http://localhost:8000/api/v1/auth/callback"
-    oidc_authorize_url: str = ""
-    oidc_token_url: str = ""
+    secrets_encryption_key: str = ""
     session_secret: str = "change-me-in-production"
     session_ttl_seconds: int = 86400
     bootstrap_org_admin_email: str = ""

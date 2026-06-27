@@ -75,19 +75,31 @@ POST /api/v1/webhooks/azure-devops/{integration_id}
 
 Global `/webhooks/github` and `/webhooks/azure-devops` are deprecated (410). Configure the per-repo URL in the repo detail UI.
 
-### Authentication (OIDC BFF)
+### First-boot install (`/install`)
 
-When `COGITO_REVIEW_AUTH_ENABLED=true`, the backend runs OAuth2 authorization code flow and stores sessions in Redis (cookie `cogito_session`). The SPA uses `credentials: "include"` and never holds access tokens.
+Fresh installs with no users require a one-time setup wizard at **`/install`**. The super administrator account uses local username/password (`auth_source=local`, `is_superuser=true`). After `system_install.completed_at` is set:
+
+- `POST /api/v1/install/bootstrap` returns **403**
+- The SPA redirects `/install` → `/login`
+- Local break-glass sign-in remains at `POST /api/v1/auth/local/login`
+
+Existing databases are backfilled as already completed (migration `011_local_superuser.sql`).
+
+### Authentication (OIDC / SAML BFF)
+
+When `COGITO_REVIEW_AUTH_ENABLED=true`, the backend runs OIDC authorization code or SAML 2.0 SP flows and stores sessions in Redis (cookie `cogito_session`). IdP settings are stored in Postgres (`organization_identity_providers`) and configured in the UI at **Settings → SSO** (org admin). One IdP per install (OIDC presets: Google, Entra, Okta, Keycloak, Auth0, custom; or SAML 2.0). The SPA uses `credentials: "include"` and never holds access tokens.
 
 | Route | Auth |
 |-------|------|
-| `/api/v1/auth/login`, `/callback`, `/logout`, `/me` | Public (except `/me` needs session) |
+| `/api/v1/install/status`, `/install/bootstrap` | Public (bootstrap blocked after setup) |
+| `/api/v1/auth/login`, `/callback`, `/auth/idp`, `/auth/local/login`, `/logout`, `/me` | Public (except `/me` needs session) |
+| `/api/v1/settings/identity-provider` | Org admin |
 | `/api/v1/teams`, `/projects`, `/reviews`, `/settings/llm-providers` | Session cookie |
 | `/api/v1/webhooks/*`, `/api/v1/agent/*`, `/api/v1/health` | Exempt (HMAC / machine) |
 
-Dev default: `COGITO_REVIEW_AUTH_ENABLED=false` uses a bypass org-admin user. Users are JIT-created on first OIDC login; org admins assign team membership via `POST/DELETE /api/v1/teams/{team_id}/members`.
+Dev default: `COGITO_REVIEW_AUTH_ENABLED=false` uses a bypass org-admin user **after setup is complete**. Before setup, API routes return 401 until bootstrap. Users are JIT-created on first SSO login; org admins assign team membership via `POST/DELETE /api/v1/teams/{team_id}/members`.
 
-See `.env.example` for `COGITO_REVIEW_OIDC_*`, `COGITO_REVIEW_SESSION_*`, and `COGITO_REVIEW_BOOTSTRAP_ORG_ADMIN_EMAIL`.
+See `.env.example` for `COGITO_REVIEW_AUTH_ENABLED`, `COGITO_REVIEW_SECRETS_ENCRYPTION_KEY`, `COGITO_REVIEW_SESSION_*`, and `COGITO_REVIEW_BOOTSTRAP_ORG_ADMIN_EMAIL`.
 
 ## Prerequisites
 
@@ -226,7 +238,7 @@ Add or update tests for behavior you change. API tests use `httpx.AsyncClient` w
 
 - Treat Server Actions / public API routes as untrusted: validate input, authenticate webhooks (GitHub HMAC)
 - Webhook endpoints: `POST /api/v1/webhooks/github/{integration_id}` (and ADO variant)
-- Enable OIDC in production: `COGITO_REVIEW_AUTH_ENABLED=true`; set strong `COGITO_REVIEW_SESSION_SECRET`
+- Enable OIDC/SAML in production: `COGITO_REVIEW_AUTH_ENABLED=true`; configure IdP in Settings → SSO; set strong `COGITO_REVIEW_SESSION_SECRET` and `COGITO_REVIEW_SECRETS_ENCRYPTION_KEY`
 - Never log or commit `COGITO_REVIEW_*` tokens, webhook secrets, or GitHub PATs
 - Worker mounts Docker socket for isolated git workspaces — keep runtime images minimal (`alpine/git`)
 - Dynamic credentials belong in Postgres (Settings UI), not in source code

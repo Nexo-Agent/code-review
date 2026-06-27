@@ -27,3 +27,9 @@ export function loginUrl(returnTo?: string) {
   const params = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ""
   return `${base}/api/v1/auth/login${params}`
 }
+
+/** Required for typed redirects/navigate to `/login` (TanStack Router search params). */
+export const defaultLoginSearch = {
+  return_to: undefined,
+  error: undefined,
+} as const

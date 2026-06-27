@@ -47,13 +47,3 @@ class TeamMemberResponse(BaseModel):
 class TeamMemberCreate(BaseModel):
     user_id: UUID
     role: str = Field(default="member", pattern="^(member|viewer|team_admin)$")
-
-
-class OrgMemberResponse(BaseModel):
-    team_id: UUID
-    team_name: str
-    user_id: UUID
-    user_email: str
-    user_name: str
-    role: str
-    created_at: datetime

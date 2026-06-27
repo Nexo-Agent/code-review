@@ -46,27 +46,30 @@ async def get_current_user(
     session_id: str | None = Cookie(default=None, alias=SESSION_COOKIE),
 ) -> UserRow:
     settings = get_code_review_settings()
+
+    if session_id:
+        user_id = await get_session_user_id(session_id)
+        if user_id is not None:
+            user = await UserRepository(conn).get(user_id)
+            if user is not None:
+                return user
+
     if not settings.auth_enabled:
+        from app.services.install import SetupRequiredError, assert_setup_completed
+
+        try:
+            await assert_setup_completed(conn)
+        except SetupRequiredError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Setup required",
+            )
         return await _get_dev_user(conn)
 
-    if not session_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    user_id = await get_session_user_id(session_id)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired",
-        )
-    user = await UserRepository(conn).get(user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-    return user
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
 
 
 async def get_auth_context(
