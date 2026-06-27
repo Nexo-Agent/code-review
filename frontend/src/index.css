@@ -30,6 +30,8 @@
   --color-ring: var(--ring);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-border: var(--sidebar-border);
 }
 
 :root {
@@ -59,6 +61,8 @@
   --ring: oklch(0.708 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.955 0.004 286);
+  --sidebar-border: oklch(0.91 0.004 286);
 }
 
 @layer base {

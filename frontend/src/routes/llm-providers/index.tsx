@@ -6,6 +6,8 @@ import { AppShell } from "@/components/layout/AppShell"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
 import { LlmProviderDialog } from "@/components/settings/LlmProviderDialog"
+import { ProviderLogo } from "@/components/settings/llm-provider/ProviderLogo"
+import { llmProviderLogoId } from "@/components/settings/llm-provider/providers"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -98,16 +100,24 @@ function LlmProvidersPage() {
                 providerList.map((provider) => (
                   <TableRow key={provider.id}>
                     <TableCell>
-                      <Link
-                        to="/llm-providers/$providerId"
-                        params={{ providerId: provider.id }}
-                        className="font-medium hover:underline"
-                      >
-                        {provider.name}
-                      </Link>
-                      <p className="text-muted-foreground text-xs">
-                        {provider.provider_id}
-                      </p>
+                      <div className="flex items-center gap-2.5">
+                        <ProviderLogo
+                          providerId={llmProviderLogoId(provider.provider_id)}
+                          className="size-5"
+                        />
+                        <div className="min-w-0">
+                          <Link
+                            to="/llm-providers/$providerId"
+                            params={{ providerId: provider.id }}
+                            className="font-medium hover:underline"
+                          >
+                            {provider.name}
+                          </Link>
+                          <p className="text-muted-foreground text-xs">
+                            {provider.provider_id}
+                          </p>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {provider.resolved_opencode_model}

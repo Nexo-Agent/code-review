@@ -84,6 +84,10 @@ export function getLlmProviderPresetForProviderId(
   return LLM_PROVIDER_PRESETS.find((preset) => preset.provider_id === providerId)
 }
 
+export function llmProviderLogoId(providerId: string): LlmProviderPresetId {
+  return getLlmProviderPresetForProviderId(providerId)?.id ?? "openai-compat"
+}
+
 export function llmFormFromPreset(
   preset: LlmProviderPresetDefinition,
 ): LlmProviderCreate {

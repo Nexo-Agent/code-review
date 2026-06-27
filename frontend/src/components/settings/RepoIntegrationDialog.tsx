@@ -1,7 +1,8 @@
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Copy } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { apiBaseUrl } from "@/api/client"
 import type {
   RepoIntegration,
   RepoIntegrationCreate,
@@ -9,7 +10,6 @@ import type {
 } from "@/api/settings-types"
 import { Field } from "@/components/forms/Field"
 import { ConfirmDialog } from "@/components/patterns/confirm-dialog"
-import { ProviderLogo } from "@/components/settings/repo-integration/ProviderLogo"
 import { ProviderPicker } from "@/components/settings/repo-integration/ProviderPicker"
 import {
   getGitProvider,
@@ -89,7 +89,8 @@ function RepoIntegrationForm({
   onDeleted?: () => void
 }) {
   const isEdit = Boolean(repo)
-  const isMinimalCreate = !isEdit && Boolean(preset)
+  const hideProviderSelect = !isEdit && Boolean(preset)
+  const hideDisplayName = hideProviderSelect
   const llmProviders = useLlmProviders()
   const createRepo = useCreateRepoIntegration(teamId)
   const updateRepo = useUpdateRepoIntegration(teamId)
@@ -122,12 +123,13 @@ function RepoIntegrationForm({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    const repoFullName = form.repo_full_name?.trim() ?? ""
     try {
       if (isEdit && repo) {
         const payload: RepoIntegrationUpdate = {
           name: form.name,
           git_provider: form.git_provider,
-          repo_full_name: form.repo_full_name,
+          repo_full_name: repoFullName,
           system_prompt: systemPrompt,
           clear_llm_provider_id: llmProviderId === "__default__",
         }
@@ -136,7 +138,9 @@ function RepoIntegrationForm({
         }
         if (isAzureDevOps) {
           if (adoPat) payload.ado_pat = adoPat
-          if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
+          if (adoWebhookUsername) {
+            payload.ado_webhook_username = adoWebhookUsername
+          }
           if (adoWebhookPassword) payload.ado_webhook_password = adoWebhookPassword
         } else {
           if (webhookSecret) payload.github_webhook_secret = webhookSecret
@@ -156,12 +160,12 @@ function RepoIntegrationForm({
             llmProviderId === "__default__" ? null : llmProviderId,
         }
         if (isAzureDevOps) {
-          if (adoPat) payload.ado_pat = adoPat
-          if (adoWebhookUsername) payload.ado_webhook_username = adoWebhookUsername
-          if (adoWebhookPassword) payload.ado_webhook_password = adoWebhookPassword
+          payload.ado_pat = adoPat
+          payload.ado_webhook_username = adoWebhookUsername
+          payload.ado_webhook_password = adoWebhookPassword
         } else {
-          if (webhookSecret) payload.github_webhook_secret = webhookSecret
-          if (githubToken) payload.github_token = githubToken
+          payload.github_webhook_secret = webhookSecret
+          payload.github_token = githubToken
         }
         await createRepo.mutateAsync(payload)
         toast.success("Repository created")
@@ -207,6 +211,11 @@ function RepoIntegrationForm({
     displayPreset?.repoPlaceholder ??
     (isAzureDevOps ? "contoso/engineering/web-app" : "acme-corp/backend-api")
 
+  const webhookUrl =
+    isEdit && repo?.webhook_url
+      ? `${apiBaseUrl()}${repo.webhook_url}`
+      : null
+
   return (
     <>
       <ConfirmDialog
@@ -226,19 +235,7 @@ function RepoIntegrationForm({
 
       <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-3 overflow-y-auto px-6 py-4">
-          {displayPreset && (isMinimalCreate || isEdit) ? (
-            <div className="flex items-center gap-4 rounded-lg border p-4">
-              <ProviderLogo providerId={displayPreset.id} className="size-12" />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{displayPreset.label}</p>
-                <p className="text-muted-foreground text-sm">
-                  {displayPreset.description}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
-          {!isMinimalCreate ? (
+          {!hideDisplayName ? (
             <Field label="Display name">
               <Input
                 value={form.name ?? ""}
@@ -247,7 +244,7 @@ function RepoIntegrationForm({
             </Field>
           ) : null}
 
-          {!isMinimalCreate ? (
+          {!hideProviderSelect ? (
             <Field label="Git provider">
               <Select
                 value={form.git_provider ?? "github"}
@@ -286,25 +283,23 @@ function RepoIntegrationForm({
             />
           </Field>
 
-          {!isMinimalCreate ? (
-            <Field label="LLM provider (from org pool)">
-              <Select value={llmProviderId} onValueChange={setLlmProviderId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Org default" />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectGroup>
-                    <SelectItem value="__default__">Org default</SelectItem>
-                    {enabledLlmProviders.map((provider) => (
-                      <SelectItem key={provider.id} value={provider.id}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          ) : null}
+          <Field label="LLM provider (from org pool)">
+            <Select value={llmProviderId} onValueChange={setLlmProviderId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Org default" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectGroup>
+                  <SelectItem value="__default__">Org default</SelectItem>
+                  {enabledLlmProviders.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
 
           {isAzureDevOps ? (
             <>
@@ -327,41 +322,39 @@ function RepoIntegrationForm({
                   }
                 />
               </Field>
-              {!isMinimalCreate ? (
-                <>
-                  <Field label="Webhook username">
-                    <Input
-                      value={adoWebhookUsername}
-                      onChange={(e) => setAdoWebhookUsername(e.target.value)}
-                      placeholder={
-                        isEdit && repo?.ado_webhook_configured
-                          ? "Configured"
-                          : "Service hook basic auth username"
-                      }
-                    />
-                  </Field>
-                  <Field
-                    label={
-                      isEdit
-                        ? "Webhook password (leave blank to keep)"
-                        : "Webhook password"
-                    }
-                  >
-                    <Input
-                      type="password"
-                      value={adoWebhookPassword}
-                      onChange={(e) => setAdoWebhookPassword(e.target.value)}
-                      placeholder={
-                        isEdit
-                          ? repo?.ado_webhook_configured
-                            ? "Configured"
-                            : "Not set"
-                          : "Service hook basic auth password"
-                      }
-                    />
-                  </Field>
-                </>
-              ) : null}
+              <Field label="Webhook username">
+                <Input
+                  required={!isEdit}
+                  value={adoWebhookUsername}
+                  onChange={(e) => setAdoWebhookUsername(e.target.value)}
+                  placeholder={
+                    isEdit && repo?.ado_webhook_configured
+                      ? "Configured"
+                      : "Service hook basic auth username"
+                  }
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit
+                    ? "Webhook password (leave blank to keep)"
+                    : "Webhook password"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={adoWebhookPassword}
+                  onChange={(e) => setAdoWebhookPassword(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.ado_webhook_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Service hook basic auth password"
+                  }
+                />
+              </Field>
             </>
           ) : (
             <>
@@ -393,6 +386,7 @@ function RepoIntegrationForm({
               >
                 <Input
                   type="password"
+                  required={!isEdit}
                   value={webhookSecret}
                   onChange={(e) => setWebhookSecret(e.target.value)}
                   placeholder={
@@ -406,6 +400,30 @@ function RepoIntegrationForm({
               </Field>
             </>
           )}
+
+          {webhookUrl ? (
+            <Field label="Webhook URL">
+              <div className="flex items-center gap-2">
+                <Input readOnly value={webhookUrl} className="font-mono text-xs" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(webhookUrl)
+                      toast.success("Webhook URL copied")
+                    } catch {
+                      toast.error("Could not copy webhook URL")
+                    }
+                  }}
+                >
+                  <Copy className="size-4" />
+                </Button>
+              </div>
+            </Field>
+          ) : null}
 
           {isEdit ? (
             <Field label="System prompt">
@@ -540,7 +558,7 @@ function RepoIntegrationCreateDialogContent({
         "flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0",
         onPicker
           ? "w-fit max-w-[calc(100%-2rem)] sm:max-w-fit"
-          : "sm:max-w-lg",
+          : "sm:max-w-xl",
       )}
     >
       <RepoIntegrationCreateFlow
@@ -569,7 +587,7 @@ export function RepoIntegrationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open ? (
         isEdit ? (
-          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
             <RepoIntegrationForm
               key={formKey}
               teamId={teamId}

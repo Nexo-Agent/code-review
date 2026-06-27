@@ -1,7 +1,22 @@
 import { Link } from "@tanstack/react-router"
-import { ChevronUp } from "lucide-react"
+import {
+  BarChart3,
+  ChevronUp,
+  FolderGit2,
+  Gauge,
+  GitPullRequest,
+  LayoutDashboard,
+  ScrollText,
+  Server,
+  Shield,
+  Sparkles,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react"
 import type { ReactNode } from "react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,29 +26,279 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useLogout, useMe } from "@/hooks/use-auth"
-import { cn } from "@/lib/utils"
 import {
   DEFAULT_LIST_SEARCH,
   DEFAULT_REPOSITORIES_SEARCH,
   DEFAULT_REVIEWS_SEARCH,
 } from "@/lib/pagination"
+import { cn } from "@/lib/utils"
 
-const baseNavItems = [
-  { to: "/", label: "Dashboard", exact: true, search: undefined },
-  { to: "/teams", label: "Teams", exact: false, search: DEFAULT_LIST_SEARCH },
+type NavRoute =
+  | "/"
+  | "/reviews"
+  | "/teams"
+  | "/repositories"
+  | "/users"
+  | "/llm-providers"
+  | "/settings/identity-provider"
+
+type NavLinkItem = {
+  kind: "link"
+  to: NavRoute
+  label: string
+  icon: LucideIcon
+  exact?: boolean
+}
+
+type NavDisabledItem = {
+  kind: "disabled"
+  label: string
+  icon: LucideIcon
+}
+
+type NavItem = NavLinkItem | NavDisabledItem
+
+type NavGroup = {
+  label: string
+  items: NavItem[]
+  adminOnly?: boolean
+}
+
+const dashboardItem: NavLinkItem = {
+  kind: "link",
+  to: "/",
+  label: "Dashboard",
+  icon: LayoutDashboard,
+  exact: true,
+}
+
+const navGroups: NavGroup[] = [
   {
-    to: "/repositories",
-    label: "Repositories",
-    exact: false,
-    search: DEFAULT_REPOSITORIES_SEARCH,
+    label: "Activity",
+    items: [
+      {
+        kind: "link",
+        to: "/reviews",
+        label: "Review",
+        icon: GitPullRequest,
+      },
+      { kind: "disabled", label: "Analytics", icon: BarChart3 },
+    ],
   },
   {
-    to: "/reviews",
-    label: "Reviews",
-    exact: false,
-    search: DEFAULT_REVIEWS_SEARCH,
+    label: "Resources",
+    items: [
+      {
+        kind: "link",
+        to: "/teams",
+        label: "Teams",
+        icon: UsersRound,
+      },
+      {
+        kind: "link",
+        to: "/repositories",
+        label: "Repositories",
+        icon: FolderGit2,
+      },
+    ],
   },
-] as const
+  {
+    label: "Organization",
+    adminOnly: true,
+    items: [
+      {
+        kind: "link",
+        to: "/users",
+        label: "Users",
+        icon: Users,
+      },
+      {
+        kind: "link",
+        to: "/llm-providers",
+        label: "LLM Provider",
+        icon: Sparkles,
+      },
+      {
+        kind: "link",
+        to: "/settings/identity-provider",
+        label: "SSO",
+        icon: Shield,
+      },
+      { kind: "disabled", label: "Audit log", icon: ScrollText },
+      { kind: "disabled", label: "Usage", icon: Gauge },
+      { kind: "disabled", label: "System", icon: Server },
+    ],
+  },
+]
+
+const navLinkClassName =
+  "text-muted-foreground hover:bg-accent hover:text-accent-foreground group flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors"
+
+function navLinkActiveProps() {
+  return {
+    className: cn(
+      navLinkClassName,
+      "bg-accent text-accent-foreground font-medium [&_svg]:opacity-100",
+    ),
+  }
+}
+
+function NavItemIcon({
+  icon: Icon,
+  disabled = false,
+}: {
+  icon: LucideIcon
+  disabled?: boolean
+}) {
+  return (
+    <Icon
+      className={cn(
+        "size-4 shrink-0 opacity-70",
+        disabled && "opacity-40",
+        !disabled && "group-hover:opacity-100",
+      )}
+    />
+  )
+}
+
+function AppNavLink({ item }: { item: NavLinkItem }) {
+  const activeOptions = { exact: item.exact ?? false }
+  const activeProps = navLinkActiveProps()
+  const content = (
+    <>
+      <NavItemIcon icon={item.icon} />
+      <span className="truncate">{item.label}</span>
+    </>
+  )
+
+  switch (item.to) {
+    case "/":
+      return (
+        <Link
+          to="/"
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/reviews":
+      return (
+        <Link
+          to="/reviews"
+          search={DEFAULT_REVIEWS_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/teams":
+      return (
+        <Link
+          to="/teams"
+          search={DEFAULT_LIST_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/repositories":
+      return (
+        <Link
+          to="/repositories"
+          search={DEFAULT_REPOSITORIES_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/users":
+      return (
+        <Link
+          to="/users"
+          search={DEFAULT_LIST_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/llm-providers":
+      return (
+        <Link
+          to="/llm-providers"
+          search={DEFAULT_LIST_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/settings/identity-provider":
+      return (
+        <Link
+          to="/settings/identity-provider"
+          search={{ setup: undefined, edit: false }}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    default:
+      return null
+  }
+}
+
+function AppNavDisabled({ item }: { item: NavDisabledItem }) {
+  return (
+    <span
+      aria-disabled="true"
+      className="text-muted-foreground/50 flex cursor-not-allowed items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm"
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <NavItemIcon icon={item.icon} disabled />
+        <span className="truncate">{item.label}</span>
+      </span>
+      <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px] font-normal">
+        Soon
+      </Badge>
+    </span>
+  )
+}
+
+function AppNavItem({ item }: { item: NavItem }) {
+  if (item.kind === "disabled") {
+    return <AppNavDisabled item={item} />
+  }
+  return <AppNavLink item={item} />
+}
+
+function AppNavGroup({ group }: { group: NavGroup }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <p className="text-muted-foreground/80 px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider uppercase">
+        {group.label}
+      </p>
+      {group.items.map((item) => (
+        <AppNavItem
+          key={item.kind === "link" ? item.to : item.label}
+          item={item}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function AppShell({
   children,
@@ -53,54 +318,25 @@ export function AppShell({
   const showHeader = title || description || actions
   const isOrgAdmin = me.data?.user.is_org_admin ?? false
 
-  const navItems = isOrgAdmin
-    ? [
-        ...baseNavItems,
-        { to: "/users", label: "Users", exact: false, search: DEFAULT_LIST_SEARCH },
-        {
-          to: "/llm-providers",
-          label: "LLM Providers",
-          exact: false,
-          search: DEFAULT_LIST_SEARCH,
-        },
-        {
-          to: "/settings/identity-provider",
-          label: "SSO",
-          exact: false,
-          search: undefined,
-        },
-      ]
-    : baseNavItems
+  const visibleGroups = navGroups.filter((group) => !group.adminOnly || isOrgAdmin)
 
   return (
     <div className="bg-background flex h-svh overflow-hidden">
-      <aside className="bg-muted/30 flex w-52 shrink-0 flex-col">
-        <div className="flex h-11 items-center px-3">
+      <aside className="bg-sidebar flex w-60 shrink-0 flex-col border-r border-sidebar-border">
+        <div className="flex h-11 shrink-0 items-center border-b border-sidebar-border px-3">
           <span className="truncate text-sm font-semibold tracking-tight">
             Cogito Review
           </span>
         </div>
-        <nav className="flex flex-1 flex-col gap-0.5 p-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              search={item.search}
-              className={cn(
-                "text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-2.5 py-1.5 text-sm transition-colors",
-              )}
-              activeOptions={{ exact: item.exact }}
-              activeProps={{
-                className: cn(
-                  "bg-accent text-accent-foreground font-medium",
-                ),
-              }}
-            >
-              {item.label}
-            </Link>
+        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-2 py-3">
+          <div className="flex flex-col gap-0.5">
+            <AppNavLink item={dashboardItem} />
+          </div>
+          {visibleGroups.map((group) => (
+            <AppNavGroup key={group.label} group={group} />
           ))}
         </nav>
-        <div className="border-t p-2">
+        <div className="shrink-0 border-t border-sidebar-border p-2">
           {me.data ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

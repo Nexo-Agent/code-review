@@ -61,6 +61,10 @@ export function getGitProviderForValue(
   return GIT_PROVIDERS.find((provider) => provider.id === value)
 }
 
+export function isGitProviderId(value: string): value is GitProviderId {
+  return GIT_PROVIDERS.some((provider) => provider.id === value)
+}
+
 export function repoFormFromGitProvider(
   provider: GitProviderDefinition,
 ): RepoIntegrationCreate {

@@ -5,6 +5,8 @@ import { AppShell } from "@/components/layout/AppShell"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { MultiSelectFilter } from "@/components/patterns/multi-select-filter"
 import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
+import { ProviderLogo } from "@/components/settings/repo-integration/ProviderLogo"
+import { isGitProviderId } from "@/components/settings/repo-integration/providers"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -225,16 +227,26 @@ function RepositoriesPage() {
                 repoList.map((repo) => (
                   <TableRow key={repo.id}>
                     <TableCell>
-                      <Link
-                        to="/teams/$teamId/repos/$repoId"
-                        params={{
-                          teamId: repo.team_id,
-                          repoId: repo.id,
-                        }}
-                        className="font-medium hover:underline"
-                      >
-                        {repo.repo_full_name || repo.name || "All repositories"}
-                      </Link>
+                      <div className="flex items-center gap-2.5">
+                        {isGitProviderId(repo.git_provider) ? (
+                          <ProviderLogo
+                            providerId={repo.git_provider}
+                            className="size-5"
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <Link
+                            to="/teams/$teamId/repos/$repoId"
+                            params={{
+                              teamId: repo.team_id,
+                              repoId: repo.id,
+                            }}
+                            className="font-medium hover:underline"
+                          >
+                            {repo.repo_full_name || repo.name || "All repositories"}
+                          </Link>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Link

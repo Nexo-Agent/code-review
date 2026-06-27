@@ -10,7 +10,6 @@ import { useEffect, useMemo, useState } from "react"
 import type { Review } from "@/api/types"
 import { AppShell } from "@/components/layout/AppShell"
 import { EmptyState } from "@/components/patterns/empty-state"
-import { CodeHint } from "@/components/patterns/inline-error"
 import { MultiSelectFilter } from "@/components/patterns/multi-select-filter"
 import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
 import { StatusBadge } from "@/components/patterns/status-badge"
@@ -299,8 +298,7 @@ function ReviewsPage() {
                     "No reviews match your search or filters."
                   ) : (
                     <>
-                      No reviews yet — configure a GitHub webhook to{" "}
-                      <CodeHint>/api/v1/webhooks/github</CodeHint>
+                      No reviews yet
                     </>
                   )}
                 </EmptyState>
