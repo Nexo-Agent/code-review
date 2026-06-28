@@ -15,6 +15,7 @@ from app.services.review_rereview import (
     ReviewInProgressError,
     ReviewNotFoundError,
     prepare_rereview,
+    resolve_latest_pr_metadata,
 )
 from tests.conftest import make_dev_user, make_review_row
 
@@ -165,6 +166,35 @@ async def test_retry_review_in_progress(client: AsyncClient) -> None:
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Review is already in progress"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_pr_metadata_uses_repo_git_provider() -> None:
+    review = make_review_row(
+        provider="gitlab",
+        repo_full_name="group/repo",
+        repo_integration_id=uuid4(),
+    )
+    metadata = _pr_metadata(head_sha=review.head_sha)
+
+    mock_git = MagicMock()
+    mock_git.get_pr_metadata = AsyncMock(return_value=metadata)
+    mock_providers = MagicMock(git=mock_git)
+
+    conn = AsyncMock()
+    with patch(
+        "app.services.review_rereview.build_providers_for_repo",
+        AsyncMock(return_value=mock_providers),
+    ) as build_providers:
+        result = await resolve_latest_pr_metadata(conn, review)
+
+    assert result == metadata
+    build_providers.assert_awaited_once_with(
+        conn,
+        "group/repo",
+        repo_integration_id=review.repo_integration_id,
+    )
+    mock_git.get_pr_metadata.assert_awaited_once_with("group/repo", review.pr_number)
 
 
 @pytest.mark.asyncio

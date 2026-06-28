@@ -101,6 +101,7 @@ class WebhookEvent:
     head_sha: str
     delivery_id: str | None
     pr_title: str = ""
+    pr_url: str = ""
 
 
 @dataclass(frozen=True, slots=True)

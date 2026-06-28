@@ -78,6 +78,9 @@ def _repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
         ado_pat="",
         ado_webhook_username="",
         ado_webhook_password="",
+        gitlab_base_url="",
+        gitlab_token="",
+        gitlab_webhook_secret="",
         created_at=now,
         updated_at=now,
     )
@@ -115,6 +118,7 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
 
     mock_repo = MagicMock()
     mock_repo.get_by_delivery_id = AsyncMock(return_value=None)
+    mock_repo.get_by_repo_pr_sha = AsyncMock(return_value=None)
     mock_repo.create = AsyncMock(return_value=review_row)
 
     mock_integration_repo = MagicMock()
@@ -171,3 +175,29 @@ async def test_github_webhook_legacy_endpoint_deprecated(client: AsyncClient) ->
     )
 
     assert response.status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_get_review_fallback_pr_url_when_empty(client: AsyncClient) -> None:
+    review_id = uuid4()
+    review = make_review_row(id=review_id, pr_url="")
+    mock_repo = AsyncMock()
+    mock_repo.get = AsyncMock(return_value=review)
+    mock_repo.list_findings = AsyncMock(return_value=[])
+
+    from coreview_shared.providers.git.github import GitHubProvider
+
+    mock_bundle = MagicMock()
+    mock_bundle.git = GitHubProvider(token="")
+
+    with (
+        patch("app.api.v1.reviews.ReviewRepository", return_value=mock_repo),
+        patch(
+            "app.api.v1.reviews.build_providers_for_repo",
+            AsyncMock(return_value=mock_bundle),
+        ),
+    ):
+        response = await client.get(f"/api/v1/reviews/{review_id}")
+
+    assert response.status_code == 200
+    assert response.json()["pr_url"] == "https://github.com/org/repo/pull/42"

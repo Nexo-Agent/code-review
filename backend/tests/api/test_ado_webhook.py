@@ -77,6 +77,9 @@ def _ado_repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
         ado_pat="ado-pat",
         ado_webhook_username="hook-user",
         ado_webhook_password="hook-pass",
+        gitlab_base_url="",
+        gitlab_token="",
+        gitlab_webhook_secret="",
         created_at=now,
         updated_at=now,
     )
@@ -129,6 +132,7 @@ async def test_ado_webhook_enqueues_review(client: AsyncClient) -> None:
 
     mock_repo = MagicMock()
     mock_repo.get_by_delivery_id = AsyncMock(return_value=None)
+    mock_repo.get_by_repo_pr_sha = AsyncMock(return_value=None)
     mock_repo.create = AsyncMock(return_value=review_row)
 
     mock_integration_repo = MagicMock()

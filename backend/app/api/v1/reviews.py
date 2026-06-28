@@ -13,6 +13,7 @@ from app.schemas.review import (
     ReviewListResponse,
     ReviewResponse,
 )
+from app.services.provider_resolution import build_providers_for_repo
 from app.services.review_rereview import (
     ReviewInProgressError,
     ReviewNotFoundError,
@@ -22,7 +23,30 @@ from app.services.review_rereview import (
 router = APIRouter()
 
 
-def _to_finding_response(row: ReviewFindingRow) -> ReviewFindingResponse:
+def _resolve_pr_url(row: ReviewRow, git_provider=None) -> str:
+    stored = row.pr_url.strip()
+    if stored:
+        return stored
+    if git_provider is not None:
+        return git_provider.build_pr_url(row.repo_full_name, row.pr_number)
+    return ""
+
+
+def _to_finding_response(
+    row: ReviewFindingRow,
+    *,
+    git_provider=None,
+    repo_full_name: str = "",
+    head_sha: str = "",
+) -> ReviewFindingResponse:
+    code_url = None
+    if row.file_path and git_provider is not None:
+        code_url = git_provider.build_blob_url(
+            repo_full_name,
+            head_sha,
+            row.file_path,
+            row.line_start,
+        )
     return ReviewFindingResponse(
         id=row.id,
         severity=row.severity,
@@ -31,6 +55,7 @@ def _to_finding_response(row: ReviewFindingRow) -> ReviewFindingResponse:
         line_end=row.line_end,
         title=row.title,
         body=row.body,
+        code_url=code_url,
         created_at=row.created_at,
     )
 
@@ -38,6 +63,8 @@ def _to_finding_response(row: ReviewFindingRow) -> ReviewFindingResponse:
 def _to_review_response(
     row: ReviewRow,
     findings: list[ReviewFindingRow] | None = None,
+    *,
+    git_provider=None,
 ) -> ReviewResponse:
     finding_rows = findings or []
     findings_count = len(finding_rows) if findings is not None else row.findings_count
@@ -47,7 +74,7 @@ def _to_review_response(
         repo_full_name=row.repo_full_name,
         pr_number=row.pr_number,
         pr_title=row.pr_title,
-        pr_url=row.pr_url,
+        pr_url=_resolve_pr_url(row, git_provider),
         pr_author=row.pr_author,
         head_sha=row.head_sha,
         base_sha=row.base_sha,
@@ -65,7 +92,15 @@ def _to_review_response(
         summary_comment_posted=row.summary_comment_posted,
         inline_comments_posted=row.inline_comments_posted,
         inline_comments_skipped=row.inline_comments_skipped,
-        findings=[_to_finding_response(f) for f in finding_rows],
+        findings=[
+            _to_finding_response(
+                f,
+                git_provider=git_provider,
+                repo_full_name=row.repo_full_name,
+                head_sha=row.head_sha,
+            )
+            for f in finding_rows
+        ],
     )
 
 
@@ -119,7 +154,21 @@ async def get_review(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     await assert_review_access(conn, auth.user, row.team_id)
     findings = await repo_db.list_findings(review_id)
-    return _to_review_response(row, findings)
+    git_provider = None
+    needs_provider = row.repo_integration_id is not None and (
+        not row.pr_url.strip() or any(f.file_path for f in findings)
+    )
+    if needs_provider:
+        try:
+            providers = await build_providers_for_repo(
+                conn,
+                row.repo_full_name,
+                repo_integration_id=row.repo_integration_id,
+            )
+            git_provider = providers.git
+        except (ValueError, NotImplementedError):
+            pass
+    return _to_review_response(row, findings, git_provider=git_provider)
 
 
 @router.post("/{review_id}/retry", response_model=ReviewResponse)

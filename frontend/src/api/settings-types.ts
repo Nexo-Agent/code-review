@@ -51,6 +51,9 @@ export interface RepoIntegration {
   ado_project: string
   ado_pat_configured: boolean
   ado_webhook_configured: boolean
+  gitlab_base_url: string
+  gitlab_token_configured: boolean
+  gitlab_webhook_secret_configured: boolean
   webhook_url: string
   created_at: string
   updated_at: string
@@ -67,6 +70,9 @@ export interface RepoIntegrationCreate {
   ado_pat?: string
   ado_webhook_username?: string
   ado_webhook_password?: string
+  gitlab_base_url?: string
+  gitlab_token?: string
+  gitlab_webhook_secret?: string
   system_prompt?: string
   llm_provider_id?: string | null
   enabled?: boolean
@@ -83,6 +89,9 @@ export interface RepoIntegrationUpdate {
   ado_pat?: string
   ado_webhook_username?: string
   ado_webhook_password?: string
+  gitlab_base_url?: string
+  gitlab_token?: string
+  gitlab_webhook_secret?: string
   system_prompt?: string
   llm_provider_id?: string | null
   clear_llm_provider_id?: boolean

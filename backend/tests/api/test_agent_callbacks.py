@@ -164,6 +164,7 @@ async def test_agent_callback_completed_persists_findings(
     )
     mock_repo.replace_findings = AsyncMock()
     mock_repo.update_delivery_stats = AsyncMock()
+    mock_repo.update_request_metadata = AsyncMock()
     mock_repo.update_status = AsyncMock()
     monkeypatch.setattr(
         "app.services.review_callback_handler.ReviewRepository",
@@ -200,6 +201,16 @@ async def test_agent_callback_completed_persists_findings(
     )
 
     assert response.status_code == 204
+    mock_repo.update_request_metadata.assert_awaited_once_with(
+        UUID(review_id),
+        pr_title="Fix bug",
+        pr_url="https://github.com/org/repo/pull/42",
+        pr_author="dev",
+        head_sha="abc123",
+        base_sha="base000",
+        base_ref="main",
+        head_ref="feature",
+    )
     mock_repo.replace_findings.assert_awaited_once()
     findings = mock_repo.replace_findings.await_args.args[1]
     assert findings[0]["title"] == "Issue"

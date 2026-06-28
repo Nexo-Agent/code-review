@@ -64,6 +64,19 @@ def _extract_ado_repo_full_name(body: bytes) -> str | None:
         return None
 
 
+def _extract_gitlab_repo_full_name(body: bytes) -> str | None:
+    try:
+        payload = json.loads(body)
+        project = payload.get("project")
+        if isinstance(project, dict):
+            path_with_namespace = project.get("path_with_namespace")
+            if isinstance(path_with_namespace, str) and path_with_namespace:
+                return path_with_namespace
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return None
+
+
 def _assert_repo_matches_integration(
     repo_integration,
     repo_full_name: str,
@@ -120,7 +133,12 @@ async def _enqueue_webhook_review(
     )
 
     webhook_secret = webhook_secret_resolver(repo_integration)
-    if not providers.git.verify_webhook_signature(body, auth_header, webhook_secret):
+    if not providers.git.verify_webhook_signature(
+        body,
+        auth_header,
+        webhook_secret,
+        headers=headers,
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook signature",
@@ -136,6 +154,14 @@ async def _enqueue_webhook_review(
         if existing:
             return _to_review_response(existing)
 
+    existing = await repo_db.get_by_repo_pr_sha(
+        event.repo_full_name,
+        event.pr_number,
+        event.head_sha,
+    )
+    if existing:
+        return _to_review_response(existing)
+
     review = await repo_db.create(
         provider=repo_integration.git_provider,
         repo_full_name=event.repo_full_name,
@@ -145,6 +171,8 @@ async def _enqueue_webhook_review(
         repo_integration_id=repo_integration.id,
         team_id=team_id,
         pr_title=event.pr_title,
+        pr_url=event.pr_url
+        or providers.git.build_pr_url(event.repo_full_name, event.pr_number),
     )
 
     run_review.delay(str(review.id))
@@ -227,6 +255,49 @@ async def azure_devops_webhook_for_integration(
     )
 
 
+@router.post(
+    "/gitlab/{integration_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=None,
+)
+async def gitlab_webhook_for_integration(
+    integration_id: UUID,
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+    x_gitlab_event: str | None = Header(None, alias="X-Gitlab-Event"),
+    x_gitlab_event_uuid: str | None = Header(None, alias="X-Gitlab-Event-UUID"),
+    x_gitlab_token: str | None = Header(None, alias="X-Gitlab-Token"),
+    webhook_id: str | None = Header(None, alias="webhook-id"),
+    webhook_timestamp: str | None = Header(None, alias="webhook-timestamp"),
+    webhook_signature: str | None = Header(None, alias="webhook-signature"),
+) -> ReviewResponse | JSONResponse:
+    body = await request.body()
+    repo_full_name = _extract_gitlab_repo_full_name(body)
+    if not repo_full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="invalid webhook payload",
+        )
+
+    return await _enqueue_webhook_review(
+        conn,
+        integration_id=integration_id,
+        body=body,
+        repo_full_name=repo_full_name,
+        headers={
+            "X-Gitlab-Event": x_gitlab_event or "",
+            "X-Gitlab-Event-UUID": x_gitlab_event_uuid or "",
+            "webhook-id": webhook_id or "",
+            "webhook-timestamp": webhook_timestamp or "",
+            "webhook-signature": webhook_signature or "",
+            "X-Gitlab-Token": x_gitlab_token or "",
+        },
+        auth_header=webhook_signature or x_gitlab_token,
+        webhook_secret_resolver=lambda integration: integration.gitlab_webhook_secret,
+        expected_git_provider="gitlab",
+    )
+
+
 @router.post("/github", status_code=status.HTTP_202_ACCEPTED, response_model=None)
 async def github_webhook_legacy(
     request: Request,
@@ -256,6 +327,23 @@ async def azure_devops_webhook_legacy(
             "detail": (
                 "Use per-integration webhook URL: "
                 "/api/v1/webhooks/azure-devops/{integration_id}"
+            )
+        },
+    )
+
+
+@router.post("/gitlab", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def gitlab_webhook_legacy(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> JSONResponse:
+    logger.warning("Deprecated global GitLab webhook endpoint used")
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": (
+                "Use per-integration webhook URL: "
+                "/api/v1/webhooks/gitlab/{integration_id}"
             )
         },
     )

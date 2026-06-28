@@ -1,8 +1,8 @@
-import type { GitProviderId } from "@/components/settings/repo-integration/providers"
+import type { GitProviderPickerId } from "@/components/settings/repo-integration/providers"
 import { cn } from "@/lib/utils"
 
 type ProviderLogoProps = {
-  providerId: GitProviderId
+  providerId: GitProviderPickerId | "gitlab"
   className?: string
 }
 
@@ -20,7 +20,11 @@ export function ProviderLogo({ providerId, className }: ProviderLogoProps) {
     >
       {providerId === "github" ? <GitHubLogo /> : null}
       {providerId === "azure-devops" ? <AzureDevOpsLogo /> : null}
-      {providerId === "gitlab" ? <GitLabLogo /> : null}
+      {providerId === "gitlab" ||
+      providerId === "gitlab-cloud" ||
+      providerId === "gitlab-self-hosted" ? (
+        <GitLabLogo />
+      ) : null}
       {providerId === "bitbucket" ? <BitbucketLogo /> : null}
     </span>
   )

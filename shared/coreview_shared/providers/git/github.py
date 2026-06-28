@@ -52,9 +52,30 @@ class GitHubProvider:
     def _remote_access(self, repo_full_name: str) -> RemoteRepoAccess:
         return RemoteRepoAccess(clone_url=self._clone_url(repo_full_name))
 
+    def build_pr_url(self, repo_full_name: str, pr_number: int) -> str:
+        return f"https://github.com/{repo_full_name}/pull/{pr_number}"
+
+    def build_blob_url(
+        self,
+        repo_full_name: str,
+        ref: str,
+        file_path: str,
+        line: int | None = None,
+    ) -> str | None:
+        if not file_path.strip():
+            return None
+        base = f"https://github.com/{repo_full_name}/blob/{ref}/{file_path}"
+        return f"{base}#L{line}" if line else base
+
     def verify_webhook_signature(
-        self, payload: bytes, signature: str | None, secret: str
+        self,
+        payload: bytes,
+        signature: str | None,
+        secret: str,
+        *,
+        headers: dict[str, str] | None = None,
     ) -> bool:
+        del headers
         if not secret:
             return False
         if not signature or not signature.startswith("sha256="):
@@ -84,6 +105,10 @@ class GitHubProvider:
         if not pr or not repo:
             return None
 
+        pr_url = pr.get("html_url") or self.build_pr_url(
+            repo["full_name"], pr["number"]
+        )
+
         return WebhookEvent(
             event_type=event_type,
             action=action,
@@ -92,6 +117,7 @@ class GitHubProvider:
             head_sha=pr["head"]["sha"],
             delivery_id=normalized.get("x-github-delivery"),
             pr_title=pr.get("title") or "",
+            pr_url=pr_url,
         )
 
     async def prepare_review(

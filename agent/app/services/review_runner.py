@@ -74,13 +74,6 @@ async def execute_review_logic(review_id: str) -> None:
     try:
         providers = build_providers_from_env(infra)
 
-        await callback.post_event(
-            callback.build_event(
-                "review.started",
-                review_id=review_id,
-                request=request_from_env(infra),
-            )
-        )
         ci_summary = await providers.ci.get_ci_summary(
             infra.repo_full_name,
             infra.head_sha,
@@ -102,6 +95,14 @@ async def execute_review_logic(review_id: str) -> None:
         prepared_review = _with_ci_summary(prepared_review, ci_summary)
         pr_context = prepared_review.context
         request = request_from_metadata(pr_context.metadata, infra.git_provider)
+
+        await callback.post_event(
+            callback.build_event(
+                "review.started",
+                review_id=review_id,
+                request=request,
+            )
+        )
 
         config_path = materialize_opencode_config(infra, review_id=review_id)
         llm = OpenCodeLLMProvider(

@@ -13,11 +13,13 @@ import { ConfirmDialog } from "@/components/patterns/confirm-dialog"
 import { ProviderPicker } from "@/components/settings/repo-integration/ProviderPicker"
 import {
   getGitProvider,
-  getGitProviderForValue,
+  getGitProviderForStoredValue,
   GIT_PROVIDER_OPTIONS,
+  GITLAB_CLOUD_BASE_URL,
+  isGitLabCloudUrl,
   repoFormFromGitProvider,
   type GitProviderDefinition,
-  type GitProviderId,
+  type GitProviderPickerId,
 } from "@/components/settings/repo-integration/providers"
 import { Button } from "@/components/ui/button"
 import {
@@ -73,6 +75,26 @@ function deriveRepoName(repoFullName: string): string {
   return segment ?? repoFullName
 }
 
+function gitProviderSelectValue(
+  gitProvider: string,
+  gitlabBaseUrl: string,
+): string {
+  if (gitProvider === "gitlab") {
+    return isGitLabCloudUrl(gitlabBaseUrl) ? "gitlab" : "gitlab-self-hosted"
+  }
+  return gitProvider
+}
+
+function resolveGitlabBaseUrlForSubmit(
+  isSelfHosted: boolean,
+  gitlabBaseUrl: string,
+): string {
+  if (!isSelfHosted) {
+    return ""
+  }
+  return gitlabBaseUrl.trim().replace(/\/$/, "")
+}
+
 function RepoIntegrationForm({
   teamId,
   repo,
@@ -111,12 +133,25 @@ function RepoIntegrationForm({
   const [adoPat, setAdoPat] = useState("")
   const [adoWebhookUsername, setAdoWebhookUsername] = useState("")
   const [adoWebhookPassword, setAdoWebhookPassword] = useState("")
+  const [gitlabBaseUrl, setGitlabBaseUrl] = useState(
+    () => repo?.gitlab_base_url ?? "",
+  )
+  const [gitlabToken, setGitlabToken] = useState("")
+  const [gitlabWebhookSecret, setGitlabWebhookSecret] = useState("")
   const [systemPrompt, setSystemPrompt] = useState(() => repo?.system_prompt ?? "")
 
   const editPreset =
-    isEdit && repo ? getGitProviderForValue(repo.git_provider) : undefined
+    isEdit && repo
+      ? getGitProviderForStoredValue(repo.git_provider, repo.gitlab_base_url)
+      : undefined
   const displayPreset = preset ?? editPreset
   const isAzureDevOps = form.git_provider === "azure-devops"
+  const isGitLab = form.git_provider === "gitlab"
+  const isGitLabSelfHosted =
+    isGitLab &&
+    (displayPreset?.requireGitlabBaseUrl === true ||
+      !isGitLabCloudUrl(gitlabBaseUrl))
+  const isGitHub = !isAzureDevOps && !isGitLab
 
   const isPending =
     createRepo.isPending || updateRepo.isPending || deleteRepo.isPending
@@ -124,6 +159,13 @@ function RepoIntegrationForm({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     const repoFullName = form.repo_full_name?.trim() ?? ""
+    if (isGitLab && isGitLabSelfHosted && !gitlabBaseUrl.trim()) {
+      toast.error("GitLab instance URL is required for self-hosted integrations")
+      return
+    }
+    const resolvedGitlabBaseUrl = isGitLab
+      ? resolveGitlabBaseUrlForSubmit(isGitLabSelfHosted, gitlabBaseUrl)
+      : ""
     try {
       if (isEdit && repo) {
         const payload: RepoIntegrationUpdate = {
@@ -142,6 +184,12 @@ function RepoIntegrationForm({
             payload.ado_webhook_username = adoWebhookUsername
           }
           if (adoWebhookPassword) payload.ado_webhook_password = adoWebhookPassword
+        } else if (isGitLab) {
+          payload.gitlab_base_url = resolvedGitlabBaseUrl
+          if (gitlabToken) payload.gitlab_token = gitlabToken
+          if (gitlabWebhookSecret) {
+            payload.gitlab_webhook_secret = gitlabWebhookSecret
+          }
         } else {
           if (webhookSecret) payload.github_webhook_secret = webhookSecret
           if (githubToken) payload.github_token = githubToken
@@ -163,6 +211,10 @@ function RepoIntegrationForm({
           payload.ado_pat = adoPat
           payload.ado_webhook_username = adoWebhookUsername
           payload.ado_webhook_password = adoWebhookPassword
+        } else if (isGitLab) {
+          payload.gitlab_base_url = resolvedGitlabBaseUrl
+          payload.gitlab_token = gitlabToken
+          payload.gitlab_webhook_secret = gitlabWebhookSecret
         } else {
           payload.github_webhook_secret = webhookSecret
           payload.github_token = githubToken
@@ -205,11 +257,19 @@ function RepoIntegrationForm({
 
   const repoLabel =
     displayPreset?.repoLabel ??
-    (isAzureDevOps ? "Repository (org/project/repo)" : "Repository (owner/repo)")
+    (isAzureDevOps
+      ? "Repository (org/project/repo)"
+      : isGitLab
+        ? "Repository (group/project)"
+        : "Repository (owner/repo)")
 
   const repoPlaceholder =
     displayPreset?.repoPlaceholder ??
-    (isAzureDevOps ? "contoso/engineering/web-app" : "acme-corp/backend-api")
+    (isAzureDevOps
+      ? "contoso/engineering/web-app"
+      : isGitLab
+        ? "acme-corp/backend-api"
+        : "acme-corp/backend-api")
 
   const webhookUrl =
     isEdit && repo?.webhook_url
@@ -247,10 +307,22 @@ function RepoIntegrationForm({
           {!hideProviderSelect ? (
             <Field label="Git provider">
               <Select
-                value={form.git_provider ?? "github"}
-                onValueChange={(value) =>
+                value={gitProviderSelectValue(
+                  form.git_provider ?? "github",
+                  gitlabBaseUrl,
+                )}
+                onValueChange={(value) => {
+                  if (value === "gitlab") {
+                    setForm({ ...form, git_provider: "gitlab" })
+                    setGitlabBaseUrl("")
+                    return
+                  }
+                  if (value === "gitlab-self-hosted") {
+                    setForm({ ...form, git_provider: "gitlab" })
+                    return
+                  }
                   setForm({ ...form, git_provider: value })
-                }
+                }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select git provider" />
@@ -283,7 +355,7 @@ function RepoIntegrationForm({
             />
           </Field>
 
-          <Field label="LLM provider (from org pool)">
+          <Field label="LLM provider">
             <Select value={llmProviderId} onValueChange={setLlmProviderId}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Org default" />
@@ -356,7 +428,70 @@ function RepoIntegrationForm({
                 />
               </Field>
             </>
-          ) : (
+          ) : isGitLab ? (
+            <>
+              {isGitLabSelfHosted ? (
+                <Field label="GitLab instance URL">
+                  <Input
+                    required
+                    value={gitlabBaseUrl}
+                    onChange={(e) => setGitlabBaseUrl(e.target.value)}
+                    placeholder="https://gitlab.example.com"
+                  />
+                </Field>
+              ) : (
+                <Field label="GitLab instance">
+                  <Input
+                    readOnly
+                    value={GITLAB_CLOUD_BASE_URL}
+                    className="bg-muted"
+                  />
+                </Field>
+              )}
+              <Field
+                label={
+                  isEdit
+                    ? "Personal Access Token (leave blank to keep)"
+                    : "Personal Access Token"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={gitlabToken}
+                  onChange={(e) => setGitlabToken(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.gitlab_token_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Scopes: api, read_repository, write_repository"
+                  }
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit
+                    ? "Webhook signing token (leave blank to keep)"
+                    : "Webhook signing token"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={gitlabWebhookSecret}
+                  onChange={(e) => setGitlabWebhookSecret(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.gitlab_webhook_secret_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Signing token (whsec_...) from GitLab project webhook"
+                  }
+                />
+              </Field>
+            </>
+          ) : isGitHub ? (
             <>
               <Field
                 label={
@@ -399,7 +534,7 @@ function RepoIntegrationForm({
                 />
               </Field>
             </>
-          )}
+          ) : null}
 
           {webhookUrl ? (
             <Field label="Webhook URL">
@@ -494,13 +629,13 @@ function RepoIntegrationCreateFlow({
   onStepChange?: (onPicker: boolean) => void
 }) {
   const [selectedProviderId, setSelectedProviderId] =
-    useState<GitProviderId | null>(null)
+    useState<GitProviderPickerId | null>(null)
 
   const preset = selectedProviderId
     ? getGitProvider(selectedProviderId)
     : undefined
 
-  function selectProvider(providerId: GitProviderId) {
+  function selectProvider(providerId: GitProviderPickerId) {
     setSelectedProviderId(providerId)
     onStepChange?.(false)
   }

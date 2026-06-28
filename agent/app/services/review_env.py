@@ -19,6 +19,8 @@ def require_review_env(settings: AgentSettings) -> None:
     required_fields = list(_BASE_REQUIRED_STRING_FIELDS)
     if settings.git_provider == "azure-devops":
         required_fields.extend(["ado_organization", "ado_project", "ado_pat"])
+    elif settings.git_provider == "gitlab":
+        required_fields.append("gitlab_token")
     else:
         required_fields.append("github_token")
 

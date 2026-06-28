@@ -32,9 +32,11 @@ def _infer_ado_org_project(git_provider: str, repo_full_name: str) -> tuple[str,
 
 
 def build_webhook_url(integration: RepoIntegrationRow) -> str:
-    provider_path = (
-        "azure-devops" if integration.git_provider == "azure-devops" else "github"
-    )
+    provider_paths = {
+        "azure-devops": "azure-devops",
+        "gitlab": "gitlab",
+    }
+    provider_path = provider_paths.get(integration.git_provider, "github")
     return f"/api/v1/webhooks/{provider_path}/{integration.id}"
 
 
@@ -61,6 +63,9 @@ async def to_repo_integration_response(
         ado_webhook_configured=bool(
             row.ado_webhook_username and row.ado_webhook_password
         ),
+        gitlab_base_url=row.gitlab_base_url,
+        gitlab_token_configured=bool(row.gitlab_token),
+        gitlab_webhook_secret_configured=bool(row.gitlab_webhook_secret),
         webhook_url=build_webhook_url(row),
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -181,6 +186,9 @@ async def create_repo_integration(
         ado_pat=payload.ado_pat,
         ado_webhook_username=payload.ado_webhook_username,
         ado_webhook_password=payload.ado_webhook_password,
+        gitlab_base_url=payload.gitlab_base_url,
+        gitlab_token=payload.gitlab_token,
+        gitlab_webhook_secret=payload.gitlab_webhook_secret,
         llm_provider_id=payload.llm_provider_id,
     )
     logger.info("Created repo integration %s", row.repo_full_name or "*")
@@ -214,6 +222,10 @@ async def update_repo_integration(
     clear_ado_webhook_password = (
         "ado_webhook_password" in data and data["ado_webhook_password"] == ""
     )
+    clear_gitlab_token = "gitlab_token" in data and data["gitlab_token"] == ""
+    clear_gitlab_webhook_secret = (
+        "gitlab_webhook_secret" in data and data["gitlab_webhook_secret"] == ""
+    )
     row = await repo.update(
         integration_id,
         name=data.get("name"),
@@ -232,6 +244,11 @@ async def update_repo_integration(
         ado_webhook_password=data.get("ado_webhook_password"),
         clear_ado_pat=clear_ado_pat,
         clear_ado_webhook_password=clear_ado_webhook_password,
+        gitlab_base_url=data.get("gitlab_base_url"),
+        gitlab_token=data.get("gitlab_token"),
+        gitlab_webhook_secret=data.get("gitlab_webhook_secret"),
+        clear_gitlab_token=clear_gitlab_token,
+        clear_gitlab_webhook_secret=clear_gitlab_webhook_secret,
         llm_provider_id=data.get("llm_provider_id"),
         clear_llm_provider_id=payload.clear_llm_provider_id,
     )

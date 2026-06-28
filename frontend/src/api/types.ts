@@ -12,6 +12,7 @@ export interface ReviewFinding {
   line_end: number | null
   title: string
   body: string
+  code_url: string | null
   created_at: string
 }
 

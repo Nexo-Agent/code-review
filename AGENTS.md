@@ -49,6 +49,14 @@ Protocols, GitHub Git/CI implementations, runtime specs (Docker/K8s), OpenCode L
 
 Backend-specific: `backend/app/providers/factory.py`, `opencode_config.py` (multi-provider DB merge). Agent-specific: `agent/app/providers/factory.py`, MCP toolbase in `agent/app/toolbase/`.
 
+**Agent env validation (`agent/app/services/review_env.py`):** `require_review_env()` checks provider-specific Git credentials before the agent container runs. When adding a Git provider, update **both** `backend/app/services/review_job_prepare.py` (`build_agent_environment`) and `require_review_env()` — otherwise the worker enqueues the job but the agent exits immediately (review stuck in `pending` because no callback is sent). Required vars per provider:
+
+| `COGITO_REVIEW_GIT_PROVIDER` | Git credential env var(s) |
+|------------------------------|---------------------------|
+| `github` (default) | `COGITO_REVIEW_GITHUB_TOKEN` |
+| `gitlab` | `COGITO_REVIEW_GITLAB_TOKEN` (optional `COGITO_REVIEW_GITLAB_BASE_URL` for self-hosted) |
+| `azure-devops` | `COGITO_REVIEW_ADO_ORGANIZATION`, `COGITO_REVIEW_ADO_PROJECT`, `COGITO_REVIEW_ADO_PAT` |
+
 Agent skills bundled into the Docker image live in `agent/skills/code-reviewer/` (OpenCode). IDE/dev skills remain in `.agents/skills/`. MCP tools are in `agent/app/toolbase/`.
 
 ### Organization / Team / Project hierarchy
@@ -71,6 +79,7 @@ Migration `008_teams_projects_auth.sql` backfills a default org/team/project for
 ```
 POST /api/v1/webhooks/github/{integration_id}
 POST /api/v1/webhooks/azure-devops/{integration_id}
+POST /api/v1/webhooks/gitlab/{integration_id}
 ```
 
 Global `/webhooks/github` and `/webhooks/azure-devops` are deprecated (410). Configure the per-repo URL in the repo detail UI.

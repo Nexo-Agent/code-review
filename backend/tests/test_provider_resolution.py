@@ -29,6 +29,9 @@ def _repo_row(*, llm_provider_id=None) -> RepoIntegrationRow:
         ado_pat="",
         ado_webhook_username="",
         ado_webhook_password="",
+        gitlab_base_url="",
+        gitlab_token="",
+        gitlab_webhook_secret="",
         created_at=now,
         updated_at=now,
     )

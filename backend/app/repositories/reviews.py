@@ -169,6 +169,24 @@ class ReviewRepository:
         )
         return _row_to_review(row) if row else None
 
+    async def get_by_repo_pr_sha(
+        self,
+        repo_full_name: str,
+        pr_number: int,
+        head_sha: str,
+    ) -> ReviewRow | None:
+        row = await self._conn.fetchrow(
+            f"""
+            SELECT {_REVIEW_SELECT}
+            FROM reviews
+            WHERE repo_full_name = $1 AND pr_number = $2 AND head_sha = $3
+            """,
+            repo_full_name,
+            pr_number,
+            head_sha,
+        )
+        return _row_to_review(row) if row else None
+
     async def create(
         self,
         *,
@@ -186,42 +204,71 @@ class ReviewRepository:
         base_ref: str = "",
         head_ref: str = "",
     ) -> ReviewRow:
-        row = await self._conn.fetchrow(
-            f"""
-            INSERT INTO reviews (
-                provider, repo_full_name, pr_number, pr_title, pr_url, pr_author,
-                head_sha, base_sha, base_ref, head_ref, status,
-                delivery_id, repo_integration_id, team_id
+        try:
+            row = await self._conn.fetchrow(
+                f"""
+                INSERT INTO reviews (
+                    provider, repo_full_name, pr_number, pr_title, pr_url, pr_author,
+                    head_sha, base_sha, base_ref, head_ref, status,
+                    delivery_id, repo_integration_id, team_id
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                    'pending', $11, $12, $13
+                )
+                RETURNING {_REVIEW_SELECT}
+                """,
+                provider,
+                repo_full_name,
+                pr_number,
+                pr_title,
+                pr_url,
+                pr_author,
+                head_sha,
+                base_sha,
+                base_ref,
+                head_ref,
+                delivery_id,
+                repo_integration_id,
+                team_id,
             )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                'pending', $11, $12, $13
+        except asyncpg.UniqueViolationError:
+            return await self._get_existing_review(
+                repo_full_name=repo_full_name,
+                pr_number=pr_number,
+                head_sha=head_sha,
+                delivery_id=delivery_id,
             )
-            RETURNING {_REVIEW_SELECT}
-            """,
-            provider,
-            repo_full_name,
-            pr_number,
-            pr_title,
-            pr_url,
-            pr_author,
-            head_sha,
-            base_sha,
-            base_ref,
-            head_ref,
-            delivery_id,
-            repo_integration_id,
-            team_id,
-        )
         if row is None:
-            existing = (
-                await self.get_by_delivery_id(delivery_id) if delivery_id else None
+            return await self._get_existing_review(
+                repo_full_name=repo_full_name,
+                pr_number=pr_number,
+                head_sha=head_sha,
+                delivery_id=delivery_id,
             )
+        return _row_to_review(row)
+
+    async def _get_existing_review(
+        self,
+        *,
+        repo_full_name: str,
+        pr_number: int,
+        head_sha: str,
+        delivery_id: str | None,
+    ) -> ReviewRow:
+        if delivery_id:
+            existing = await self.get_by_delivery_id(delivery_id)
             if existing:
                 return existing
-            msg = "Failed to create review"
-            raise RuntimeError(msg)
-        return _row_to_review(row)
+        existing = await self.get_by_repo_pr_sha(
+            repo_full_name,
+            pr_number,
+            head_sha,
+        )
+        if existing:
+            return existing
+        msg = "Failed to create review"
+        raise RuntimeError(msg)
 
     async def update_status(
         self,

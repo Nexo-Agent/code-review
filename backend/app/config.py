@@ -37,6 +37,9 @@ class ReviewRuntimeConfig:
     ado_pat: str = ""
     ado_webhook_username: str = ""
     ado_webhook_password: str = ""
+    gitlab_base_url: str = ""
+    gitlab_token: str = ""
+    gitlab_webhook_secret: str = ""
 
     @property
     def resolved_opencode_model(self) -> str:

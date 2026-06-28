@@ -78,6 +78,27 @@ def test_require_review_env_raises_when_missing_token() -> None:
         require_review_env(_full_settings(github_token=""))
 
 
+def test_require_review_env_accepts_gitlab_settings() -> None:
+    require_review_env(
+        _full_settings(
+            git_provider="gitlab",
+            github_token="",
+            gitlab_token="glpat-test",
+        )
+    )
+
+
+def test_require_review_env_raises_when_missing_gitlab_token() -> None:
+    with pytest.raises(ValueError, match="COGITO_REVIEW_GITLAB_TOKEN"):
+        require_review_env(
+            _full_settings(
+                git_provider="gitlab",
+                github_token="",
+                gitlab_token="",
+            )
+        )
+
+
 def test_require_review_env_raises_when_missing_callback() -> None:
     with pytest.raises(ValueError, match="COGITO_REVIEW_CALLBACK_URL"):
         require_review_env(_full_settings(callback_url=""))

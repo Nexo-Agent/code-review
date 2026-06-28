@@ -5,7 +5,6 @@ import { MarkdownContent } from "@/components/patterns/markdown-content"
 import { SeverityBadge } from "@/components/patterns/status-badge"
 import { Button } from "@/components/ui/button"
 import {
-  buildFindingUrl,
   countFindingsBySeverity,
   formatLineRange,
 } from "@/lib/review-utils"
@@ -44,15 +43,9 @@ function groupFindingsByFile(
   return groups
 }
 
-function FindingItem({
-  review,
-  finding,
-}: {
-  review: Review
-  finding: ReviewFinding
-}) {
+function FindingItem({ finding }: { finding: ReviewFinding }) {
   const lineRange = formatLineRange(finding.line_start, finding.line_end)
-  const codeUrl = buildFindingUrl(review, finding)
+  const codeUrl = finding.code_url?.trim() || null
 
   return (
     <div className="py-3 first:pt-0">
@@ -170,11 +163,7 @@ export function ReviewFindingsPanel({ review }: { review: Review }) {
       ) : viewMode === "list" ? (
         <div className="divide-border/60 divide-y">
           {filtered.map((finding) => (
-            <FindingItem
-              key={finding.id}
-              review={review}
-              finding={finding}
-            />
+            <FindingItem key={finding.id} finding={finding} />
           ))}
         </div>
       ) : (
@@ -186,11 +175,7 @@ export function ReviewFindingsPanel({ review }: { review: Review }) {
               </h3>
               <div className="divide-border/60 divide-y">
                 {findings.map((finding) => (
-                  <FindingItem
-                    key={finding.id}
-                    review={review}
-                    finding={finding}
-                  />
+                  <FindingItem key={finding.id} finding={finding} />
                 ))}
               </div>
             </div>

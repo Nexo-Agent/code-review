@@ -39,6 +39,9 @@ def _repo_integration() -> RepoIntegrationRow:
         ado_pat="",
         ado_webhook_username="",
         ado_webhook_password="",
+        gitlab_base_url="",
+        gitlab_token="",
+        gitlab_webhook_secret="",
         created_at=now,
         updated_at=now,
     )
@@ -128,6 +131,31 @@ def test_build_agent_environment_includes_ado_credentials() -> None:
     assert env["COGITO_REVIEW_ADO_ORGANIZATION"] == "fabrikam"
     assert env["COGITO_REVIEW_ADO_PROJECT"] == "MyProject"
     assert env["COGITO_REVIEW_ADO_PAT"] == "ado-pat"
+
+
+def test_build_agent_environment_includes_gitlab_credentials() -> None:
+    review = _review_row()
+    repo_integration = replace(
+        _repo_integration(),
+        git_provider="gitlab",
+        repo_full_name="acme/backend",
+        gitlab_base_url="https://gitlab.example.com",
+        gitlab_token="glpat-test",
+    )
+    env = build_agent_environment(
+        review_id=str(review.id),
+        review=review,
+        repo_integration=repo_integration,
+        llm_provider=_llm_provider(),
+        infra=CodeReviewSettings(
+            agent_callback_url="http://api:8000/api/v1/agent/review-events",
+            agent_callback_secret="shared-secret",
+        ),
+    )
+
+    assert env["COGITO_REVIEW_GIT_PROVIDER"] == "gitlab"
+    assert env["COGITO_REVIEW_GITLAB_BASE_URL"] == "https://gitlab.example.com"
+    assert env["COGITO_REVIEW_GITLAB_TOKEN"] == "glpat-test"
 
 
 def test_build_agent_environment_includes_custom_system_prompt() -> None:

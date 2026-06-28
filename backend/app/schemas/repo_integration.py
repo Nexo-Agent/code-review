@@ -22,6 +22,9 @@ class RepoIntegrationResponse(BaseModel):
     ado_project: str
     ado_pat_configured: bool
     ado_webhook_configured: bool
+    gitlab_base_url: str
+    gitlab_token_configured: bool
+    gitlab_webhook_secret_configured: bool
     webhook_url: str
     created_at: datetime
     updated_at: datetime
@@ -41,6 +44,13 @@ class RepoIntegrationCreate(BaseModel):
     ado_pat: str = Field(default="", max_length=512)
     ado_webhook_username: str = Field(default="", max_length=128)
     ado_webhook_password: str = Field(default="", max_length=512)
+    gitlab_base_url: str = Field(
+        default="",
+        max_length=512,
+        description="GitLab instance URL; empty uses https://gitlab.com",
+    )
+    gitlab_token: str = Field(default="", max_length=512)
+    gitlab_webhook_secret: str = Field(default="", max_length=512)
     system_prompt: str = Field(
         default="",
         max_length=16384,
@@ -73,6 +83,15 @@ class RepoIntegrationUpdate(BaseModel):
     )
     ado_webhook_username: str | None = Field(default=None, max_length=128)
     ado_webhook_password: str | None = Field(
+        default=None,
+        description="Omit to keep; empty string clears",
+    )
+    gitlab_base_url: str | None = Field(default=None, max_length=512)
+    gitlab_token: str | None = Field(
+        default=None,
+        description="Omit to keep; empty string clears",
+    )
+    gitlab_webhook_secret: str | None = Field(
         default=None,
         description="Omit to keep; empty string clears",
     )

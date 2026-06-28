@@ -14,6 +14,7 @@ class ReviewFindingResponse(BaseModel):
     line_end: int | None
     title: str
     body: str
+    code_url: str | None = None
     created_at: datetime
 
 
