@@ -1,10 +1,14 @@
 from functools import lru_cache
 
 from coreview_shared.protocols import ProviderBundle, RuntimeProvider
+from coreview_shared.providers.ci.bitbucket_cloud import BitbucketCloudCIProvider
+from coreview_shared.providers.ci.bitbucket_dc import BitbucketDataCenterCIProvider
 from coreview_shared.providers.ci.github import GitHubCIProvider
 from coreview_shared.providers.ci.gitlab import GitLabCIProvider
 from coreview_shared.providers.ci.noop import NoOpCIProvider
 from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
+from coreview_shared.providers.git.bitbucket_cloud import BitbucketCloudProvider
+from coreview_shared.providers.git.bitbucket_dc import BitbucketDataCenterProvider
 from coreview_shared.providers.git.github import GitHubProvider
 from coreview_shared.providers.git.gitlab import GitLabProvider
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
@@ -22,6 +26,8 @@ _GIT_PROVIDERS: dict[str, type] = {
     "github": GitHubProvider,
     "azure-devops": AzureDevOpsProvider,
     "gitlab": GitLabProvider,
+    "bitbucket": BitbucketCloudProvider,
+    "bitbucket-dc": BitbucketDataCenterProvider,
 }
 
 _RUNTIME_PROVIDERS: dict[str, type] = {
@@ -43,6 +49,13 @@ def _build_git_provider(runtime: ReviewRuntimeConfig):
             token=runtime.gitlab_token,
             base_url=runtime.gitlab_base_url,
         )
+    if git_cls is BitbucketCloudProvider:
+        return BitbucketCloudProvider(token=runtime.bitbucket_token)
+    if git_cls is BitbucketDataCenterProvider:
+        return BitbucketDataCenterProvider(
+            token=runtime.bitbucket_dc_token,
+            base_url=runtime.bitbucket_dc_base_url,
+        )
     return AzureDevOpsProvider(
         pat=runtime.ado_pat,
         organization=runtime.ado_organization,
@@ -57,6 +70,13 @@ def _build_ci_provider(runtime: ReviewRuntimeConfig):
         return GitLabCIProvider(
             token=runtime.gitlab_token,
             base_url=runtime.gitlab_base_url,
+        )
+    if runtime.git_provider == "bitbucket":
+        return BitbucketCloudCIProvider(token=runtime.bitbucket_token)
+    if runtime.git_provider == "bitbucket-dc":
+        return BitbucketDataCenterCIProvider(
+            token=runtime.bitbucket_dc_token,
+            base_url=runtime.bitbucket_dc_base_url,
         )
     return NoOpCIProvider()
 

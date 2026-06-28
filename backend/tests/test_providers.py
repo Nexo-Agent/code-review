@@ -439,17 +439,67 @@ def test_provider_factory_gitlab() -> None:
         gitlab_base_url="https://gitlab.example.com",
         gitlab_token="glpat-test",
         gitlab_webhook_secret="secret",
+        bitbucket_token="",
+        bitbucket_webhook_secret="",
+        bitbucket_dc_base_url="",
+        bitbucket_dc_token="",
+        bitbucket_dc_webhook_username="",
+        bitbucket_dc_webhook_password="",
     )
     providers = build_providers(runtime)
     assert isinstance(providers.git, GitLabProvider)
     assert isinstance(providers.ci, GitLabCIProvider)
 
 
-def test_provider_factory_unsupported_git() -> None:
+def test_provider_factory_bitbucket_cloud() -> None:
+    from coreview_shared.providers.ci.bitbucket_cloud import BitbucketCloudCIProvider
+    from coreview_shared.providers.git.bitbucket_cloud import BitbucketCloudProvider
+
     from app.providers.factory import build_providers
 
     runtime = ReviewRuntimeConfig(
         git_provider="bitbucket",
+        github_webhook_secret="",
+        github_token="",
+        llm_provider_id="openai-compat",
+        llm_base_url="https://api.openai.com/v1",
+        llm_api_token="",
+        llm_model="gpt-4o",
+        bitbucket_token="bb-token",
+        bitbucket_webhook_secret="hook-secret",
+    )
+    providers = build_providers(runtime)
+    assert isinstance(providers.git, BitbucketCloudProvider)
+    assert isinstance(providers.ci, BitbucketCloudCIProvider)
+
+
+def test_provider_factory_bitbucket_dc() -> None:
+    from coreview_shared.providers.ci.bitbucket_dc import BitbucketDataCenterCIProvider
+    from coreview_shared.providers.git.bitbucket_dc import BitbucketDataCenterProvider
+
+    from app.providers.factory import build_providers
+
+    runtime = ReviewRuntimeConfig(
+        git_provider="bitbucket-dc",
+        github_webhook_secret="",
+        github_token="",
+        llm_provider_id="openai-compat",
+        llm_base_url="https://api.openai.com/v1",
+        llm_api_token="",
+        llm_model="gpt-4o",
+        bitbucket_dc_base_url="https://bitbucket.example.com",
+        bitbucket_dc_token="dc-token",
+    )
+    providers = build_providers(runtime)
+    assert isinstance(providers.git, BitbucketDataCenterProvider)
+    assert isinstance(providers.ci, BitbucketDataCenterCIProvider)
+
+
+def test_provider_factory_unsupported_git() -> None:
+    from app.providers.factory import build_providers
+
+    runtime = ReviewRuntimeConfig(
+        git_provider="unknown-provider",
         github_webhook_secret="",
         github_token="",
         llm_provider_id="openai-compat",

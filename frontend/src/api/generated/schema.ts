@@ -646,6 +646,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/bitbucket/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bitbucket Webhook For Integration */
+        post: operations["bitbucket_webhook_for_integration_api_v1_webhooks_bitbucket__integration_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/bitbucket-dc/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bitbucket Dc Webhook For Integration */
+        post: operations["bitbucket_dc_webhook_for_integration_api_v1_webhooks_bitbucket_dc__integration_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/bitbucket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bitbucket Webhook Legacy */
+        post: operations["bitbucket_webhook_legacy_api_v1_webhooks_bitbucket_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/bitbucket-dc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bitbucket Dc Webhook Legacy */
+        post: operations["bitbucket_dc_webhook_legacy_api_v1_webhooks_bitbucket_dc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent/review-events": {
         parameters: {
             query?: never;
@@ -1045,6 +1113,16 @@ export interface components {
             gitlab_token_configured: boolean;
             /** Gitlab Webhook Secret Configured */
             gitlab_webhook_secret_configured: boolean;
+            /** Bitbucket Token Configured */
+            bitbucket_token_configured: boolean;
+            /** Bitbucket Webhook Secret Configured */
+            bitbucket_webhook_secret_configured: boolean;
+            /** Bitbucket Dc Base Url */
+            bitbucket_dc_base_url: string;
+            /** Bitbucket Dc Token Configured */
+            bitbucket_dc_token_configured: boolean;
+            /** Bitbucket Dc Webhook Configured */
+            bitbucket_dc_webhook_configured: boolean;
             /** Webhook Url */
             webhook_url: string;
             /**
@@ -1130,6 +1208,36 @@ export interface components {
              */
             gitlab_webhook_secret: string;
             /**
+             * Bitbucket Token
+             * @default
+             */
+            bitbucket_token: string;
+            /**
+             * Bitbucket Webhook Secret
+             * @default
+             */
+            bitbucket_webhook_secret: string;
+            /**
+             * Bitbucket Dc Base Url
+             * @default
+             */
+            bitbucket_dc_base_url: string;
+            /**
+             * Bitbucket Dc Token
+             * @default
+             */
+            bitbucket_dc_token: string;
+            /**
+             * Bitbucket Dc Webhook Username
+             * @default
+             */
+            bitbucket_dc_webhook_username: string;
+            /**
+             * Bitbucket Dc Webhook Password
+             * @default
+             */
+            bitbucket_dc_webhook_password: string;
+            /**
              * System Prompt
              * @description Custom OpenCode agent system prompt; empty uses the default
              * @default
@@ -1194,6 +1302,16 @@ export interface components {
             gitlab_token_configured: boolean;
             /** Gitlab Webhook Secret Configured */
             gitlab_webhook_secret_configured: boolean;
+            /** Bitbucket Token Configured */
+            bitbucket_token_configured: boolean;
+            /** Bitbucket Webhook Secret Configured */
+            bitbucket_webhook_secret_configured: boolean;
+            /** Bitbucket Dc Base Url */
+            bitbucket_dc_base_url: string;
+            /** Bitbucket Dc Token Configured */
+            bitbucket_dc_token_configured: boolean;
+            /** Bitbucket Dc Webhook Configured */
+            bitbucket_dc_webhook_configured: boolean;
             /** Webhook Url */
             webhook_url: string;
             /**
@@ -1256,6 +1374,30 @@ export interface components {
              * @description Omit to keep; empty string clears
              */
             gitlab_webhook_secret?: string | null;
+            /**
+             * Bitbucket Token
+             * @description Omit to keep; empty string clears
+             */
+            bitbucket_token?: string | null;
+            /**
+             * Bitbucket Webhook Secret
+             * @description Omit to keep; empty string clears
+             */
+            bitbucket_webhook_secret?: string | null;
+            /** Bitbucket Dc Base Url */
+            bitbucket_dc_base_url?: string | null;
+            /**
+             * Bitbucket Dc Token
+             * @description Omit to keep; empty string clears
+             */
+            bitbucket_dc_token?: string | null;
+            /** Bitbucket Dc Webhook Username */
+            bitbucket_dc_webhook_username?: string | null;
+            /**
+             * Bitbucket Dc Webhook Password
+             * @description Omit to keep; empty string clears
+             */
+            bitbucket_dc_webhook_password?: string | null;
             /**
              * System Prompt
              * @description Custom OpenCode agent system prompt; empty string resets to default
@@ -3026,6 +3168,117 @@ export interface operations {
         };
     };
     gitlab_webhook_legacy_api_v1_webhooks_gitlab_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    bitbucket_webhook_for_integration_api_v1_webhooks_bitbucket__integration_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Event-Key"?: string | null;
+                "X-Hub-Signature"?: string | null;
+                "X-Hook-UUID"?: string | null;
+                "X-Request-UUID"?: string | null;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bitbucket_dc_webhook_for_integration_api_v1_webhooks_bitbucket_dc__integration_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Event-Key"?: string | null;
+                "X-Request-Id"?: string | null;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bitbucket_webhook_legacy_api_v1_webhooks_bitbucket_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    bitbucket_dc_webhook_legacy_api_v1_webhooks_bitbucket_dc_post: {
         parameters: {
             query?: never;
             header?: never;

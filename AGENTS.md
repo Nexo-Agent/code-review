@@ -55,6 +55,8 @@ Backend-specific: `backend/app/providers/factory.py`, `opencode_config.py` (mult
 |------------------------------|---------------------------|
 | `github` (default) | `COGITO_REVIEW_GITHUB_TOKEN` |
 | `gitlab` | `COGITO_REVIEW_GITLAB_TOKEN` (optional `COGITO_REVIEW_GITLAB_BASE_URL` for self-hosted) |
+| `bitbucket` | `COGITO_REVIEW_BITBUCKET_TOKEN` |
+| `bitbucket-dc` | `COGITO_REVIEW_BITBUCKET_DC_BASE_URL`, `COGITO_REVIEW_BITBUCKET_DC_TOKEN` |
 | `azure-devops` | `COGITO_REVIEW_ADO_ORGANIZATION`, `COGITO_REVIEW_ADO_PROJECT`, `COGITO_REVIEW_ADO_PAT` |
 
 Agent skills bundled into the Docker image live in `agent/skills/code-reviewer/` (OpenCode). IDE/dev skills remain in `.agents/skills/`. MCP tools are in `agent/app/toolbase/`.
@@ -80,9 +82,11 @@ Migration `008_teams_projects_auth.sql` backfills a default org/team/project for
 POST /api/v1/webhooks/github/{integration_id}
 POST /api/v1/webhooks/azure-devops/{integration_id}
 POST /api/v1/webhooks/gitlab/{integration_id}
+POST /api/v1/webhooks/bitbucket/{integration_id}
+POST /api/v1/webhooks/bitbucket-dc/{integration_id}
 ```
 
-Global `/webhooks/github` and `/webhooks/azure-devops` are deprecated (410). Configure the per-repo URL in the repo detail UI.
+Global `/webhooks/github`, `/webhooks/azure-devops`, `/webhooks/bitbucket`, and `/webhooks/bitbucket-dc` are deprecated (410). Configure the per-repo URL in the repo detail UI.
 
 ### First-boot install (`/install`)
 

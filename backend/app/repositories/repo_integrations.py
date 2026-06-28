@@ -13,11 +13,18 @@ _GITLAB_COLUMNS = """
     gitlab_base_url, gitlab_token, gitlab_webhook_secret
 """
 
+_BITBUCKET_COLUMNS = """
+    bitbucket_token, bitbucket_webhook_secret,
+    bitbucket_dc_base_url, bitbucket_dc_token,
+    bitbucket_dc_webhook_username, bitbucket_dc_webhook_password
+"""
+
 _SELECT_COLUMNS = f"""
     id, team_id, name, git_provider, repo_full_name, llm_provider_id,
     github_webhook_secret, github_token, system_prompt, enabled,
     {_ADO_COLUMNS},
     {_GITLAB_COLUMNS},
+    {_BITBUCKET_COLUMNS},
     created_at, updated_at
 """
 
@@ -42,6 +49,12 @@ class RepoIntegrationRow:
     gitlab_base_url: str
     gitlab_token: str
     gitlab_webhook_secret: str
+    bitbucket_token: str
+    bitbucket_webhook_secret: str
+    bitbucket_dc_base_url: str
+    bitbucket_dc_token: str
+    bitbucket_dc_webhook_username: str
+    bitbucket_dc_webhook_password: str
     created_at: datetime
     updated_at: datetime
 
@@ -146,6 +159,9 @@ class RepoIntegrationRepository:
                    ri.system_prompt, ri.enabled, ri.ado_organization, ri.ado_project,
                    ri.ado_pat, ri.ado_webhook_username, ri.ado_webhook_password,
                    ri.gitlab_base_url, ri.gitlab_token, ri.gitlab_webhook_secret,
+                   ri.bitbucket_token, ri.bitbucket_webhook_secret,
+                   ri.bitbucket_dc_base_url, ri.bitbucket_dc_token,
+                   ri.bitbucket_dc_webhook_username, ri.bitbucket_dc_webhook_password,
                    ri.created_at, ri.updated_at, t.name AS team_name
             FROM repo_integrations ri
             JOIN teams t ON t.id = ri.team_id
@@ -208,6 +224,9 @@ class RepoIntegrationRepository:
                    ri.system_prompt, ri.enabled, ri.ado_organization, ri.ado_project,
                    ri.ado_pat, ri.ado_webhook_username, ri.ado_webhook_password,
                    ri.gitlab_base_url, ri.gitlab_token, ri.gitlab_webhook_secret,
+                   ri.bitbucket_token, ri.bitbucket_webhook_secret,
+                   ri.bitbucket_dc_base_url, ri.bitbucket_dc_token,
+                   ri.bitbucket_dc_webhook_username, ri.bitbucket_dc_webhook_password,
                    ri.created_at, ri.updated_at, t.name AS team_name
             FROM repo_integrations ri
             JOIN teams t ON t.id = ri.team_id
@@ -367,6 +386,12 @@ class RepoIntegrationRepository:
         gitlab_base_url: str = "",
         gitlab_token: str = "",
         gitlab_webhook_secret: str = "",
+        bitbucket_token: str = "",
+        bitbucket_webhook_secret: str = "",
+        bitbucket_dc_base_url: str = "",
+        bitbucket_dc_token: str = "",
+        bitbucket_dc_webhook_username: str = "",
+        bitbucket_dc_webhook_password: str = "",
         llm_provider_id: UUID | None = None,
     ) -> RepoIntegrationRow:
         row = await self._conn.fetchrow(
@@ -376,11 +401,15 @@ class RepoIntegrationRepository:
                 github_webhook_secret, github_token, system_prompt, enabled,
                 ado_organization, ado_project, ado_pat,
                 ado_webhook_username, ado_webhook_password,
-                gitlab_base_url, gitlab_token, gitlab_webhook_secret
+                gitlab_base_url, gitlab_token, gitlab_webhook_secret,
+                bitbucket_token, bitbucket_webhook_secret,
+                bitbucket_dc_base_url, bitbucket_dc_token,
+                bitbucket_dc_webhook_username, bitbucket_dc_webhook_password
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+                $21, $22, $23
             )
             RETURNING {_SELECT_COLUMNS}
             """,
@@ -401,6 +430,12 @@ class RepoIntegrationRepository:
             gitlab_base_url,
             gitlab_token,
             gitlab_webhook_secret,
+            bitbucket_token,
+            bitbucket_webhook_secret,
+            bitbucket_dc_base_url,
+            bitbucket_dc_token,
+            bitbucket_dc_webhook_username,
+            bitbucket_dc_webhook_password,
         )
         if row is None:
             msg = "failed to create repo integration"
@@ -432,6 +467,16 @@ class RepoIntegrationRepository:
         gitlab_webhook_secret: str | None = None,
         clear_gitlab_token: bool = False,
         clear_gitlab_webhook_secret: bool = False,
+        bitbucket_token: str | None = None,
+        bitbucket_webhook_secret: str | None = None,
+        clear_bitbucket_token: bool = False,
+        clear_bitbucket_webhook_secret: bool = False,
+        bitbucket_dc_base_url: str | None = None,
+        bitbucket_dc_token: str | None = None,
+        bitbucket_dc_webhook_username: str | None = None,
+        bitbucket_dc_webhook_password: str | None = None,
+        clear_bitbucket_dc_token: bool = False,
+        clear_bitbucket_dc_webhook_password: bool = False,
         llm_provider_id: UUID | None = None,
         clear_llm_provider_id: bool = False,
     ) -> RepoIntegrationRow:
@@ -477,6 +522,22 @@ class RepoIntegrationRepository:
                 gitlab_webhook_secret = CASE
                     WHEN $22 THEN '' ELSE COALESCE($23, gitlab_webhook_secret)
                 END,
+                bitbucket_token = CASE
+                    WHEN $24 THEN '' ELSE COALESCE($25, bitbucket_token)
+                END,
+                bitbucket_webhook_secret = CASE
+                    WHEN $26 THEN '' ELSE COALESCE($27, bitbucket_webhook_secret)
+                END,
+                bitbucket_dc_base_url = COALESCE($28, bitbucket_dc_base_url),
+                bitbucket_dc_token = CASE
+                    WHEN $29 THEN '' ELSE COALESCE($30, bitbucket_dc_token)
+                END,
+                bitbucket_dc_webhook_username = COALESCE(
+                    $31, bitbucket_dc_webhook_username
+                ),
+                bitbucket_dc_webhook_password = CASE
+                    WHEN $32 THEN '' ELSE COALESCE($33, bitbucket_dc_webhook_password)
+                END,
                 updated_at = now()
             WHERE id = $1
             RETURNING {_SELECT_COLUMNS}
@@ -506,6 +567,16 @@ class RepoIntegrationRepository:
             gitlab_token,
             clear_gitlab_webhook_secret,
             gitlab_webhook_secret,
+            clear_bitbucket_token,
+            bitbucket_token,
+            clear_bitbucket_webhook_secret,
+            bitbucket_webhook_secret,
+            bitbucket_dc_base_url,
+            clear_bitbucket_dc_token,
+            bitbucket_dc_token,
+            bitbucket_dc_webhook_username,
+            clear_bitbucket_dc_webhook_password,
+            bitbucket_dc_webhook_password,
         )
         if row is None:
             msg = "failed to update repo integration"
@@ -539,6 +610,12 @@ def _row_to_repo_integration(row: asyncpg.Record) -> RepoIntegrationRow:
         gitlab_base_url=row["gitlab_base_url"],
         gitlab_token=row["gitlab_token"],
         gitlab_webhook_secret=row["gitlab_webhook_secret"],
+        bitbucket_token=row["bitbucket_token"],
+        bitbucket_webhook_secret=row["bitbucket_webhook_secret"],
+        bitbucket_dc_base_url=row["bitbucket_dc_base_url"],
+        bitbucket_dc_token=row["bitbucket_dc_token"],
+        bitbucket_dc_webhook_username=row["bitbucket_dc_webhook_username"],
+        bitbucket_dc_webhook_password=row["bitbucket_dc_webhook_password"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

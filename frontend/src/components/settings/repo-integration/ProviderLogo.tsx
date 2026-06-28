@@ -25,7 +25,9 @@ export function ProviderLogo({ providerId, className }: ProviderLogoProps) {
       providerId === "gitlab-self-hosted" ? (
         <GitLabLogo />
       ) : null}
-      {providerId === "bitbucket" ? <BitbucketLogo /> : null}
+      {providerId === "bitbucket" || providerId === "bitbucket-dc" ? (
+        <BitbucketLogo />
+      ) : null}
     </span>
   )
 }

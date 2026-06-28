@@ -21,6 +21,10 @@ def require_review_env(settings: AgentSettings) -> None:
         required_fields.extend(["ado_organization", "ado_project", "ado_pat"])
     elif settings.git_provider == "gitlab":
         required_fields.append("gitlab_token")
+    elif settings.git_provider == "bitbucket-dc":
+        required_fields.extend(["bitbucket_dc_base_url", "bitbucket_dc_token"])
+    elif settings.git_provider == "bitbucket":
+        required_fields.append("bitbucket_token")
     else:
         required_fields.append("github_token")
 

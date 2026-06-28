@@ -32,6 +32,12 @@ def _repo_row(*, llm_provider_id=None) -> RepoIntegrationRow:
         gitlab_base_url="",
         gitlab_token="",
         gitlab_webhook_secret="",
+        bitbucket_token="",
+        bitbucket_webhook_secret="",
+        bitbucket_dc_base_url="",
+        bitbucket_dc_token="",
+        bitbucket_dc_webhook_username="",
+        bitbucket_dc_webhook_password="",
         created_at=now,
         updated_at=now,
     )

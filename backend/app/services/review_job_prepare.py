@@ -85,6 +85,13 @@ def build_agent_environment(
     if repo_integration.git_provider == "gitlab":
         env["COGITO_REVIEW_GITLAB_BASE_URL"] = repo_integration.gitlab_base_url
         env["COGITO_REVIEW_GITLAB_TOKEN"] = repo_integration.gitlab_token
+    if repo_integration.git_provider == "bitbucket":
+        env["COGITO_REVIEW_BITBUCKET_TOKEN"] = repo_integration.bitbucket_token
+    if repo_integration.git_provider == "bitbucket-dc":
+        env["COGITO_REVIEW_BITBUCKET_DC_BASE_URL"] = (
+            repo_integration.bitbucket_dc_base_url
+        )
+        env["COGITO_REVIEW_BITBUCKET_DC_TOKEN"] = repo_integration.bitbucket_dc_token
     return env
 
 

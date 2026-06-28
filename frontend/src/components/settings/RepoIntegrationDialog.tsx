@@ -138,6 +138,14 @@ function RepoIntegrationForm({
   )
   const [gitlabToken, setGitlabToken] = useState("")
   const [gitlabWebhookSecret, setGitlabWebhookSecret] = useState("")
+  const [bitbucketToken, setBitbucketToken] = useState("")
+  const [bitbucketWebhookSecret, setBitbucketWebhookSecret] = useState("")
+  const [bitbucketDcBaseUrl, setBitbucketDcBaseUrl] = useState(
+    () => repo?.bitbucket_dc_base_url ?? "",
+  )
+  const [bitbucketDcToken, setBitbucketDcToken] = useState("")
+  const [bitbucketDcWebhookUsername, setBitbucketDcWebhookUsername] = useState("")
+  const [bitbucketDcWebhookPassword, setBitbucketDcWebhookPassword] = useState("")
   const [systemPrompt, setSystemPrompt] = useState(() => repo?.system_prompt ?? "")
 
   const editPreset =
@@ -147,11 +155,13 @@ function RepoIntegrationForm({
   const displayPreset = preset ?? editPreset
   const isAzureDevOps = form.git_provider === "azure-devops"
   const isGitLab = form.git_provider === "gitlab"
+  const isBitbucket = form.git_provider === "bitbucket"
+  const isBitbucketDc = form.git_provider === "bitbucket-dc"
   const isGitLabSelfHosted =
     isGitLab &&
     (displayPreset?.requireGitlabBaseUrl === true ||
       !isGitLabCloudUrl(gitlabBaseUrl))
-  const isGitHub = !isAzureDevOps && !isGitLab
+  const isGitHub = !isAzureDevOps && !isGitLab && !isBitbucket && !isBitbucketDc
 
   const isPending =
     createRepo.isPending || updateRepo.isPending || deleteRepo.isPending
@@ -161,6 +171,10 @@ function RepoIntegrationForm({
     const repoFullName = form.repo_full_name?.trim() ?? ""
     if (isGitLab && isGitLabSelfHosted && !gitlabBaseUrl.trim()) {
       toast.error("GitLab instance URL is required for self-hosted integrations")
+      return
+    }
+    if (isBitbucketDc && !bitbucketDcBaseUrl.trim()) {
+      toast.error("Bitbucket Data Center instance URL is required")
       return
     }
     const resolvedGitlabBaseUrl = isGitLab
@@ -190,6 +204,20 @@ function RepoIntegrationForm({
           if (gitlabWebhookSecret) {
             payload.gitlab_webhook_secret = gitlabWebhookSecret
           }
+        } else if (isBitbucket) {
+          if (bitbucketToken) payload.bitbucket_token = bitbucketToken
+          if (bitbucketWebhookSecret) {
+            payload.bitbucket_webhook_secret = bitbucketWebhookSecret
+          }
+        } else if (isBitbucketDc) {
+          payload.bitbucket_dc_base_url = bitbucketDcBaseUrl.trim().replace(/\/$/, "")
+          if (bitbucketDcToken) payload.bitbucket_dc_token = bitbucketDcToken
+          if (bitbucketDcWebhookUsername) {
+            payload.bitbucket_dc_webhook_username = bitbucketDcWebhookUsername
+          }
+          if (bitbucketDcWebhookPassword) {
+            payload.bitbucket_dc_webhook_password = bitbucketDcWebhookPassword
+          }
         } else {
           if (webhookSecret) payload.github_webhook_secret = webhookSecret
           if (githubToken) payload.github_token = githubToken
@@ -215,6 +243,14 @@ function RepoIntegrationForm({
           payload.gitlab_base_url = resolvedGitlabBaseUrl
           payload.gitlab_token = gitlabToken
           payload.gitlab_webhook_secret = gitlabWebhookSecret
+        } else if (isBitbucket) {
+          payload.bitbucket_token = bitbucketToken
+          payload.bitbucket_webhook_secret = bitbucketWebhookSecret
+        } else if (isBitbucketDc) {
+          payload.bitbucket_dc_base_url = bitbucketDcBaseUrl.trim().replace(/\/$/, "")
+          payload.bitbucket_dc_token = bitbucketDcToken
+          payload.bitbucket_dc_webhook_username = bitbucketDcWebhookUsername
+          payload.bitbucket_dc_webhook_password = bitbucketDcWebhookPassword
         } else {
           payload.github_webhook_secret = webhookSecret
           payload.github_token = githubToken
@@ -261,7 +297,11 @@ function RepoIntegrationForm({
       ? "Repository (org/project/repo)"
       : isGitLab
         ? "Repository (group/project)"
-        : "Repository (owner/repo)")
+        : isBitbucket
+          ? "Repository (workspace/repo)"
+          : isBitbucketDc
+            ? "Repository (projectKey/repoSlug)"
+            : "Repository (owner/repo)")
 
   const repoPlaceholder =
     displayPreset?.repoPlaceholder ??
@@ -269,7 +309,11 @@ function RepoIntegrationForm({
       ? "contoso/engineering/web-app"
       : isGitLab
         ? "acme-corp/backend-api"
-        : "acme-corp/backend-api")
+        : isBitbucket
+          ? "acme-corp/backend-api"
+          : isBitbucketDc
+            ? "ACME/backend-api"
+            : "acme-corp/backend-api")
 
   const webhookUrl =
     isEdit && repo?.webhook_url
@@ -330,11 +374,7 @@ function RepoIntegrationForm({
                 <SelectContent position="popper">
                   <SelectGroup>
                     {GIT_PROVIDER_OPTIONS.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        disabled={"disabled" in option && option.disabled}
-                      >
+                      <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
                     ))}
@@ -487,6 +527,116 @@ function RepoIntegrationForm({
                         ? "Configured"
                         : "Not set"
                       : "Signing token (whsec_...) from GitLab project webhook"
+                  }
+                />
+              </Field>
+            </>
+          ) : isBitbucket ? (
+            <>
+              <Field
+                label={
+                  isEdit
+                    ? "API token (leave blank to keep)"
+                    : "API token"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={bitbucketToken}
+                  onChange={(e) => setBitbucketToken(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.bitbucket_token_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Scopes: repository, pullrequest, pipeline"
+                  }
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit
+                    ? "Webhook secret (leave blank to keep)"
+                    : "Webhook secret"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={bitbucketWebhookSecret}
+                  onChange={(e) => setBitbucketWebhookSecret(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.bitbucket_webhook_secret_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Secret from Bitbucket repository webhook"
+                  }
+                />
+              </Field>
+            </>
+          ) : isBitbucketDc ? (
+            <>
+              <Field label="Bitbucket Data Center URL">
+                <Input
+                  required
+                  value={bitbucketDcBaseUrl}
+                  onChange={(e) => setBitbucketDcBaseUrl(e.target.value)}
+                  placeholder="https://bitbucket.example.com"
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit
+                    ? "HTTP access token (leave blank to keep)"
+                    : "HTTP access token"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={bitbucketDcToken}
+                  onChange={(e) => setBitbucketDcToken(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.bitbucket_dc_token_configured
+                        ? "Configured"
+                        : "Not set"
+                      : undefined
+                  }
+                />
+              </Field>
+              <Field label="Webhook username">
+                <Input
+                  required={!isEdit}
+                  value={bitbucketDcWebhookUsername}
+                  onChange={(e) => setBitbucketDcWebhookUsername(e.target.value)}
+                  placeholder={
+                    isEdit && repo?.bitbucket_dc_webhook_configured
+                      ? "Configured"
+                      : "Inbound webhook basic auth username"
+                  }
+                />
+              </Field>
+              <Field
+                label={
+                  isEdit
+                    ? "Webhook password (leave blank to keep)"
+                    : "Webhook password"
+                }
+              >
+                <Input
+                  type="password"
+                  required={!isEdit}
+                  value={bitbucketDcWebhookPassword}
+                  onChange={(e) => setBitbucketDcWebhookPassword(e.target.value)}
+                  placeholder={
+                    isEdit
+                      ? repo?.bitbucket_dc_webhook_configured
+                        ? "Configured"
+                        : "Not set"
+                      : "Inbound webhook basic auth password"
                   }
                 />
               </Field>
@@ -692,7 +842,7 @@ function RepoIntegrationCreateDialogContent({
       className={cn(
         "flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0",
         onPicker
-          ? "w-fit max-w-[calc(100%-2rem)] sm:max-w-fit"
+          ? "w-full max-w-[calc(100%-2rem)] sm:max-w-[30rem]"
           : "sm:max-w-xl",
       )}
     >
