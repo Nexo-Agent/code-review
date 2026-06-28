@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 # Permissions that prompt for user input — deny in headless `opencode run`.
@@ -134,6 +135,63 @@ def build_code_reviewer_agent_config(
     }
 
 
+@dataclass(frozen=True, slots=True)
+class OpenCodeLlmProviderSpec:
+    npm: str
+    name: str
+    uses_base_url: bool
+
+
+# Provider IDs and npm packages aligned with models.dev / OpenCode built-ins.
+OPENCODE_LLM_PROVIDERS: dict[str, OpenCodeLlmProviderSpec] = {
+    "mistral": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/mistral",
+        name="Mistral",
+        uses_base_url=False,
+    ),
+    "cohere": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/cohere",
+        name="Cohere",
+        uses_base_url=False,
+    ),
+    "openrouter": OpenCodeLlmProviderSpec(
+        npm="@openrouter/ai-sdk-provider",
+        name="OpenRouter",
+        uses_base_url=False,
+    ),
+    "togetherai": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/togetherai",
+        name="Together AI",
+        uses_base_url=False,
+    ),
+    "fireworks-ai": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/openai-compatible",
+        name="Fireworks AI",
+        uses_base_url=True,
+    ),
+    "groq": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/groq",
+        name="Groq",
+        uses_base_url=False,
+    ),
+    "deepinfra": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/deepinfra",
+        name="Deep Infra",
+        uses_base_url=False,
+    ),
+    "moonshotai": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/openai-compatible",
+        name="Moonshot AI",
+        uses_base_url=True,
+    ),
+    "moonshotai-cn": OpenCodeLlmProviderSpec(
+        npm="@ai-sdk/openai-compatible",
+        name="Moonshot AI (China)",
+        uses_base_url=True,
+    ),
+}
+
+
 def llm_provider_block(
     provider_id: str,
     model_id: str,
@@ -141,14 +199,18 @@ def llm_provider_block(
     base_url: str,
     api_key: str,
 ) -> dict[str, Any]:
+    spec = OPENCODE_LLM_PROVIDERS.get(provider_id)
+    npm = spec.npm if spec else "@ai-sdk/openai-compatible"
+    name = spec.name if spec else "OpenAI Compatible API"
+    options: dict[str, str] = {"apiKey": api_key}
+    if spec is None or spec.uses_base_url:
+        options["baseURL"] = base_url
+
     return {
         provider_id: {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "OpenAI Compatible API",
-            "options": {
-                "baseURL": base_url,
-                "apiKey": api_key,
-            },
+            "npm": npm,
+            "name": name,
+            "options": options,
             "models": {
                 model_id: {
                     "name": model_id,

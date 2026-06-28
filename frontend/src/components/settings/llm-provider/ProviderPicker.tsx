@@ -11,7 +11,7 @@ type ProviderPickerProps = {
 
 export function ProviderPicker({ onSelect }: ProviderPickerProps) {
   return (
-    <div className="flex gap-2.5 px-6 py-4">
+    <div className="grid grid-cols-4 gap-2.5 px-6 py-4">
       {LLM_PROVIDER_PRESETS.map((provider) => (
         <ProviderCard
           key={provider.id}
@@ -36,7 +36,7 @@ function ProviderCard({ providerId, label, onSelect }: ProviderCardProps) {
       type="button"
       onClick={() => onSelect(providerId)}
       className={cn(
-        "bg-card hover:bg-accent/40 focus-visible:ring-ring group flex size-[6.25rem] flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        "bg-card hover:bg-accent/40 focus-visible:ring-ring group flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none",
       )}
     >
       <ProviderLogo

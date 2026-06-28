@@ -7,6 +7,7 @@ from coreview_shared.opencode.config import (
     build_mcp_config,
     build_review_agent_permissions,
     build_review_skills_config,
+    llm_provider_block,
 )
 
 
@@ -69,3 +70,55 @@ def test_review_agent_config_allows_operational_tools() -> None:
     assert perms["question"] == "deny"
     assert agent["tools"]["coreview-git_fetch_pr_context"] is True
     assert agent["tools"]["question"] is False
+
+
+def test_llm_provider_block_groq_uses_native_npm() -> None:
+    block = llm_provider_block(
+        "groq",
+        "llama-3.3-70b-versatile",
+        base_url="https://api.groq.com/openai/v1",
+        api_key="gsk_test",
+    )
+    provider = block["groq"]
+    assert provider["npm"] == "@ai-sdk/groq"
+    assert provider["name"] == "Groq"
+    assert provider["options"]["apiKey"] == "gsk_test"
+    assert "baseURL" not in provider["options"]
+
+
+def test_llm_provider_block_openrouter_uses_openrouter_sdk() -> None:
+    block = llm_provider_block(
+        "openrouter",
+        "anthropic/claude-sonnet-4",
+        base_url="https://openrouter.ai/api/v1",
+        api_key="sk-or-test",
+    )
+    provider = block["openrouter"]
+    assert provider["npm"] == "@openrouter/ai-sdk-provider"
+    assert provider["name"] == "OpenRouter"
+    assert "baseURL" not in provider["options"]
+
+
+def test_llm_provider_block_fireworks_uses_openai_compatible_with_base_url() -> None:
+    block = llm_provider_block(
+        "fireworks-ai",
+        "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        base_url="https://api.fireworks.ai/inference/v1",
+        api_key="fw_test",
+    )
+    provider = block["fireworks-ai"]
+    assert provider["npm"] == "@ai-sdk/openai-compatible"
+    assert provider["options"]["baseURL"] == "https://api.fireworks.ai/inference/v1"
+
+
+def test_llm_provider_block_unknown_falls_back_to_openai_compatible() -> None:
+    block = llm_provider_block(
+        "openai-compat",
+        "my-model",
+        base_url="https://llm.example.com/v1",
+        api_key="sk_test",
+    )
+    provider = block["openai-compat"]
+    assert provider["npm"] == "@ai-sdk/openai-compatible"
+    assert provider["name"] == "OpenAI Compatible API"
+    assert provider["options"]["baseURL"] == "https://llm.example.com/v1"
