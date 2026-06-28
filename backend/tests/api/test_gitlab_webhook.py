@@ -84,6 +84,12 @@ def _gitlab_repo_row(llm: LlmProviderRow) -> RepoIntegrationRow:
         gitlab_base_url="https://gitlab.example.com",
         gitlab_token="glpat-test",
         gitlab_webhook_secret="hook-secret",
+        bitbucket_token="",
+        bitbucket_webhook_secret="",
+        bitbucket_dc_base_url="",
+        bitbucket_dc_token="",
+        bitbucket_dc_webhook_username="",
+        bitbucket_dc_webhook_password="",
         created_at=now,
         updated_at=now,
     )
@@ -136,6 +142,12 @@ async def test_gitlab_webhook_enqueues_review_with_signing_token(
     repo_integration = replace(
         _gitlab_repo_row(llm),
         gitlab_webhook_secret=_signing_token(),
+        bitbucket_token="",
+        bitbucket_webhook_secret="",
+        bitbucket_dc_base_url="",
+        bitbucket_dc_token="",
+        bitbucket_dc_webhook_username="",
+        bitbucket_dc_webhook_password="",
     )
     payload = _gitlab_payload(action="open")
     body = json.dumps(payload).encode()
@@ -197,6 +209,12 @@ async def test_gitlab_webhook_invalid_signing_token(client: AsyncClient) -> None
     repo_integration = replace(
         _gitlab_repo_row(llm),
         gitlab_webhook_secret=_signing_token(),
+        bitbucket_token="",
+        bitbucket_webhook_secret="",
+        bitbucket_dc_base_url="",
+        bitbucket_dc_token="",
+        bitbucket_dc_webhook_username="",
+        bitbucket_dc_webhook_password="",
     )
     body = json.dumps(_gitlab_payload()).encode()
     headers = _sign_gitlab_webhook(

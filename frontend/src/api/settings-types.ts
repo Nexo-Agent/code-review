@@ -54,6 +54,11 @@ export interface RepoIntegration {
   gitlab_base_url: string
   gitlab_token_configured: boolean
   gitlab_webhook_secret_configured: boolean
+  bitbucket_token_configured: boolean
+  bitbucket_webhook_secret_configured: boolean
+  bitbucket_dc_base_url: string
+  bitbucket_dc_token_configured: boolean
+  bitbucket_dc_webhook_configured: boolean
   webhook_url: string
   created_at: string
   updated_at: string
@@ -73,6 +78,12 @@ export interface RepoIntegrationCreate {
   gitlab_base_url?: string
   gitlab_token?: string
   gitlab_webhook_secret?: string
+  bitbucket_token?: string
+  bitbucket_webhook_secret?: string
+  bitbucket_dc_base_url?: string
+  bitbucket_dc_token?: string
+  bitbucket_dc_webhook_username?: string
+  bitbucket_dc_webhook_password?: string
   system_prompt?: string
   llm_provider_id?: string | null
   enabled?: boolean
@@ -92,6 +103,12 @@ export interface RepoIntegrationUpdate {
   gitlab_base_url?: string
   gitlab_token?: string
   gitlab_webhook_secret?: string
+  bitbucket_token?: string
+  bitbucket_webhook_secret?: string
+  bitbucket_dc_base_url?: string
+  bitbucket_dc_token?: string
+  bitbucket_dc_webhook_username?: string
+  bitbucket_dc_webhook_password?: string
   system_prompt?: string
   llm_provider_id?: string | null
   clear_llm_provider_id?: boolean

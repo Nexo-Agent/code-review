@@ -25,6 +25,11 @@ class RepoIntegrationResponse(BaseModel):
     gitlab_base_url: str
     gitlab_token_configured: bool
     gitlab_webhook_secret_configured: bool
+    bitbucket_token_configured: bool
+    bitbucket_webhook_secret_configured: bool
+    bitbucket_dc_base_url: str
+    bitbucket_dc_token_configured: bool
+    bitbucket_dc_webhook_configured: bool
     webhook_url: str
     created_at: datetime
     updated_at: datetime
@@ -51,6 +56,12 @@ class RepoIntegrationCreate(BaseModel):
     )
     gitlab_token: str = Field(default="", max_length=512)
     gitlab_webhook_secret: str = Field(default="", max_length=512)
+    bitbucket_token: str = Field(default="", max_length=512)
+    bitbucket_webhook_secret: str = Field(default="", max_length=512)
+    bitbucket_dc_base_url: str = Field(default="", max_length=512)
+    bitbucket_dc_token: str = Field(default="", max_length=512)
+    bitbucket_dc_webhook_username: str = Field(default="", max_length=128)
+    bitbucket_dc_webhook_password: str = Field(default="", max_length=512)
     system_prompt: str = Field(
         default="",
         max_length=16384,
@@ -92,6 +103,24 @@ class RepoIntegrationUpdate(BaseModel):
         description="Omit to keep; empty string clears",
     )
     gitlab_webhook_secret: str | None = Field(
+        default=None,
+        description="Omit to keep; empty string clears",
+    )
+    bitbucket_token: str | None = Field(
+        default=None,
+        description="Omit to keep; empty string clears",
+    )
+    bitbucket_webhook_secret: str | None = Field(
+        default=None,
+        description="Omit to keep; empty string clears",
+    )
+    bitbucket_dc_base_url: str | None = Field(default=None, max_length=512)
+    bitbucket_dc_token: str | None = Field(
+        default=None,
+        description="Omit to keep; empty string clears",
+    )
+    bitbucket_dc_webhook_username: str | None = Field(default=None, max_length=128)
+    bitbucket_dc_webhook_password: str | None = Field(
         default=None,
         description="Omit to keep; empty string clears",
     )

@@ -347,3 +347,140 @@ async def gitlab_webhook_legacy(
             )
         },
     )
+
+
+@router.post(
+    "/bitbucket/{integration_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=None,
+)
+async def bitbucket_webhook_for_integration(
+    integration_id: UUID,
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+    x_event_key: str | None = Header(None, alias="X-Event-Key"),
+    x_hub_signature: str | None = Header(None, alias="X-Hub-Signature"),
+    x_hook_uuid: str | None = Header(None, alias="X-Hook-UUID"),
+    x_request_uuid: str | None = Header(None, alias="X-Request-UUID"),
+) -> ReviewResponse | JSONResponse:
+    body = await request.body()
+    repo_full_name = _extract_repo_full_name(body)
+    if not repo_full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="invalid webhook payload",
+        )
+
+    return await _enqueue_webhook_review(
+        conn,
+        integration_id=integration_id,
+        body=body,
+        repo_full_name=repo_full_name,
+        headers={
+            "X-Event-Key": x_event_key or "",
+            "X-Hook-UUID": x_hook_uuid or "",
+            "X-Request-UUID": x_request_uuid or "",
+        },
+        auth_header=x_hub_signature,
+        webhook_secret_resolver=(
+            lambda integration: integration.bitbucket_webhook_secret
+        ),
+        expected_git_provider="bitbucket",
+    )
+
+
+def _extract_bitbucket_dc_repo_full_name(body: bytes) -> str | None:
+    try:
+        payload = json.loads(body)
+        pull_request = payload.get("pullRequest")
+        if not isinstance(pull_request, dict):
+            return None
+        to_ref = pull_request.get("toRef")
+        if not isinstance(to_ref, dict):
+            return None
+        repository = to_ref.get("repository")
+        if not isinstance(repository, dict):
+            return None
+        project = repository.get("project")
+        if not isinstance(project, dict):
+            return None
+        project_key = project.get("key", "")
+        repo_slug = repository.get("slug", "")
+        if not project_key or not repo_slug:
+            return None
+        return f"{project_key}/{repo_slug}"
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+@router.post(
+    "/bitbucket-dc/{integration_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=None,
+)
+async def bitbucket_dc_webhook_for_integration(
+    integration_id: UUID,
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+    authorization: str | None = Header(None, alias="Authorization"),
+    x_event_key: str | None = Header(None, alias="X-Event-Key"),
+    x_request_id: str | None = Header(None, alias="X-Request-Id"),
+) -> ReviewResponse | JSONResponse:
+    body = await request.body()
+    repo_full_name = _extract_bitbucket_dc_repo_full_name(body)
+    if not repo_full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="invalid webhook payload",
+        )
+
+    return await _enqueue_webhook_review(
+        conn,
+        integration_id=integration_id,
+        body=body,
+        repo_full_name=repo_full_name,
+        headers={
+            "X-Event-Key": x_event_key or "",
+            "X-Request-Id": x_request_id or "",
+        },
+        auth_header=authorization,
+        webhook_secret_resolver=lambda integration: (
+            f"{integration.bitbucket_dc_webhook_username}:"
+            f"{integration.bitbucket_dc_webhook_password}"
+        ),
+        expected_git_provider="bitbucket-dc",
+    )
+
+
+@router.post("/bitbucket", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def bitbucket_webhook_legacy(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> JSONResponse:
+    logger.warning("Deprecated global Bitbucket webhook endpoint used")
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": (
+                "Use per-integration webhook URL: "
+                "/api/v1/webhooks/bitbucket/{integration_id}"
+            )
+        },
+    )
+
+
+@router.post("/bitbucket-dc", status_code=status.HTTP_202_ACCEPTED, response_model=None)
+async def bitbucket_dc_webhook_legacy(
+    request: Request,
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> JSONResponse:
+    logger.warning("Deprecated global Bitbucket DC webhook endpoint used")
+    return JSONResponse(
+        status_code=410,
+        content={
+            "detail": (
+                "Use per-integration webhook URL: "
+                "/api/v1/webhooks/bitbucket-dc/{integration_id}"
+            )
+        },
+    )

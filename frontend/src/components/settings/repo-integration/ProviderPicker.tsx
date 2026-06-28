@@ -11,7 +11,7 @@ type ProviderPickerProps = {
 
 export function ProviderPicker({ onSelect }: ProviderPickerProps) {
   return (
-    <div className="flex flex-wrap justify-center gap-2.5 px-6 py-4">
+    <div className="grid grid-cols-4 gap-2.5 px-6 py-4">
       {GIT_PROVIDERS.map((provider) => (
         <ProviderCard
           key={provider.id}
@@ -39,7 +39,7 @@ function ProviderCard({
   onSelect,
 }: ProviderCardProps) {
   const className = cn(
-    "bg-card group flex size-[6.25rem] flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center",
+    "bg-card group flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center",
     disabled
       ? "cursor-not-allowed opacity-50"
       : "hover:bg-accent/40 focus-visible:ring-ring transition-colors focus-visible:ring-2 focus-visible:outline-none",

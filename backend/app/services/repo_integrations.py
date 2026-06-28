@@ -35,6 +35,8 @@ def build_webhook_url(integration: RepoIntegrationRow) -> str:
     provider_paths = {
         "azure-devops": "azure-devops",
         "gitlab": "gitlab",
+        "bitbucket": "bitbucket",
+        "bitbucket-dc": "bitbucket-dc",
     }
     provider_path = provider_paths.get(integration.git_provider, "github")
     return f"/api/v1/webhooks/{provider_path}/{integration.id}"
@@ -66,6 +68,13 @@ async def to_repo_integration_response(
         gitlab_base_url=row.gitlab_base_url,
         gitlab_token_configured=bool(row.gitlab_token),
         gitlab_webhook_secret_configured=bool(row.gitlab_webhook_secret),
+        bitbucket_token_configured=bool(row.bitbucket_token),
+        bitbucket_webhook_secret_configured=bool(row.bitbucket_webhook_secret),
+        bitbucket_dc_base_url=row.bitbucket_dc_base_url,
+        bitbucket_dc_token_configured=bool(row.bitbucket_dc_token),
+        bitbucket_dc_webhook_configured=bool(
+            row.bitbucket_dc_webhook_username and row.bitbucket_dc_webhook_password
+        ),
         webhook_url=build_webhook_url(row),
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -189,6 +198,12 @@ async def create_repo_integration(
         gitlab_base_url=payload.gitlab_base_url,
         gitlab_token=payload.gitlab_token,
         gitlab_webhook_secret=payload.gitlab_webhook_secret,
+        bitbucket_token=payload.bitbucket_token,
+        bitbucket_webhook_secret=payload.bitbucket_webhook_secret,
+        bitbucket_dc_base_url=payload.bitbucket_dc_base_url,
+        bitbucket_dc_token=payload.bitbucket_dc_token,
+        bitbucket_dc_webhook_username=payload.bitbucket_dc_webhook_username,
+        bitbucket_dc_webhook_password=payload.bitbucket_dc_webhook_password,
         llm_provider_id=payload.llm_provider_id,
     )
     logger.info("Created repo integration %s", row.repo_full_name or "*")
@@ -226,6 +241,17 @@ async def update_repo_integration(
     clear_gitlab_webhook_secret = (
         "gitlab_webhook_secret" in data and data["gitlab_webhook_secret"] == ""
     )
+    clear_bitbucket_token = "bitbucket_token" in data and data["bitbucket_token"] == ""
+    clear_bitbucket_webhook_secret = (
+        "bitbucket_webhook_secret" in data and data["bitbucket_webhook_secret"] == ""
+    )
+    clear_bitbucket_dc_token = (
+        "bitbucket_dc_token" in data and data["bitbucket_dc_token"] == ""
+    )
+    clear_bitbucket_dc_webhook_password = (
+        "bitbucket_dc_webhook_password" in data
+        and data["bitbucket_dc_webhook_password"] == ""
+    )
     row = await repo.update(
         integration_id,
         name=data.get("name"),
@@ -249,6 +275,16 @@ async def update_repo_integration(
         gitlab_webhook_secret=data.get("gitlab_webhook_secret"),
         clear_gitlab_token=clear_gitlab_token,
         clear_gitlab_webhook_secret=clear_gitlab_webhook_secret,
+        bitbucket_token=data.get("bitbucket_token"),
+        bitbucket_webhook_secret=data.get("bitbucket_webhook_secret"),
+        clear_bitbucket_token=clear_bitbucket_token,
+        clear_bitbucket_webhook_secret=clear_bitbucket_webhook_secret,
+        bitbucket_dc_base_url=data.get("bitbucket_dc_base_url"),
+        bitbucket_dc_token=data.get("bitbucket_dc_token"),
+        bitbucket_dc_webhook_username=data.get("bitbucket_dc_webhook_username"),
+        bitbucket_dc_webhook_password=data.get("bitbucket_dc_webhook_password"),
+        clear_bitbucket_dc_token=clear_bitbucket_dc_token,
+        clear_bitbucket_dc_webhook_password=clear_bitbucket_dc_webhook_password,
         llm_provider_id=data.get("llm_provider_id"),
         clear_llm_provider_id=payload.clear_llm_provider_id,
     )

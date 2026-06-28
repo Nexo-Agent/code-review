@@ -40,6 +40,12 @@ class ReviewRuntimeConfig:
     gitlab_base_url: str = ""
     gitlab_token: str = ""
     gitlab_webhook_secret: str = ""
+    bitbucket_token: str = ""
+    bitbucket_webhook_secret: str = ""
+    bitbucket_dc_base_url: str = ""
+    bitbucket_dc_token: str = ""
+    bitbucket_dc_webhook_username: str = ""
+    bitbucket_dc_webhook_password: str = ""
 
     @property
     def resolved_opencode_model(self) -> str:

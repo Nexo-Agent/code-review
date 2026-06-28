@@ -42,6 +42,12 @@ def _repo_integration() -> RepoIntegrationRow:
         gitlab_base_url="",
         gitlab_token="",
         gitlab_webhook_secret="",
+        bitbucket_token="",
+        bitbucket_webhook_secret="",
+        bitbucket_dc_base_url="",
+        bitbucket_dc_token="",
+        bitbucket_dc_webhook_username="",
+        bitbucket_dc_webhook_password="",
         created_at=now,
         updated_at=now,
     )
@@ -156,6 +162,55 @@ def test_build_agent_environment_includes_gitlab_credentials() -> None:
     assert env["COGITO_REVIEW_GIT_PROVIDER"] == "gitlab"
     assert env["COGITO_REVIEW_GITLAB_BASE_URL"] == "https://gitlab.example.com"
     assert env["COGITO_REVIEW_GITLAB_TOKEN"] == "glpat-test"
+
+
+def test_build_agent_environment_includes_bitbucket_credentials() -> None:
+    review = _review_row()
+    repo_integration = replace(
+        _repo_integration(),
+        git_provider="bitbucket",
+        repo_full_name="acme/backend",
+        bitbucket_token="bb-token",
+        bitbucket_webhook_secret="hook-secret",
+    )
+    env = build_agent_environment(
+        review_id=str(review.id),
+        review=review,
+        repo_integration=repo_integration,
+        llm_provider=_llm_provider(),
+        infra=CodeReviewSettings(
+            agent_callback_url="http://api:8000/api/v1/agent/review-events",
+            agent_callback_secret="shared-secret",
+        ),
+    )
+
+    assert env["COGITO_REVIEW_GIT_PROVIDER"] == "bitbucket"
+    assert env["COGITO_REVIEW_BITBUCKET_TOKEN"] == "bb-token"
+
+
+def test_build_agent_environment_includes_bitbucket_dc_credentials() -> None:
+    review = _review_row()
+    repo_integration = replace(
+        _repo_integration(),
+        git_provider="bitbucket-dc",
+        repo_full_name="ACME/backend",
+        bitbucket_dc_base_url="https://bitbucket.example.com",
+        bitbucket_dc_token="dc-token",
+    )
+    env = build_agent_environment(
+        review_id=str(review.id),
+        review=review,
+        repo_integration=repo_integration,
+        llm_provider=_llm_provider(),
+        infra=CodeReviewSettings(
+            agent_callback_url="http://api:8000/api/v1/agent/review-events",
+            agent_callback_secret="shared-secret",
+        ),
+    )
+
+    assert env["COGITO_REVIEW_GIT_PROVIDER"] == "bitbucket-dc"
+    assert env["COGITO_REVIEW_BITBUCKET_DC_BASE_URL"] == "https://bitbucket.example.com"
+    assert env["COGITO_REVIEW_BITBUCKET_DC_TOKEN"] == "dc-token"
 
 
 def test_build_agent_environment_includes_custom_system_prompt() -> None:

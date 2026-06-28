@@ -61,6 +61,8 @@ export function formatProviderLabel(provider: string): string {
   if (provider === "github") return "GitHub"
   if (isGitLabProvider(provider)) return "GitLab"
   if (isAzureDevOpsProvider(provider)) return "Azure DevOps"
+  if (provider === "bitbucket") return "Bitbucket Cloud"
+  if (provider === "bitbucket-dc") return "Bitbucket Data Center"
   return provider
 }
 

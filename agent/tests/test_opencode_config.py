@@ -99,6 +99,50 @@ def test_require_review_env_raises_when_missing_gitlab_token() -> None:
         )
 
 
+def test_require_review_env_accepts_bitbucket_settings() -> None:
+    require_review_env(
+        _full_settings(
+            git_provider="bitbucket",
+            github_token="",
+            bitbucket_token="bb-token",
+        )
+    )
+
+
+def test_require_review_env_raises_when_missing_bitbucket_token() -> None:
+    with pytest.raises(ValueError, match="COGITO_REVIEW_BITBUCKET_TOKEN"):
+        require_review_env(
+            _full_settings(
+                git_provider="bitbucket",
+                github_token="",
+                bitbucket_token="",
+            )
+        )
+
+
+def test_require_review_env_accepts_bitbucket_dc_settings() -> None:
+    require_review_env(
+        _full_settings(
+            git_provider="bitbucket-dc",
+            github_token="",
+            bitbucket_dc_base_url="https://bitbucket.example.com",
+            bitbucket_dc_token="dc-token",
+        )
+    )
+
+
+def test_require_review_env_raises_when_missing_bitbucket_dc_token() -> None:
+    with pytest.raises(ValueError, match="COGITO_REVIEW_BITBUCKET_DC_TOKEN"):
+        require_review_env(
+            _full_settings(
+                git_provider="bitbucket-dc",
+                github_token="",
+                bitbucket_dc_base_url="https://bitbucket.example.com",
+                bitbucket_dc_token="",
+            )
+        )
+
+
 def test_require_review_env_raises_when_missing_callback() -> None:
     with pytest.raises(ValueError, match="COGITO_REVIEW_CALLBACK_URL"):
         require_review_env(_full_settings(callback_url=""))

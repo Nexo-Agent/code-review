@@ -8,6 +8,7 @@ export type StoredGitProvider =
   | "azure-devops"
   | "gitlab"
   | "bitbucket"
+  | "bitbucket-dc"
 
 /** Picker card id; GitLab Cloud/Self-hosted share stored provider `gitlab`. */
 export type GitProviderPickerId =
@@ -16,6 +17,7 @@ export type GitProviderPickerId =
   | "gitlab-cloud"
   | "gitlab-self-hosted"
   | "bitbucket"
+  | "bitbucket-dc"
 
 export interface GitProviderDefinition {
   id: GitProviderPickerId
@@ -28,6 +30,7 @@ export interface GitProviderDefinition {
   /** Pre-filled gitlab_base_url on create; empty means SaaS default at runtime. */
   gitlabBaseUrlDefault?: string
   requireGitlabBaseUrl?: boolean
+  requireBitbucketDcBaseUrl?: boolean
 }
 
 export const GIT_PROVIDERS: GitProviderDefinition[] = [
@@ -50,7 +53,7 @@ export const GIT_PROVIDERS: GitProviderDefinition[] = [
   {
     id: "gitlab-cloud",
     gitProvider: "gitlab",
-    label: "GitLab Cloud",
+    label: "GitLab",
     description: "",
     repoLabel: "Repository (group/project)",
     repoPlaceholder: "acme-corp/backend-api",
@@ -59,7 +62,7 @@ export const GIT_PROVIDERS: GitProviderDefinition[] = [
   {
     id: "gitlab-self-hosted",
     gitProvider: "gitlab",
-    label: "GitLab",
+    label: "GitLab DC",
     description:
       "Connect a repository on your own GitLab instance for merge request reviews.",
     repoLabel: "Repository (group/project)",
@@ -70,10 +73,19 @@ export const GIT_PROVIDERS: GitProviderDefinition[] = [
     id: "bitbucket",
     gitProvider: "bitbucket",
     label: "Bitbucket",
-    description: "Bitbucket integration is coming soon.",
+    description: "Connect a Bitbucket Cloud repository for pull request reviews.",
     repoLabel: "Repository (workspace/repo)",
     repoPlaceholder: "acme-corp/backend-api",
-    disabled: true,
+  },
+  {
+    id: "bitbucket-dc",
+    gitProvider: "bitbucket-dc",
+    label: "Bitbucket DC",
+    description:
+      "Connect a repository on your Bitbucket Data Center instance for pull request reviews.",
+    repoLabel: "Repository (projectKey/repoSlug)",
+    repoPlaceholder: "ACME/backend-api",
+    requireBitbucketDcBaseUrl: true,
   },
 ]
 
@@ -82,7 +94,8 @@ export const GIT_PROVIDER_OPTIONS = [
   { value: "azure-devops", label: "Azure DevOps" },
   { value: "gitlab", label: "GitLab Cloud" },
   { value: "gitlab-self-hosted", label: "GitLab Self-hosted" },
-  { value: "bitbucket", label: "Bitbucket (coming soon)", disabled: true },
+  { value: "bitbucket", label: "Bitbucket Cloud" },
+  { value: "bitbucket-dc", label: "Bitbucket Data Center" },
 ] as const
 
 export function isGitLabCloudUrl(baseUrl: string): boolean {
@@ -153,6 +166,12 @@ export function repoFormFromGitProvider(
     gitlab_base_url: provider.gitlabBaseUrlDefault ?? "",
     gitlab_token: "",
     gitlab_webhook_secret: "",
+    bitbucket_token: "",
+    bitbucket_webhook_secret: "",
+    bitbucket_dc_base_url: "",
+    bitbucket_dc_token: "",
+    bitbucket_dc_webhook_username: "",
+    bitbucket_dc_webhook_password: "",
     enabled: true,
   }
 }
