@@ -1,5 +1,5 @@
 import type { RepoIntegration } from "@/api/settings-types"
-import type { Review, ReviewFinding } from "@/api/types"
+import type { ReviewFinding } from "@/api/types"
 
 export function formatReviewTimestamp(iso: string | null | undefined): string {
   if (!iso) return "—"
@@ -32,32 +32,12 @@ export function formatDuration(
   return `${minutes}m ${seconds}s`
 }
 
-export function isAzureDevOpsProvider(provider: string): boolean {
+function isAzureDevOpsProvider(provider: string): boolean {
   return provider === "azure-devops" || provider === "azure_devops"
 }
 
-export function buildAzureDevOpsPrUrl(
-  repoFullName: string,
-  prNumber: number,
-): string | null {
-  const parts = repoFullName.split("/").map((part) => part.trim()).filter(Boolean)
-  if (parts.length < 3) return null
-  const [organization, project, repo] = parts
-  return `https://dev.azure.com/${organization}/${project}/_git/${repo}/pullrequest/${prNumber}`
-}
-
-export function buildPrUrl(review: Pick<
-  Review,
-  "provider" | "repo_full_name" | "pr_number" | "pr_url"
->): string | null {
-  if (review.pr_url?.trim()) return review.pr_url.trim()
-  if (review.provider === "github") {
-    return `https://github.com/${review.repo_full_name}/pull/${review.pr_number}`
-  }
-  if (isAzureDevOpsProvider(review.provider)) {
-    return buildAzureDevOpsPrUrl(review.repo_full_name, review.pr_number)
-  }
-  return null
+function isGitLabProvider(provider: string): boolean {
+  return provider === "gitlab"
 }
 
 export function findRepoIntegration(
@@ -79,30 +59,13 @@ export function countFindingsBySeverity(
 
 export function formatProviderLabel(provider: string): string {
   if (provider === "github") return "GitHub"
+  if (isGitLabProvider(provider)) return "GitLab"
   if (isAzureDevOpsProvider(provider)) return "Azure DevOps"
   return provider
 }
 
 export function shortSha(sha: string): string {
   return sha.length >= 7 ? sha.slice(0, 7) : sha
-}
-
-export function buildFindingUrl(
-  review: Pick<
-    Review,
-    "provider" | "repo_full_name" | "pr_number" | "head_sha" | "pr_url"
-  >,
-  finding: Pick<ReviewFinding, "file_path" | "line_start">,
-): string | null {
-  if (!finding.file_path) return null
-  const line = finding.line_start
-  if (review.provider === "github") {
-    const base = `https://github.com/${review.repo_full_name}/blob/${review.head_sha}/${finding.file_path}`
-    return line ? `${base}#L${line}` : base
-  }
-  const prUrl = buildPrUrl(review)
-  if (prUrl) return prUrl
-  return null
 }
 
 export function formatLineRange(

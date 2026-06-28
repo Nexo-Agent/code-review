@@ -578,6 +578,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/gitlab/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gitlab Webhook For Integration */
+        post: operations["gitlab_webhook_for_integration_api_v1_webhooks_gitlab__integration_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/webhooks/github": {
         parameters: {
             query?: never;
@@ -606,6 +623,23 @@ export interface paths {
         put?: never;
         /** Azure Devops Webhook Legacy */
         post: operations["azure_devops_webhook_legacy_api_v1_webhooks_azure_devops_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/gitlab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gitlab Webhook Legacy */
+        post: operations["gitlab_webhook_legacy_api_v1_webhooks_gitlab_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1005,6 +1039,12 @@ export interface components {
             ado_pat_configured: boolean;
             /** Ado Webhook Configured */
             ado_webhook_configured: boolean;
+            /** Gitlab Base Url */
+            gitlab_base_url: string;
+            /** Gitlab Token Configured */
+            gitlab_token_configured: boolean;
+            /** Gitlab Webhook Secret Configured */
+            gitlab_webhook_secret_configured: boolean;
             /** Webhook Url */
             webhook_url: string;
             /**
@@ -1074,6 +1114,22 @@ export interface components {
              */
             ado_webhook_password: string;
             /**
+             * Gitlab Base Url
+             * @description GitLab instance URL; empty uses https://gitlab.com
+             * @default
+             */
+            gitlab_base_url: string;
+            /**
+             * Gitlab Token
+             * @default
+             */
+            gitlab_token: string;
+            /**
+             * Gitlab Webhook Secret
+             * @default
+             */
+            gitlab_webhook_secret: string;
+            /**
              * System Prompt
              * @description Custom OpenCode agent system prompt; empty uses the default
              * @default
@@ -1132,6 +1188,12 @@ export interface components {
             ado_pat_configured: boolean;
             /** Ado Webhook Configured */
             ado_webhook_configured: boolean;
+            /** Gitlab Base Url */
+            gitlab_base_url: string;
+            /** Gitlab Token Configured */
+            gitlab_token_configured: boolean;
+            /** Gitlab Webhook Secret Configured */
+            gitlab_webhook_secret_configured: boolean;
             /** Webhook Url */
             webhook_url: string;
             /**
@@ -1182,6 +1244,18 @@ export interface components {
              * @description Omit to keep; empty string clears
              */
             ado_webhook_password?: string | null;
+            /** Gitlab Base Url */
+            gitlab_base_url?: string | null;
+            /**
+             * Gitlab Token
+             * @description Omit to keep; empty string clears
+             */
+            gitlab_token?: string | null;
+            /**
+             * Gitlab Webhook Secret
+             * @description Omit to keep; empty string clears
+             */
+            gitlab_webhook_secret?: string | null;
             /**
              * System Prompt
              * @description Custom OpenCode agent system prompt; empty string resets to default
@@ -1216,6 +1290,8 @@ export interface components {
             title: string;
             /** Body */
             body: string;
+            /** Code Url */
+            code_url?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2871,6 +2947,44 @@ export interface operations {
             };
         };
     };
+    gitlab_webhook_for_integration_api_v1_webhooks_gitlab__integration_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Gitlab-Event"?: string | null;
+                "X-Gitlab-Event-UUID"?: string | null;
+                "X-Gitlab-Token"?: string | null;
+                "webhook-id"?: string | null;
+                "webhook-timestamp"?: string | null;
+                "webhook-signature"?: string | null;
+            };
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     github_webhook_legacy_api_v1_webhooks_github_post: {
         parameters: {
             query?: never;
@@ -2892,6 +3006,26 @@ export interface operations {
         };
     };
     azure_devops_webhook_legacy_api_v1_webhooks_azure_devops_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    gitlab_webhook_legacy_api_v1_webhooks_gitlab_post: {
         parameters: {
             query?: never;
             header?: never;

@@ -45,6 +45,9 @@ def _repo_row() -> RepoIntegrationRow:
         ado_pat="",
         ado_webhook_username="",
         ado_webhook_password="",
+        gitlab_base_url="",
+        gitlab_token="",
+        gitlab_webhook_secret="",
         created_at=now,
         updated_at=now,
     )
@@ -111,6 +114,9 @@ def test_repo_integration_matches_repo() -> None:
         ado_pat="",
         ado_webhook_username="",
         ado_webhook_password="",
+        gitlab_base_url="",
+        gitlab_token="",
+        gitlab_webhook_secret="",
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )

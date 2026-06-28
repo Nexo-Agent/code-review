@@ -1,10 +1,9 @@
 from uuid import UUID
 
 from coreview_shared.protocols import PRMetadata
-from coreview_shared.providers.git.github import GitHubProvider
 
 from app.repositories.reviews import ReviewRepository, ReviewRow
-from app.services.review_job_prepare import resolve_repo_integration_for_review
+from app.services.provider_resolution import build_providers_for_repo
 
 
 class ReviewNotFoundError(LookupError):
@@ -19,13 +18,12 @@ async def resolve_latest_pr_metadata(
     conn,
     review: ReviewRow,
 ) -> PRMetadata:
-    repo_integration = await resolve_repo_integration_for_review(
+    providers = await build_providers_for_repo(
         conn,
+        review.repo_full_name,
         repo_integration_id=review.repo_integration_id,
-        repo_full_name=review.repo_full_name,
     )
-    git = GitHubProvider(token=repo_integration.github_token)
-    return await git.get_pr_metadata(review.repo_full_name, review.pr_number)
+    return await providers.git.get_pr_metadata(review.repo_full_name, review.pr_number)
 
 
 async def resolve_latest_head_sha(

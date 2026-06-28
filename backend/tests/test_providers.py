@@ -48,6 +48,7 @@ def test_github_parse_webhook_valid() -> None:
             "pull_request": {
                 "number": 42,
                 "head": {"sha": "abc123"},
+                "html_url": "https://github.com/org/repo/pull/42",
             },
             "repository": {"full_name": "org/repo"},
         }
@@ -62,6 +63,25 @@ def test_github_parse_webhook_valid() -> None:
     assert event.pr_number == 42
     assert event.head_sha == "abc123"
     assert event.delivery_id == "delivery-1"
+    assert event.pr_url == "https://github.com/org/repo/pull/42"
+
+
+def test_github_build_pr_url() -> None:
+    provider = GitHubProvider(token="")
+    assert provider.build_pr_url("org/repo", 42) == (
+        "https://github.com/org/repo/pull/42"
+    )
+
+
+def test_github_build_blob_url() -> None:
+    provider = GitHubProvider(token="")
+    assert provider.build_blob_url("org/repo", "abc123", "src/main.py", 10) == (
+        "https://github.com/org/repo/blob/abc123/src/main.py#L10"
+    )
+    assert provider.build_blob_url("org/repo", "abc123", "src/main.py") == (
+        "https://github.com/org/repo/blob/abc123/src/main.py"
+    )
+    assert provider.build_blob_url("org/repo", "abc123", "  ") is None
 
 
 def test_github_parse_webhook_ignored_event() -> None:
@@ -402,11 +422,34 @@ def test_provider_factory_azure_devops() -> None:
     assert isinstance(providers.ci, NoOpCIProvider)
 
 
-def test_provider_factory_unsupported_git() -> None:
+def test_provider_factory_gitlab() -> None:
+    from coreview_shared.providers.ci.gitlab import GitLabCIProvider
+    from coreview_shared.providers.git.gitlab import GitLabProvider
+
     from app.providers.factory import build_providers
 
     runtime = ReviewRuntimeConfig(
         git_provider="gitlab",
+        github_webhook_secret="",
+        github_token="",
+        llm_provider_id="openai-compat",
+        llm_base_url="https://api.openai.com/v1",
+        llm_api_token="",
+        llm_model="gpt-4o",
+        gitlab_base_url="https://gitlab.example.com",
+        gitlab_token="glpat-test",
+        gitlab_webhook_secret="secret",
+    )
+    providers = build_providers(runtime)
+    assert isinstance(providers.git, GitLabProvider)
+    assert isinstance(providers.ci, GitLabCIProvider)
+
+
+def test_provider_factory_unsupported_git() -> None:
+    from app.providers.factory import build_providers
+
+    runtime = ReviewRuntimeConfig(
+        git_provider="bitbucket",
         github_webhook_secret="",
         github_token="",
         llm_provider_id="openai-compat",

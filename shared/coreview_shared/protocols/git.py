@@ -28,7 +28,12 @@ class GitProvider(Protocol):
     """
 
     def verify_webhook_signature(
-        self, payload: bytes, signature: str | None, secret: str
+        self,
+        payload: bytes,
+        signature: str | None,
+        secret: str,
+        *,
+        headers: dict[str, str] | None = None,
     ) -> bool: ...
 
     async def prepare_review(
@@ -87,3 +92,13 @@ class GitProvider(Protocol):
     def parse_webhook(
         self, headers: dict[str, str], body: bytes
     ) -> WebhookEvent | None: ...
+
+    def build_pr_url(self, repo_full_name: str, pr_number: int) -> str: ...
+
+    def build_blob_url(
+        self,
+        repo_full_name: str,
+        ref: str,
+        file_path: str,
+        line: int | None = None,
+    ) -> str | None: ...

@@ -1,17 +1,17 @@
 import { ProviderLogo } from "@/components/settings/repo-integration/ProviderLogo"
 import {
   GIT_PROVIDERS,
-  type GitProviderId,
+  type GitProviderPickerId,
 } from "@/components/settings/repo-integration/providers"
 import { cn } from "@/lib/utils"
 
 type ProviderPickerProps = {
-  onSelect: (providerId: GitProviderId) => void
+  onSelect: (providerId: GitProviderPickerId) => void
 }
 
 export function ProviderPicker({ onSelect }: ProviderPickerProps) {
   return (
-    <div className="flex gap-2.5 px-6 py-4">
+    <div className="flex flex-wrap justify-center gap-2.5 px-6 py-4">
       {GIT_PROVIDERS.map((provider) => (
         <ProviderCard
           key={provider.id}
@@ -26,10 +26,10 @@ export function ProviderPicker({ onSelect }: ProviderPickerProps) {
 }
 
 type ProviderCardProps = {
-  providerId: GitProviderId
+  providerId: GitProviderPickerId
   label: string
   disabled?: boolean
-  onSelect: (providerId: GitProviderId) => void
+  onSelect: (providerId: GitProviderPickerId) => void
 }
 
 function ProviderCard({

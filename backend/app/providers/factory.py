@@ -2,9 +2,11 @@ from functools import lru_cache
 
 from coreview_shared.protocols import ProviderBundle, RuntimeProvider
 from coreview_shared.providers.ci.github import GitHubCIProvider
+from coreview_shared.providers.ci.gitlab import GitLabCIProvider
 from coreview_shared.providers.ci.noop import NoOpCIProvider
 from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
 from coreview_shared.providers.git.github import GitHubProvider
+from coreview_shared.providers.git.gitlab import GitLabProvider
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
 from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
 
@@ -19,6 +21,7 @@ from app.config import (
 _GIT_PROVIDERS: dict[str, type] = {
     "github": GitHubProvider,
     "azure-devops": AzureDevOpsProvider,
+    "gitlab": GitLabProvider,
 }
 
 _RUNTIME_PROVIDERS: dict[str, type] = {
@@ -35,6 +38,11 @@ def _build_git_provider(runtime: ReviewRuntimeConfig):
 
     if git_cls is GitHubProvider:
         return GitHubProvider(token=runtime.github_token)
+    if git_cls is GitLabProvider:
+        return GitLabProvider(
+            token=runtime.gitlab_token,
+            base_url=runtime.gitlab_base_url,
+        )
     return AzureDevOpsProvider(
         pat=runtime.ado_pat,
         organization=runtime.ado_organization,
@@ -45,6 +53,11 @@ def _build_git_provider(runtime: ReviewRuntimeConfig):
 def _build_ci_provider(runtime: ReviewRuntimeConfig):
     if runtime.git_provider == "github":
         return GitHubCIProvider(token=runtime.github_token)
+    if runtime.git_provider == "gitlab":
+        return GitLabCIProvider(
+            token=runtime.gitlab_token,
+            base_url=runtime.gitlab_base_url,
+        )
     return NoOpCIProvider()
 
 

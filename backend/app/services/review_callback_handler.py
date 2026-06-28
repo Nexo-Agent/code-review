@@ -45,6 +45,16 @@ async def handle_review_callback(conn, event: ReviewCallbackEvent) -> None:
         return
 
     if event.event == "review.completed":
+        await repo.update_request_metadata(
+            review_id,
+            pr_title=request.pr_title,
+            pr_url=request.pr_url,
+            pr_author=request.pr_author,
+            head_sha=request.head_sha,
+            base_sha=request.base_sha,
+            base_ref=request.base_ref,
+            head_ref=request.head_ref,
+        )
         findings = []
         if event.result is not None:
             findings = [

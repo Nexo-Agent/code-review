@@ -126,8 +126,14 @@ class AzureDevOpsProvider:
         return repository_id
 
     def verify_webhook_signature(
-        self, payload: bytes, signature: str | None, secret: str
+        self,
+        payload: bytes,
+        signature: str | None,
+        secret: str,
+        *,
+        headers: dict[str, str] | None = None,
     ) -> bool:
+        del headers
         del payload
         if not secret or ":" not in secret:
             return False
@@ -197,15 +203,43 @@ class AzureDevOpsProvider:
             cache_key = self._repo_cache_key(organization, project_name, repo_name)
             self._repository_ids[cache_key] = repo_id
 
+        repo_full_name = f"{organization}/{project_name}/{repo_name}"
+        pr_number = int(pull_request_id)
+        pr_url = resource.get("url") or ""
+        if not pr_url:
+            pr_url = self.build_pr_url(repo_full_name, pr_number)
+
         return WebhookEvent(
             event_type=event_type,
             action=event_type.rsplit(".", maxsplit=1)[-1],
-            repo_full_name=f"{organization}/{project_name}/{repo_name}",
-            pr_number=int(pull_request_id),
+            repo_full_name=repo_full_name,
+            pr_number=pr_number,
             head_sha=head_sha,
             delivery_id=payload.get("id"),
             pr_title=resource.get("title") or "",
+            pr_url=pr_url,
         )
+
+    def build_pr_url(self, repo_full_name: str, pr_number: int) -> str:
+        organization, project, repo = parse_repo_full_name(
+            repo_full_name,
+            organization=self._organization,
+            project=self._project,
+        )
+        return (
+            f"https://dev.azure.com/{organization}/{project}/_git/{repo}"
+            f"/pullrequest/{pr_number}"
+        )
+
+    def build_blob_url(
+        self,
+        repo_full_name: str,
+        ref: str,
+        file_path: str,
+        line: int | None = None,
+    ) -> str | None:
+        del ref, file_path, line
+        return None
 
     async def prepare_review(
         self,

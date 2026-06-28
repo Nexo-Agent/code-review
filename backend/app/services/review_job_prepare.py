@@ -82,6 +82,9 @@ def build_agent_environment(
         env["COGITO_REVIEW_ADO_ORGANIZATION"] = repo_integration.ado_organization
         env["COGITO_REVIEW_ADO_PROJECT"] = repo_integration.ado_project
         env["COGITO_REVIEW_ADO_PAT"] = repo_integration.ado_pat
+    if repo_integration.git_provider == "gitlab":
+        env["COGITO_REVIEW_GITLAB_BASE_URL"] = repo_integration.gitlab_base_url
+        env["COGITO_REVIEW_GITLAB_TOKEN"] = repo_integration.gitlab_token
     return env
 
 

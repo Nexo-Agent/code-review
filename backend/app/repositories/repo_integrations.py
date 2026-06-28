@@ -9,10 +9,15 @@ _ADO_COLUMNS = """
     ado_webhook_username, ado_webhook_password
 """
 
+_GITLAB_COLUMNS = """
+    gitlab_base_url, gitlab_token, gitlab_webhook_secret
+"""
+
 _SELECT_COLUMNS = f"""
     id, team_id, name, git_provider, repo_full_name, llm_provider_id,
     github_webhook_secret, github_token, system_prompt, enabled,
     {_ADO_COLUMNS},
+    {_GITLAB_COLUMNS},
     created_at, updated_at
 """
 
@@ -34,6 +39,9 @@ class RepoIntegrationRow:
     ado_pat: str
     ado_webhook_username: str
     ado_webhook_password: str
+    gitlab_base_url: str
+    gitlab_token: str
+    gitlab_webhook_secret: str
     created_at: datetime
     updated_at: datetime
 
@@ -137,6 +145,7 @@ class RepoIntegrationRepository:
                    ri.llm_provider_id, ri.github_webhook_secret, ri.github_token,
                    ri.system_prompt, ri.enabled, ri.ado_organization, ri.ado_project,
                    ri.ado_pat, ri.ado_webhook_username, ri.ado_webhook_password,
+                   ri.gitlab_base_url, ri.gitlab_token, ri.gitlab_webhook_secret,
                    ri.created_at, ri.updated_at, t.name AS team_name
             FROM repo_integrations ri
             JOIN teams t ON t.id = ri.team_id
@@ -198,6 +207,7 @@ class RepoIntegrationRepository:
                    ri.llm_provider_id, ri.github_webhook_secret, ri.github_token,
                    ri.system_prompt, ri.enabled, ri.ado_organization, ri.ado_project,
                    ri.ado_pat, ri.ado_webhook_username, ri.ado_webhook_password,
+                   ri.gitlab_base_url, ri.gitlab_token, ri.gitlab_webhook_secret,
                    ri.created_at, ri.updated_at, t.name AS team_name
             FROM repo_integrations ri
             JOIN teams t ON t.id = ri.team_id
@@ -354,6 +364,9 @@ class RepoIntegrationRepository:
         ado_pat: str = "",
         ado_webhook_username: str = "",
         ado_webhook_password: str = "",
+        gitlab_base_url: str = "",
+        gitlab_token: str = "",
+        gitlab_webhook_secret: str = "",
         llm_provider_id: UUID | None = None,
     ) -> RepoIntegrationRow:
         row = await self._conn.fetchrow(
@@ -362,9 +375,13 @@ class RepoIntegrationRepository:
                 team_id, name, git_provider, repo_full_name, llm_provider_id,
                 github_webhook_secret, github_token, system_prompt, enabled,
                 ado_organization, ado_project, ado_pat,
-                ado_webhook_username, ado_webhook_password
+                ado_webhook_username, ado_webhook_password,
+                gitlab_base_url, gitlab_token, gitlab_webhook_secret
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17
+            )
             RETURNING {_SELECT_COLUMNS}
             """,
             team_id,
@@ -381,6 +398,9 @@ class RepoIntegrationRepository:
             ado_pat,
             ado_webhook_username,
             ado_webhook_password,
+            gitlab_base_url,
+            gitlab_token,
+            gitlab_webhook_secret,
         )
         if row is None:
             msg = "failed to create repo integration"
@@ -407,6 +427,11 @@ class RepoIntegrationRepository:
         ado_webhook_password: str | None = None,
         clear_ado_pat: bool = False,
         clear_ado_webhook_password: bool = False,
+        gitlab_base_url: str | None = None,
+        gitlab_token: str | None = None,
+        gitlab_webhook_secret: str | None = None,
+        clear_gitlab_token: bool = False,
+        clear_gitlab_webhook_secret: bool = False,
         llm_provider_id: UUID | None = None,
         clear_llm_provider_id: bool = False,
     ) -> RepoIntegrationRow:
@@ -445,6 +470,13 @@ class RepoIntegrationRepository:
                 ado_webhook_password = CASE
                     WHEN $16 THEN '' ELSE COALESCE($17, ado_webhook_password)
                 END,
+                gitlab_base_url = COALESCE($19, gitlab_base_url),
+                gitlab_token = CASE
+                    WHEN $20 THEN '' ELSE COALESCE($21, gitlab_token)
+                END,
+                gitlab_webhook_secret = CASE
+                    WHEN $22 THEN '' ELSE COALESCE($23, gitlab_webhook_secret)
+                END,
                 updated_at = now()
             WHERE id = $1
             RETURNING {_SELECT_COLUMNS}
@@ -469,6 +501,11 @@ class RepoIntegrationRepository:
             clear_ado_webhook_password,
             ado_webhook_password,
             resolved_llm,
+            gitlab_base_url,
+            clear_gitlab_token,
+            gitlab_token,
+            clear_gitlab_webhook_secret,
+            gitlab_webhook_secret,
         )
         if row is None:
             msg = "failed to update repo integration"
@@ -499,6 +536,9 @@ def _row_to_repo_integration(row: asyncpg.Record) -> RepoIntegrationRow:
         ado_pat=row["ado_pat"],
         ado_webhook_username=row["ado_webhook_username"],
         ado_webhook_password=row["ado_webhook_password"],
+        gitlab_base_url=row["gitlab_base_url"],
+        gitlab_token=row["gitlab_token"],
+        gitlab_webhook_secret=row["gitlab_webhook_secret"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

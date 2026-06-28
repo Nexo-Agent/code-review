@@ -31,6 +31,8 @@ class AgentSettings(BaseSettings):
     ado_organization: str = ""
     ado_project: str = ""
     ado_pat: str = ""
+    gitlab_base_url: str = ""
+    gitlab_token: str = ""
     llm_provider_id: str = ""
     llm_base_url: str = ""
     llm_api_token: str = ""

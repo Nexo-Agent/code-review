@@ -28,6 +28,9 @@ export function emptyRepoForm(): RepoIntegrationCreate {
     ado_pat: "",
     ado_webhook_username: "",
     ado_webhook_password: "",
+    gitlab_base_url: "",
+    gitlab_token: "",
+    gitlab_webhook_secret: "",
     enabled: true,
   }
 }

@@ -6,7 +6,9 @@ import { EmptyState } from "@/components/patterns/empty-state"
 import { MultiSelectFilter } from "@/components/patterns/multi-select-filter"
 import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
 import { ProviderLogo } from "@/components/settings/repo-integration/ProviderLogo"
-import { isGitProviderId } from "@/components/settings/repo-integration/providers"
+import {
+  gitProviderLogoId,
+} from "@/components/settings/repo-integration/providers"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -228,12 +230,13 @@ function RepositoriesPage() {
                   <TableRow key={repo.id}>
                     <TableCell>
                       <div className="flex items-center gap-2.5">
-                        {isGitProviderId(repo.git_provider) ? (
-                          <ProviderLogo
-                            providerId={repo.git_provider}
-                            className="size-5"
-                          />
-                        ) : null}
+                        <ProviderLogo
+                          providerId={gitProviderLogoId(
+                            repo.git_provider,
+                            repo.gitlab_base_url,
+                          )}
+                          className="size-5"
+                        />
                         <div className="min-w-0">
                           <Link
                             to="/teams/$teamId/repos/$repoId"

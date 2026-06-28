@@ -77,6 +77,47 @@ def test_ado_parse_webhook_valid() -> None:
     assert event.delivery_id == "delivery-1"
 
 
+def test_ado_build_pr_url() -> None:
+    provider = AzureDevOpsProvider(pat="")
+    assert provider.build_pr_url("fabrikam/MyProject/Fabrikam", 42) == (
+        "https://dev.azure.com/fabrikam/MyProject/_git/Fabrikam/pullrequest/42"
+    )
+
+
+def test_ado_build_blob_url_returns_none() -> None:
+    provider = AzureDevOpsProvider(pat="")
+    url = provider.build_blob_url("fabrikam/MyProject/Fabrikam", "abc", "a.py", 1)
+    assert url is None
+
+
+def test_ado_parse_webhook_builds_pr_url() -> None:
+    provider = AzureDevOpsProvider(pat="")
+    body = json.dumps(
+        {
+            "id": "delivery-1",
+            "eventType": "git.pullrequest.created",
+            "resource": {
+                "repository": {
+                    "id": "repo-guid",
+                    "name": "Fabrikam",
+                    "project": {"name": "MyProject"},
+                },
+                "pullRequestId": 42,
+                "status": "active",
+                "lastMergeSourceCommit": {"commitId": "abc123"},
+            },
+            "resourceContainers": {
+                "account": {"baseUrl": "https://dev.azure.com/fabrikam/"}
+            },
+        }
+    ).encode()
+    event = provider.parse_webhook({}, body)
+    assert event is not None
+    assert event.pr_url == (
+        "https://dev.azure.com/fabrikam/MyProject/_git/Fabrikam/pullrequest/42"
+    )
+
+
 def test_ado_parse_webhook_ignores_completed() -> None:
     provider = AzureDevOpsProvider(pat="")
     body = json.dumps(

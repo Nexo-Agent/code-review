@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
-  buildPrUrl,
   formatDuration,
   formatProviderLabel,
 } from "@/lib/review-utils"
@@ -140,7 +139,7 @@ export function ReviewMetadataPanel({
   repoIntegration?: RepoIntegration
 }) {
   const [debugOpen, setDebugOpen] = useState(false)
-  const prUrl = buildPrUrl(review)
+  const prUrl = review.pr_url?.trim() || null
   const prTitle = review.pr_title.trim()
   const branchLabel =
     review.base_ref && review.head_ref
