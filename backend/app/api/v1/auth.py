@@ -9,7 +9,7 @@ from app.auth.dependencies import (
     SESSION_COOKIE,
     AuthContext,
     get_auth_context,
-    get_current_user,
+    require_org_action_dep,
 )
 from app.auth.oidc import build_authorization_url, exchange_code
 from app.auth.saml import (
@@ -21,7 +21,13 @@ from app.auth.session import create_session, destroy_session
 from app.auth.state import consume_auth_state, create_auth_state
 from app.config import get_code_review_settings
 from app.dependencies import get_conn
-from app.schemas.auth import MeResponse, UserResponse
+from app.rbac.catalog import ActionKey
+from app.schemas.auth import (
+    MeResponse,
+    PermissionsSummaryResponse,
+    TeamMembershipResponse,
+    UserResponse,
+)
 from app.schemas.identity_provider import IdentityProviderPublicResponse
 from app.schemas.install import LocalLoginRequest
 from app.services.access_control import get_accessible_team_ids
@@ -86,10 +92,22 @@ def _apply_session_cookie(
 async def get_me(
     auth: AuthContext = Depends(get_auth_context),
 ) -> MeResponse:
+    effective = auth.permissions
+    if effective is None:
+        raise HTTPException(status_code=500, detail="Permissions unavailable")
     return MeResponse(
         user=_user_response(auth.user),
         team_ids=auth.accessible_team_ids,
         auth_enabled=auth.auth_enabled,
+        organization_roles=effective.organization_roles,
+        team_memberships=[
+            TeamMembershipResponse(team_id=m.team_id, role_key=m.role_key)
+            for m in effective.team_memberships
+        ],
+        permissions=PermissionsSummaryResponse(
+            organization=effective.organization_actions,
+            teams=effective.team_actions,
+        ),
     )
 
 
@@ -102,11 +120,9 @@ async def get_idp(
 
 @router.get("/users", response_model=list[UserResponse])
 async def get_users(
-    user=Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_conn),
+    _user=Depends(require_org_action_dep(ActionKey.USER_READ)),
 ) -> list[UserResponse]:
-    if not user.is_org_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     return await list_users(conn)
 
 

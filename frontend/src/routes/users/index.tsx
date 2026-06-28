@@ -15,9 +15,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useUsersPage } from "@/hooks/use-users"
+import { requireOrgPermission } from "@/lib/permissions"
 import { parsePageSearch } from "@/lib/pagination"
 
 export const Route = createFileRoute("/users/")({
+  beforeLoad: requireOrgPermission("user.read"),
   validateSearch: parsePageSearch,
   component: UsersPage,
 })

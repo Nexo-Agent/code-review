@@ -2,13 +2,14 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException, status
 from httpx import ASGITransport, AsyncClient
 
 from app.auth.dependencies import AuthContext, get_auth_context
 from app.dependencies import get_conn
 from app.main import create_app
 from app.repositories.teams import DEFAULT_TEAM_ID
-from tests.conftest import make_dev_user, make_review_row
+from tests.conftest import make_dev_user, make_effective_permissions, make_review_row
 
 
 @pytest.fixture
@@ -32,12 +33,20 @@ def _set_auth(
     user,
     accessible_team_ids: list,
     auth_enabled: bool = True,
+    team_role: str = "member",
 ) -> None:
+    permissions = make_effective_permissions(
+        user,
+        accessible_team_ids,
+        team_role=team_role,
+    )
+
     async def override_auth_context():
         return AuthContext(
             user=user,
             accessible_team_ids=accessible_team_ids,
             auth_enabled=auth_enabled,
+            permissions=permissions,
         )
 
     app.dependency_overrides[get_auth_context] = override_auth_context
@@ -78,14 +87,12 @@ async def test_get_review_denied_for_non_member(app_client) -> None:
 
     mock_repo = AsyncMock()
     mock_repo.get = AsyncMock(return_value=review)
-    mock_member_repo = AsyncMock()
-    mock_member_repo.is_member = AsyncMock(return_value=False)
+
+    async def deny_access(*_args, **_kwargs):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="denied")
 
     with patch("app.api.v1.reviews.ReviewRepository", return_value=mock_repo):
-        with patch(
-            "app.services.access_control.TeamMemberRepository",
-            return_value=mock_member_repo,
-        ):
+        with patch("app.api.v1.reviews.assert_review_access", side_effect=deny_access):
             response = await client.get(f"/api/v1/reviews/{review.id}")
 
     assert response.status_code == 403
@@ -109,7 +116,11 @@ async def test_get_review_allowed_for_org_admin(app_client) -> None:
     mock_repo.list_findings = AsyncMock(return_value=[])
 
     with patch("app.api.v1.reviews.ReviewRepository", return_value=mock_repo):
-        response = await client.get(f"/api/v1/reviews/{review.id}")
+        with patch(
+            "app.api.v1.reviews.assert_review_access",
+            new_callable=AsyncMock,
+        ):
+            response = await client.get(f"/api/v1/reviews/{review.id}")
 
     assert response.status_code == 200
     assert response.json()["id"] == str(review.id)

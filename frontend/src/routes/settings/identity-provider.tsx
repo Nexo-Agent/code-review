@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { ConfiguredIdpView } from "@/components/settings/identity-provider/ConfiguredIdpView"
@@ -16,7 +16,7 @@ import {
   useDeleteIdentityProvider,
   useIdentityProvider,
 } from "@/hooks/use-identity-provider"
-import { DEFAULT_LIST_SEARCH } from "@/lib/pagination"
+import { requireOrgPermission } from "@/lib/permissions"
 
 const SETUP_PROVIDER_IDS = [
   "google",
@@ -40,12 +40,7 @@ export const Route = createFileRoute("/settings/identity-provider")({
     setup: parseSetupProvider(search.setup),
     edit: search.edit === true || search.edit === "true",
   }),
-  beforeLoad: ({ context }) => {
-    const me = (context as { me?: { user: { is_org_admin: boolean } } }).me
-    if (me && !me.user.is_org_admin) {
-      throw redirect({ to: "/teams", search: DEFAULT_LIST_SEARCH })
-    }
-  },
+  beforeLoad: requireOrgPermission("settings.sso.read"),
   component: IdentityProviderSettingsPage,
 })
 

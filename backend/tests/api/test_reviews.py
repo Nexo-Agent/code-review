@@ -15,7 +15,7 @@ from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.organizations import DEFAULT_ORG_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
 from app.repositories.teams import DEFAULT_TEAM_ID
-from tests.conftest import make_dev_user, make_review_row
+from tests.conftest import make_dev_user, make_effective_permissions, make_review_row
 
 
 @pytest.fixture
@@ -32,13 +32,21 @@ async def client() -> AsyncClient:
             user=dev_user,
             accessible_team_ids=[DEFAULT_TEAM_ID],
             auth_enabled=False,
+            permissions=make_effective_permissions(
+                dev_user,
+                [DEFAULT_TEAM_ID],
+            ),
         )
 
     app.dependency_overrides[get_conn] = override_get_conn
     app.dependency_overrides[get_auth_context] = override_auth_context
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+    with patch(
+        "app.api.v1.reviews.assert_review_access",
+        new_callable=AsyncMock,
+    ):
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
     app.dependency_overrides.clear()
 
 

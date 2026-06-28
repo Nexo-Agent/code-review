@@ -208,7 +208,13 @@ class UserRepository:
         if row is None:
             msg = "failed to create local superuser"
             raise RuntimeError(msg)
-        return _row_to_user(row)
+        user = _row_to_user(row)
+        from app.rbac.catalog import RoleKey
+        from app.rbac.repositories import RbacRepository
+
+        rbac = RbacRepository(self._conn)
+        await rbac.set_organization_role(user.id, RoleKey.ORG_ADMIN)
+        return await self.get(user.id) or user
 
     async def upsert_external_user(
         self,
@@ -238,7 +244,16 @@ class UserRepository:
         if row is None:
             msg = "failed to upsert user"
             raise RuntimeError(msg)
-        return _row_to_user(row)
+        user = _row_to_user(row)
+        from app.rbac.catalog import RoleKey
+        from app.rbac.repositories import RbacRepository
+
+        rbac = RbacRepository(self._conn)
+        existing_roles = await rbac.get_organization_roles_for_user(user.id)
+        if not existing_roles:
+            role = RoleKey.ORG_ADMIN if is_org_admin else RoleKey.ORG_MEMBER
+            await rbac.set_organization_role(user.id, role)
+        return user
 
     async def upsert_oidc_user(
         self,
@@ -258,15 +273,14 @@ class UserRepository:
     async def set_org_admin(
         self, user_id: UUID, *, is_org_admin: bool
     ) -> UserRow | None:
-        row = await self._conn.fetchrow(
-            f"""
-            UPDATE users SET is_org_admin = $2 WHERE id = $1
-            RETURNING {_USER_SELECT}
-            """,
+        from app.rbac.catalog import RoleKey
+        from app.rbac.repositories import RbacRepository
+
+        await RbacRepository(self._conn).set_organization_role(
             user_id,
-            is_org_admin,
+            RoleKey.ORG_ADMIN if is_org_admin else RoleKey.ORG_MEMBER,
         )
-        return _row_to_user(row) if row else None
+        return await self.get(user_id)
 
 
 def _row_to_list_user(row: asyncpg.Record) -> UserListRow:

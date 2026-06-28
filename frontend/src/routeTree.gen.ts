@@ -19,6 +19,7 @@ import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
 import { Route as RepositoriesIndexRouteImport } from './routes/repositories/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as LlmProvidersIndexRouteImport } from './routes/llm-providers/index'
+import { Route as SettingsPermissionsRouteImport } from './routes/settings/permissions'
 import { Route as SettingsIdentityProviderRouteImport } from './routes/settings/identity-provider'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 import { Route as RepositoriesRepoIdRouteImport } from './routes/repositories/$repoId'
@@ -76,6 +77,11 @@ const LlmProvidersIndexRoute = LlmProvidersIndexRouteImport.update({
   path: '/llm-providers/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsPermissionsRoute = SettingsPermissionsRouteImport.update({
+  id: '/settings/permissions',
+  path: '/settings/permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIdentityProviderRoute =
   SettingsIdentityProviderRouteImport.update({
     id: '/settings/identity-provider',
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/settings/identity-provider': typeof SettingsIdentityProviderRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/members/': typeof MembersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/settings/identity-provider': typeof SettingsIdentityProviderRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
   '/llm-providers': typeof LlmProvidersIndexRoute
   '/members': typeof MembersIndexRoute
   '/repositories': typeof RepositoriesIndexRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/repositories/$repoId': typeof RepositoriesRepoIdRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/settings/identity-provider': typeof SettingsIdentityProviderRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/members/': typeof MembersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
     | '/settings/identity-provider'
+    | '/settings/permissions'
     | '/llm-providers/'
     | '/members/'
     | '/repositories/'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
     | '/settings/identity-provider'
+    | '/settings/permissions'
     | '/llm-providers'
     | '/members'
     | '/repositories'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/repositories/$repoId'
     | '/reviews/$reviewId'
     | '/settings/identity-provider'
+    | '/settings/permissions'
     | '/llm-providers/'
     | '/members/'
     | '/repositories/'
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   RepositoriesRepoIdRoute: typeof RepositoriesRepoIdRoute
   ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
   SettingsIdentityProviderRoute: typeof SettingsIdentityProviderRoute
+  SettingsPermissionsRoute: typeof SettingsPermissionsRoute
   LlmProvidersIndexRoute: typeof LlmProvidersIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
   RepositoriesIndexRoute: typeof RepositoriesIndexRoute
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LlmProvidersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/permissions': {
+      id: '/settings/permissions'
+      path: '/settings/permissions'
+      fullPath: '/settings/permissions'
+      preLoaderRoute: typeof SettingsPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/identity-provider': {
       id: '/settings/identity-provider'
       path: '/settings/identity-provider'
@@ -364,6 +384,7 @@ const rootRouteChildren: RootRouteChildren = {
   RepositoriesRepoIdRoute: RepositoriesRepoIdRoute,
   ReviewsReviewIdRoute: ReviewsReviewIdRoute,
   SettingsIdentityProviderRoute: SettingsIdentityProviderRoute,
+  SettingsPermissionsRoute: SettingsPermissionsRoute,
   LlmProvidersIndexRoute: LlmProvidersIndexRoute,
   MembersIndexRoute: MembersIndexRoute,
   RepositoriesIndexRoute: RepositoriesIndexRoute,

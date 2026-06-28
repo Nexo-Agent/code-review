@@ -2,10 +2,32 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
+import pytest_asyncio
 
+from app.rbac.catalog import ActionKey, RoleKey
+from app.rbac.models import EffectivePermissions, TeamRoleAssignment
 from app.repositories.reviews import ReviewRow
 from app.repositories.teams import DEFAULT_TEAM_ID
 from app.repositories.users import UserRow
+
+ORG_ADMIN_ACTIONS = sorted(a.value for a in ActionKey)
+MEMBER_TEAM_ACTIONS = sorted(
+    [
+        ActionKey.TEAM_READ.value,
+        ActionKey.REPO_READ.value,
+        ActionKey.REVIEW_READ.value,
+        ActionKey.REVIEW_RERUN.value,
+        ActionKey.REVIEW_FINDING_READ.value,
+    ]
+)
+VIEWER_TEAM_ACTIONS = sorted(
+    [
+        ActionKey.TEAM_READ.value,
+        ActionKey.REPO_READ.value,
+        ActionKey.REVIEW_READ.value,
+        ActionKey.REVIEW_FINDING_READ.value,
+    ]
+)
 
 
 def make_review_row(**overrides: object) -> ReviewRow:
@@ -53,6 +75,54 @@ def make_dev_user(**overrides: object) -> UserRow:
     }
     defaults.update(overrides)
     return UserRow(**defaults)  # type: ignore[arg-type]
+
+
+def make_effective_permissions(
+    user: UserRow,
+    accessible_team_ids: list[UUID],
+    *,
+    team_role: str = RoleKey.MEMBER.value,
+) -> EffectivePermissions:
+    if user.is_org_admin or user.is_superuser:
+        org_roles = [RoleKey.ORG_ADMIN.value]
+        org_actions = ORG_ADMIN_ACTIONS
+        team_actions = {
+            str(team_id): ORG_ADMIN_ACTIONS for team_id in accessible_team_ids
+        }
+        memberships = [
+            TeamRoleAssignment(team_id=team_id, role_key=RoleKey.TEAM_ADMIN.value)
+            for team_id in accessible_team_ids
+        ]
+    else:
+        org_roles = [RoleKey.ORG_MEMBER.value]
+        org_actions: list[str] = []
+        actions = (
+            VIEWER_TEAM_ACTIONS
+            if team_role == RoleKey.VIEWER.value
+            else MEMBER_TEAM_ACTIONS
+        )
+        team_actions = {str(team_id): actions for team_id in accessible_team_ids}
+        memberships = [
+            TeamRoleAssignment(team_id=team_id, role_key=team_role)
+            for team_id in accessible_team_ids
+        ]
+
+    return EffectivePermissions(
+        organization_roles=org_roles,
+        organization_actions=org_actions,
+        team_memberships=memberships,
+        team_actions=team_actions,
+    )
+
+
+@pytest_asyncio.fixture
+async def db_conn():
+    from app.main import create_app
+
+    app = create_app()
+    async with app.router.lifespan_context(app):
+        async with app.state.pool.acquire() as conn:
+            yield conn
 
 
 def pytest_configure(config: pytest.Config) -> None:

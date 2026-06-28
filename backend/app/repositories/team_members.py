@@ -23,9 +23,10 @@ class TeamMemberRepository:
     async def list_for_team(self, team_id: UUID) -> list[TeamMemberRow]:
         rows = await self._conn.fetch(
             """
-            SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+            SELECT tm.team_id, tm.user_id, r.key AS role, tm.created_at,
                    u.email AS user_email, u.name AS user_name
             FROM team_members tm
+            JOIN rbac_roles r ON r.id = tm.role_id
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = $1
             ORDER BY u.email ASC
@@ -46,9 +47,10 @@ class TeamMemberRepository:
             pattern = f"%{search}%"
             rows = await self._conn.fetch(
                 """
-                SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+                SELECT tm.team_id, tm.user_id, r.key AS role, tm.created_at,
                        u.email AS user_email, u.name AS user_name
                 FROM team_members tm
+                JOIN rbac_roles r ON r.id = tm.role_id
                 JOIN users u ON u.id = tm.user_id
                 WHERE tm.team_id = $1
                   AND (u.email ILIKE $2 OR u.name ILIKE $2)
@@ -63,9 +65,10 @@ class TeamMemberRepository:
         else:
             rows = await self._conn.fetch(
                 """
-                SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+                SELECT tm.team_id, tm.user_id, r.key AS role, tm.created_at,
                        u.email AS user_email, u.name AS user_name
                 FROM team_members tm
+                JOIN rbac_roles r ON r.id = tm.role_id
                 JOIN users u ON u.id = tm.user_id
                 WHERE tm.team_id = $1
                 ORDER BY u.email ASC
@@ -105,9 +108,10 @@ class TeamMemberRepository:
     async def get(self, team_id: UUID, user_id: UUID) -> TeamMemberRow | None:
         row = await self._conn.fetchrow(
             """
-            SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+            SELECT tm.team_id, tm.user_id, r.key AS role, tm.created_at,
                    u.email AS user_email, u.name AS user_name
             FROM team_members tm
+            JOIN rbac_roles r ON r.id = tm.role_id
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = $1 AND tm.user_id = $2
             """,
@@ -141,34 +145,31 @@ class TeamMemberRepository:
         user_id: UUID,
         role: str = "member",
     ) -> TeamMemberRow:
+        role_id = await self._conn.fetchval(
+            "SELECT id FROM rbac_roles WHERE key = $1",
+            role,
+        )
+        if role_id is None:
+            msg = f"unknown team role: {role}"
+            raise ValueError(msg)
         row = await self._conn.fetchrow(
             """
-            INSERT INTO team_members (team_id, user_id, role)
+            INSERT INTO team_members (team_id, user_id, role_id)
             VALUES ($1, $2, $3)
-            ON CONFLICT (team_id, user_id) DO UPDATE SET role = EXCLUDED.role
-            RETURNING team_id, user_id, role, created_at
+            ON CONFLICT (team_id, user_id) DO UPDATE SET role_id = EXCLUDED.role_id
+            RETURNING team_id, user_id, created_at
             """,
             team_id,
             user_id,
-            role,
+            role_id,
         )
         if row is None:
             msg = "failed to add team member"
             raise RuntimeError(msg)
-        member = _row_to_member(row)
-        user_row = await self._conn.fetchrow(
-            "SELECT email, name FROM users WHERE id = $1",
-            user_id,
-        )
-        if user_row:
-            return TeamMemberRow(
-                team_id=member.team_id,
-                user_id=member.user_id,
-                role=member.role,
-                created_at=member.created_at,
-                user_email=user_row["email"],
-                user_name=user_row["name"],
-            )
+        member = await self.get(team_id, user_id)
+        if member is None:
+            msg = "failed to load team member after insert"
+            raise RuntimeError(msg)
         return member
 
     async def remove(self, team_id: UUID, user_id: UUID) -> None:
@@ -197,10 +198,11 @@ class TeamMemberRepository:
             return []
         rows = await self._conn.fetch(
             """
-            SELECT tm.team_id, tm.user_id, tm.role, tm.created_at,
+            SELECT tm.team_id, tm.user_id, r.key AS role, tm.created_at,
                    u.email AS user_email, u.name AS user_name,
                    t.name AS team_name
             FROM team_members tm
+            JOIN rbac_roles r ON r.id = tm.role_id
             JOIN users u ON u.id = tm.user_id
             JOIN teams t ON t.id = tm.team_id
             WHERE tm.team_id = ANY($1::uuid[])

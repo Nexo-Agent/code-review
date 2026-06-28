@@ -4,8 +4,9 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.pagination import PaginationParams
-from app.auth.dependencies import AuthContext, get_auth_context, require_org_admin_user
+from app.auth.dependencies import AuthContext, get_auth_context, require_org_action_dep
 from app.dependencies import get_conn
+from app.rbac.catalog import ActionKey
 from app.schemas.llm_provider import (
     LlmProviderCreate,
     LlmProviderListResponse,
@@ -45,7 +46,7 @@ async def get_llm_providers(
 async def post_llm_provider(
     payload: LlmProviderCreate,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    _admin=Depends(require_org_action_dep(ActionKey.SETTINGS_LLM_UPDATE)),
 ) -> LlmProviderResponse:
     return await create_llm_provider(conn, payload)
 
@@ -55,7 +56,7 @@ async def put_llm_provider(
     provider_id: UUID,
     payload: LlmProviderUpdate,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    _admin=Depends(require_org_action_dep(ActionKey.SETTINGS_LLM_UPDATE)),
 ) -> LlmProviderResponse:
     try:
         return await update_llm_provider(conn, provider_id, payload)
@@ -67,6 +68,6 @@ async def put_llm_provider(
 async def delete_llm_provider_route(
     provider_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    _admin=Depends(require_org_action_dep(ActionKey.SETTINGS_LLM_UPDATE)),
 ) -> None:
     await delete_llm_provider(conn, provider_id)

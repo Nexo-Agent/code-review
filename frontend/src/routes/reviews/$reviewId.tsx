@@ -12,6 +12,7 @@ import {
 } from "@/components/patterns/status-badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { usePermission } from "@/hooks/use-permission"
 import { useRepoIntegration } from "@/hooks/use-settings"
 import { useRereviewReview, useReview } from "@/hooks/use-reviews"
 import { cn } from "@/lib/utils"
@@ -27,11 +28,13 @@ function ReviewDetailPage() {
   const rereview = useRereviewReview()
 
   const data = review.data
+  const canRerunReview = usePermission("review.rerun", data?.team_id)
   const repoIntegrationQuery = useRepoIntegration(data?.repo_integration_id ?? "")
   const repoIntegration = repoIntegrationQuery.data
 
   const canRereview =
-    data?.status === "completed" || data?.status === "failed"
+    (data?.status === "completed" || data?.status === "failed") &&
+    canRerunReview
 
   async function handleRereview() {
     if (!data) return

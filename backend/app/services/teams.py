@@ -63,16 +63,20 @@ async def list_teams_paginated(
     limit: int,
     offset: int,
 ) -> TeamListResponse:
+    from app.rbac.effective_permissions import get_accessible_team_ids_from_permissions
+
     repo = TeamRepository(conn)
     query = (search or "").strip()
-    user_id = None if user.is_org_admin else user.id
-    rows = await repo.list_paginated(
+    accessible = await get_accessible_team_ids_from_permissions(conn, user)
+    if not accessible:
+        return TeamListResponse(items=[], total=0)
+    rows = await repo.list_paginated_for_teams(
+        team_ids=accessible,
         search=query,
         limit=limit,
         offset=offset,
-        user_id=user_id,
     )
-    total = await repo.count(search=query, user_id=user_id)
+    total = await repo.count_for_teams(team_ids=accessible, search=query)
     team_ids = [row.id for row in rows]
     repo_counts = await repo.count_repos_for_teams(team_ids)
     member_counts = await TeamMemberRepository(conn).count_members_for_teams(team_ids)

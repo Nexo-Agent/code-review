@@ -7,13 +7,16 @@ from fastapi import Cookie, Depends, HTTPException, Request, status
 from app.auth.session import get_session_user_id
 from app.config import get_code_review_settings
 from app.dependencies import get_conn
+from app.rbac.catalog import ActionKey
+from app.rbac.checker import PermissionChecker, PermissionDeniedError
+from app.rbac.effective_permissions import compute_effective_permissions
+from app.rbac.models import EffectivePermissions
 from app.repositories.organizations import DEFAULT_ORG_ID
 from app.repositories.users import UserRepository, UserRow
 from app.services.access_control import (
     AccessDeniedError,
     get_accessible_team_ids,
     require_org_admin,
-    require_team_access,
 )
 
 SESSION_COOKIE = "cogito_session"
@@ -25,6 +28,7 @@ class AuthContext:
     user: UserRow
     accessible_team_ids: list[UUID]
     auth_enabled: bool
+    permissions: EffectivePermissions | None = None
 
 
 async def _get_dev_user(conn: asyncpg.Connection) -> UserRow:
@@ -78,11 +82,35 @@ async def get_auth_context(
 ) -> AuthContext:
     settings = get_code_review_settings()
     team_ids = await get_accessible_team_ids(conn, user)
+    permissions = await compute_effective_permissions(conn, user)
     return AuthContext(
         user=user,
         accessible_team_ids=team_ids,
         auth_enabled=settings.auth_enabled,
+        permissions=permissions,
     )
+
+
+def _forbidden() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Permission denied",
+    )
+
+
+async def require_permission(
+    user: UserRow,
+    conn: asyncpg.Connection,
+    action: ActionKey,
+    *,
+    team_id: UUID | None = None,
+) -> UserRow:
+    checker = PermissionChecker(conn)
+    try:
+        await checker.require(user, action, team_id=team_id)
+    except PermissionDeniedError:
+        raise _forbidden()
+    return user
 
 
 async def require_org_admin_user(
@@ -91,10 +119,7 @@ async def require_org_admin_user(
     try:
         await require_org_admin(user)
     except AccessDeniedError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Org admin required",
-        )
+        raise _forbidden()
     return user
 
 
@@ -103,30 +128,59 @@ async def require_team_member(
     user: UserRow = Depends(get_current_user),
     conn: asyncpg.Connection = Depends(get_conn),
 ) -> UserRow:
-    try:
-        await require_team_access(conn, user, team_id)
-    except AccessDeniedError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Team access denied",
-        )
-    return user
+    return await require_permission(user, conn, ActionKey.TEAM_READ, team_id=team_id)
+
+
+async def require_team_action(
+    team_id: UUID,
+    action: ActionKey,
+    user: UserRow = Depends(get_current_user),
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> UserRow:
+    return await require_permission(user, conn, action, team_id=team_id)
+
+
+async def require_org_action(
+    action: ActionKey,
+    user: UserRow = Depends(get_current_user),
+    conn: asyncpg.Connection = Depends(get_conn),
+) -> UserRow:
+    return await require_permission(user, conn, action)
+
+
+def require_org_action_dep(action: ActionKey):
+    async def _dep(
+        user: UserRow = Depends(get_current_user),
+        conn: asyncpg.Connection = Depends(get_conn),
+    ) -> UserRow:
+        return await require_permission(user, conn, action)
+
+    return _dep
+
+
+def require_team_action_dep(action: ActionKey):
+    async def _dep(
+        team_id: UUID,
+        user: UserRow = Depends(get_current_user),
+        conn: asyncpg.Connection = Depends(get_conn),
+    ) -> UserRow:
+        return await require_permission(user, conn, action, team_id=team_id)
+
+    return _dep
 
 
 async def assert_review_access(
     conn: asyncpg.Connection,
     user: UserRow,
     team_id: UUID,
+    *,
+    action: ActionKey = ActionKey.REVIEW_READ,
 ) -> None:
-    if user.is_org_admin:
-        return
+    checker = PermissionChecker(conn)
     try:
-        await require_team_access(conn, user, team_id)
-    except AccessDeniedError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Review access denied",
-        )
+        await checker.require(user, action, team_id=team_id)
+    except PermissionDeniedError:
+        raise _forbidden()
 
 
 __all__ = [
@@ -137,6 +191,11 @@ __all__ = [
     "assert_review_access",
     "get_auth_context",
     "get_current_user",
+    "require_org_action",
+    "require_org_action_dep",
     "require_org_admin_user",
+    "require_permission",
+    "require_team_action",
+    "require_team_action_dep",
     "require_team_member",
 ]
