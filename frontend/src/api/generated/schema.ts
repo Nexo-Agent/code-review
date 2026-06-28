@@ -310,6 +310,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{user_id}/organization-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Organization Role */
+        put: operations["update_organization_role_api_v1_users__user_id__organization_role_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teams": {
         parameters: {
             query?: never;
@@ -502,6 +519,41 @@ export interface paths {
         post?: never;
         /** Delete Llm Provider Route */
         delete: operations["delete_llm_provider_route_api_v1_settings_llm_providers__provider_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/rbac/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Rbac Catalog */
+        get: operations["get_rbac_catalog_api_v1_settings_rbac_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/rbac/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Role Permissions */
+        get: operations["get_role_permissions_api_v1_settings_rbac_permissions_get"];
+        /** Update Role Permissions */
+        put: operations["update_role_permissions_api_v1_settings_rbac_permissions_put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1061,6 +1113,11 @@ export interface components {
             team_ids: string[];
             /** Auth Enabled */
             auth_enabled: boolean;
+            /** Organization Roles */
+            organization_roles?: string[];
+            /** Team Memberships */
+            team_memberships?: components["schemas"]["TeamMembershipResponse"][];
+            permissions?: components["schemas"]["PermissionsSummaryResponse"] | null;
         };
         /** OrgRepositoryListResponse */
         OrgRepositoryListResponse: {
@@ -1137,6 +1194,58 @@ export interface components {
             updated_at: string;
             /** Team Name */
             team_name: string;
+        };
+        /** OrganizationRoleUpdate */
+        OrganizationRoleUpdate: {
+            /** Role Key */
+            role_key: string;
+        };
+        /** PermissionsSummaryResponse */
+        PermissionsSummaryResponse: {
+            /** Organization */
+            organization: string[];
+            /** Teams */
+            teams: {
+                [key: string]: string[];
+            };
+        };
+        /** RbacActionResponse */
+        RbacActionResponse: {
+            /** Key */
+            key: string;
+            /** Display Name */
+            display_name: string;
+            /** Description */
+            description: string;
+        };
+        /** RbacCatalogResponse */
+        RbacCatalogResponse: {
+            /** Roles */
+            roles: components["schemas"]["RbacRoleResponse"][];
+            /** Actions */
+            actions: components["schemas"]["RbacActionResponse"][];
+            /** Scopes */
+            scopes: components["schemas"]["RbacScopeResponse"][];
+        };
+        /** RbacRoleResponse */
+        RbacRoleResponse: {
+            /** Key */
+            key: string;
+            /** Display Name */
+            display_name: string;
+            /** Scope Kind */
+            scope_kind: string;
+            /** Description */
+            description: string;
+        };
+        /** RbacScopeResponse */
+        RbacScopeResponse: {
+            /** Key */
+            key: string;
+            /** Display Name */
+            display_name: string;
+            /** Description */
+            description: string;
         };
         /** RepoIntegrationCreate */
         RepoIntegrationCreate: {
@@ -1537,6 +1646,38 @@ export interface components {
             /** Findings */
             findings?: components["schemas"]["ReviewFindingResponse"][];
         };
+        /** RolePermissionBatchUpdate */
+        RolePermissionBatchUpdate: {
+            /** Updates */
+            updates: components["schemas"]["RolePermissionUpdate"][];
+        };
+        /** RolePermissionEntry */
+        RolePermissionEntry: {
+            /** Role Key */
+            role_key: string;
+            /** Action Key */
+            action_key: string;
+            /** Scope Key */
+            scope_key: string;
+            /** Allowed */
+            allowed: boolean;
+        };
+        /** RolePermissionMatrixResponse */
+        RolePermissionMatrixResponse: {
+            /** Items */
+            items: components["schemas"]["RolePermissionEntry"][];
+        };
+        /** RolePermissionUpdate */
+        RolePermissionUpdate: {
+            /** Role Key */
+            role_key: string;
+            /** Action Key */
+            action_key: string;
+            /** Scope Key */
+            scope_key: string;
+            /** Allowed */
+            allowed: boolean;
+        };
         /** SamlSpCertUpload */
         SamlSpCertUpload: {
             /** Sp Cert */
@@ -1601,6 +1742,16 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** TeamMembershipResponse */
+        TeamMembershipResponse: {
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+            /** Role Key */
+            role_key: string;
         };
         /** TeamResponse */
         TeamResponse: {
@@ -2209,6 +2360,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_organization_role_api_v1_users__user_id__organization_role_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2938,6 +3126,103 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_rbac_catalog_api_v1_settings_rbac_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RbacCatalogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_role_permissions_api_v1_settings_rbac_permissions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolePermissionMatrixResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_role_permissions_api_v1_settings_rbac_permissions_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                cogito_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RolePermissionBatchUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolePermissionMatrixResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

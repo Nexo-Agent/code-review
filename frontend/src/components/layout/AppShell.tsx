@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useLogout, useMe } from "@/hooks/use-auth"
+import { hasOrgPermission } from "@/lib/permissions"
 import {
   DEFAULT_LIST_SEARCH,
   DEFAULT_REPOSITORIES_SEARCH,
@@ -41,6 +42,7 @@ type NavRoute =
   | "/users"
   | "/llm-providers"
   | "/settings/identity-provider"
+  | "/settings/permissions"
 
 type NavLinkItem = {
   kind: "link"
@@ -48,6 +50,7 @@ type NavLinkItem = {
   label: string
   icon: LucideIcon
   exact?: boolean
+  permission?: import("@/api/auth-types").ActionKey
 }
 
 type NavDisabledItem = {
@@ -61,7 +64,7 @@ type NavItem = NavLinkItem | NavDisabledItem
 type NavGroup = {
   label: string
   items: NavItem[]
-  adminOnly?: boolean
+  permission?: import("@/api/auth-types").ActionKey
 }
 
 const dashboardItem: NavLinkItem = {
@@ -104,27 +107,36 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "Organization",
-    adminOnly: true,
+    permission: "user.read",
     items: [
       {
         kind: "link",
         to: "/users",
         label: "Users",
         icon: Users,
+        permission: "user.read",
       },
       {
         kind: "link",
         to: "/llm-providers",
         label: "LLM Provider",
         icon: Sparkles,
+        permission: "settings.llm.read",
       },
       {
         kind: "link",
         to: "/settings/identity-provider",
         label: "SSO",
         icon: Shield,
+        permission: "settings.sso.read",
       },
-      { kind: "disabled", label: "Audit log", icon: ScrollText },
+      {
+        kind: "link",
+        to: "/settings/permissions",
+        label: "Permissions",
+        icon: ScrollText,
+        permission: "settings.rbac.read",
+      },
       { kind: "disabled", label: "Usage", icon: Gauge },
       { kind: "disabled", label: "System", icon: Server },
     ],
@@ -255,6 +267,17 @@ function AppNavLink({ item }: { item: NavLinkItem }) {
           {content}
         </Link>
       )
+    case "/settings/permissions":
+      return (
+        <Link
+          to="/settings/permissions"
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
     default:
       return null
   }
@@ -316,9 +339,23 @@ export function AppShell({
   const me = useMe()
   const logout = useLogout()
   const showHeader = title || description || actions
-  const isOrgAdmin = me.data?.user.is_org_admin ?? false
 
-  const visibleGroups = navGroups.filter((group) => !group.adminOnly || isOrgAdmin)
+  function itemVisible(item: NavItem): boolean {
+    if (item.kind === "disabled") return true
+    if (!item.permission) return true
+    return hasOrgPermission(me.data, item.permission)
+  }
+
+  const visibleGroups = navGroups
+    .filter((group) => {
+      if (!group.permission) return true
+      return hasOrgPermission(me.data, group.permission)
+    })
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(itemVisible),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <div className="bg-background flex h-svh overflow-hidden">

@@ -7,6 +7,7 @@ from app.api.pagination import PaginationParams
 from app.auth.dependencies import AuthContext, assert_review_access, get_auth_context
 from app.dependencies import get_conn
 from app.jobs.review import run_review
+from app.rbac.catalog import ActionKey
 from app.repositories.reviews import ReviewFindingRow, ReviewRepository, ReviewRow
 from app.schemas.review import (
     ReviewFindingResponse,
@@ -181,7 +182,9 @@ async def retry_review(
     existing = await repo_db.get(review_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    await assert_review_access(conn, auth.user, existing.team_id)
+    await assert_review_access(
+        conn, auth.user, existing.team_id, action=ActionKey.REVIEW_RERUN
+    )
     try:
         review = await prepare_rereview(conn, review_id)
     except ReviewNotFoundError:

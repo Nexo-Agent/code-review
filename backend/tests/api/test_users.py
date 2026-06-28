@@ -19,12 +19,23 @@ async def app_client():
     async def override_get_conn():
         yield mock_conn
 
+    async def mock_require_permission(user, conn, action, *, team_id=None):
+        if user.is_org_admin:
+            return user
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=403, detail="Permission denied")
+
     app.dependency_overrides[get_conn] = override_get_conn
     app.dependency_overrides[get_current_user] = lambda: admin
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client, mock_conn
+    with patch(
+        "app.auth.dependencies.require_permission",
+        side_effect=mock_require_permission,
+    ):
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client, mock_conn
     app.dependency_overrides.clear()
 
 
@@ -75,12 +86,23 @@ async def test_list_users_forbidden_for_non_admin() -> None:
     async def override_get_conn():
         yield mock_conn
 
+    async def mock_require_permission(user, conn, action, *, team_id=None):
+        if user.is_org_admin:
+            return user
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=403, detail="Permission denied")
+
     app.dependency_overrides[get_conn] = override_get_conn
     app.dependency_overrides[get_current_user] = lambda: member
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/api/v1/users")
+    with patch(
+        "app.auth.dependencies.require_permission",
+        side_effect=mock_require_permission,
+    ):
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/users")
 
     app.dependency_overrides.clear()
     assert response.status_code == 403

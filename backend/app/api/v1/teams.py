@@ -4,8 +4,14 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.pagination import PaginationParams
-from app.auth.dependencies import get_current_user, require_org_admin_user
+from app.auth.dependencies import (
+    get_current_user,
+    require_org_action_dep,
+    require_permission,
+    require_team_action_dep,
+)
 from app.dependencies import get_conn
+from app.rbac.catalog import ActionKey
 from app.schemas.repo_integration import RepoIntegrationListResponse
 from app.schemas.team import (
     TeamCreate,
@@ -16,7 +22,6 @@ from app.schemas.team import (
     TeamResponse,
     TeamUpdate,
 )
-from app.services.access_control import AccessDeniedError, require_team_access
 from app.services.repo_integrations import list_repo_integrations_for_team_paginated
 from app.services.teams import (
     add_team_member,
@@ -53,12 +58,8 @@ async def get_team_repositories(
     q: str | None = Query(None, max_length=200),
     pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
-    user=Depends(get_current_user),
+    _user=Depends(require_team_action_dep(ActionKey.REPO_READ)),
 ) -> RepoIntegrationListResponse:
-    try:
-        await require_team_access(conn, user, team_id)
-    except AccessDeniedError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     try:
         return await list_repo_integrations_for_team_paginated(
             conn,
@@ -76,7 +77,7 @@ async def get_team_repositories(
 async def post_team(
     payload: TeamCreate,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    _admin=Depends(require_org_action_dep(ActionKey.TEAM_CREATE)),
 ) -> TeamResponse:
     return await create_team(conn, payload)
 
@@ -86,7 +87,7 @@ async def put_team(
     team_id: UUID,
     payload: TeamUpdate,
     conn: asyncpg.Connection = Depends(get_conn),
-    user=Depends(require_org_admin_user),
+    _user=Depends(require_team_action_dep(ActionKey.TEAM_UPDATE)),
 ) -> TeamResponse:
     try:
         return await update_team(conn, team_id, payload)
@@ -98,7 +99,7 @@ async def put_team(
 async def delete_team_route(
     team_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    _admin=Depends(require_org_action_dep(ActionKey.TEAM_DELETE)),
 ) -> None:
     await delete_team(conn, team_id)
 
@@ -109,12 +110,8 @@ async def get_team_members(
     q: str | None = Query(None, max_length=200),
     pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
-    user=Depends(get_current_user),
+    _user=Depends(require_team_action_dep(ActionKey.TEAM_MEMBER_READ)),
 ) -> TeamMemberListResponse:
-    try:
-        await require_team_access(conn, user, team_id)
-    except AccessDeniedError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     return await list_team_members_paginated(
         conn,
         team_id,
@@ -133,8 +130,9 @@ async def post_team_member(
     team_id: UUID,
     payload: TeamMemberCreate,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    user=Depends(get_current_user),
 ) -> TeamMemberResponse:
+    await require_permission(user, conn, ActionKey.TEAM_MEMBER_ADD, team_id=team_id)
     try:
         return await add_team_member(conn, team_id, payload)
     except ValueError as exc:
@@ -146,6 +144,7 @@ async def delete_team_member(
     team_id: UUID,
     user_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
-    _admin=Depends(require_org_admin_user),
+    user=Depends(get_current_user),
 ) -> None:
+    await require_permission(user, conn, ActionKey.TEAM_MEMBER_REMOVE, team_id=team_id)
     await remove_team_member(conn, team_id, user_id)

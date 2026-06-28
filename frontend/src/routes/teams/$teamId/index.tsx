@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useMe } from "@/hooks/use-auth"
+import { usePermission } from "@/hooks/use-permission"
 import {
   useTeamMembersPage,
   useTeamRepositoriesPage,
@@ -31,7 +31,6 @@ export const Route = createFileRoute("/teams/$teamId/")({
 
 function TeamDetailPage() {
   const { teamId } = Route.useParams()
-  const me = useMe()
   const teams = useTeams()
   const [tab, setTab] = useState("repositories")
   const [repoPage, setRepoPage] = useState(1)
@@ -45,7 +44,9 @@ function TeamDetailPage() {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [settingsDialogSession, setSettingsDialogSession] = useState(0)
 
-  const isOrgAdmin = me.data?.user.is_org_admin ?? false
+  const canUpdateTeam = usePermission("team.update", teamId)
+  const canAddRepo = usePermission("repo.create", teamId)
+  const canAddMember = usePermission("team.member.add", teamId)
   const team = teams.data?.items.find((row) => row.id === teamId)
 
   function openRepositoryDialog() {
@@ -67,7 +68,7 @@ function TeamDetailPage() {
     <AppShell
       title={team?.name ?? "Team"}
       actions={
-        isOrgAdmin && team ? (
+        canUpdateTeam && team ? (
           <Button
             type="button"
             variant="outline"
@@ -80,7 +81,7 @@ function TeamDetailPage() {
         ) : null
       }
     >
-      {isOrgAdmin && team ? (
+      {canUpdateTeam && team ? (
         <TeamSettingsDialog
           team={team}
           open={settingsDialogOpen}
@@ -95,20 +96,20 @@ function TeamDetailPage() {
             <TabsTrigger value="repositories">Repositories</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
           </TabsList>
-          {isOrgAdmin ? (
-            tab === "repositories" ? (
+          {tab === "repositories" ? (
+            canAddRepo ? (
               <Button type="button" size="sm" onClick={openRepositoryDialog}>
                 Add repository
               </Button>
-            ) : (
-              <Button type="button" size="sm" onClick={openMemberDialog}>
-                Add member
-              </Button>
-            )
+            ) : null
+          ) : canAddMember ? (
+            <Button type="button" size="sm" onClick={openMemberDialog}>
+              Add member
+            </Button>
           ) : null}
         </div>
 
-        {isOrgAdmin ? (
+        {canAddRepo ? (
           <TeamRepositoryAddDialog
             teamId={teamId}
             open={repositoryDialogOpen}
@@ -154,7 +155,7 @@ function TeamDetailPage() {
                     ))
                   ) : (
                     <EmptyState colSpan={2}>
-                      {isOrgAdmin
+                      {canAddRepo
                         ? 'No repositories yet. Click "Add repository" to connect one.'
                         : "No repositories in this team yet."}
                     </EmptyState>
@@ -166,7 +167,7 @@ function TeamDetailPage() {
         </TabsContent>
 
         <TabsContent value="members" className="mt-4">
-          {isOrgAdmin ? (
+          {canAddMember ? (
             <TeamMemberAddDialog
               teamId={teamId}
               open={memberDialogOpen}
@@ -197,7 +198,7 @@ function TeamDetailPage() {
                     ))
                   ) : (
                     <EmptyState colSpan={2}>
-                      {isOrgAdmin
+                      {canAddMember
                         ? 'No members yet. Click "Add member" to assign users.'
                         : "No members listed for this team."}
                     </EmptyState>

@@ -8,6 +8,7 @@ from app.api.v1 import (
     install,
     llm_providers,
     org_repositories,
+    rbac_settings,
     repos,
     reviews,
     team_repos,
@@ -43,6 +44,11 @@ v1_router.include_router(
     llm_providers.router,
     prefix="/settings/llm-providers",
     tags=["llm-providers"],
+)
+v1_router.include_router(
+    rbac_settings.router,
+    prefix="/settings/rbac",
+    tags=["rbac"],
 )
 v1_router.include_router(
     repos.router,

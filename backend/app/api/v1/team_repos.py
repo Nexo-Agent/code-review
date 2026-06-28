@@ -4,8 +4,9 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.pagination import PaginationParams
-from app.auth.dependencies import require_team_member
+from app.auth.dependencies import require_team_action_dep
 from app.dependencies import get_conn
+from app.rbac.catalog import ActionKey
 from app.schemas.repo_integration import (
     RepoIntegrationCreate,
     RepoIntegrationListResponse,
@@ -30,7 +31,7 @@ async def get_repos(
     enabled: bool | None = Query(None),
     pagination: PaginationParams = Depends(),
     conn: asyncpg.Connection = Depends(get_conn),
-    _user=Depends(require_team_member),
+    _user=Depends(require_team_action_dep(ActionKey.REPO_READ)),
 ) -> RepoIntegrationListResponse:
     try:
         return await list_repo_integrations_for_team_paginated(
@@ -54,7 +55,7 @@ async def post_repo(
     team_id: UUID,
     payload: RepoIntegrationCreate,
     conn: asyncpg.Connection = Depends(get_conn),
-    _user=Depends(require_team_member),
+    _user=Depends(require_team_action_dep(ActionKey.REPO_CREATE)),
 ) -> RepoIntegrationResponse:
     try:
         return await create_repo_integration(conn, team_id, payload)
@@ -67,7 +68,7 @@ async def get_repo(
     team_id: UUID,
     integration_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
-    _user=Depends(require_team_member),
+    _user=Depends(require_team_action_dep(ActionKey.REPO_READ)),
 ) -> RepoIntegrationResponse:
     try:
         row = await get_repo_integration(conn, integration_id)
@@ -84,7 +85,7 @@ async def put_repo(
     integration_id: UUID,
     payload: RepoIntegrationUpdate,
     conn: asyncpg.Connection = Depends(get_conn),
-    _user=Depends(require_team_member),
+    _user=Depends(require_team_action_dep(ActionKey.REPO_UPDATE)),
 ) -> RepoIntegrationResponse:
     try:
         row = await get_repo_integration(conn, integration_id)
@@ -103,7 +104,7 @@ async def delete_repo(
     team_id: UUID,
     integration_id: UUID,
     conn: asyncpg.Connection = Depends(get_conn),
-    _user=Depends(require_team_member),
+    _user=Depends(require_team_action_dep(ActionKey.REPO_DELETE)),
 ) -> None:
     try:
         row = await get_repo_integration(conn, integration_id)

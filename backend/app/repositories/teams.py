@@ -125,6 +125,55 @@ class TeamRepository:
             query = f"SELECT COUNT(*)::int FROM teams t {where}"
         return await self._conn.fetchval(query, *args) or 0
 
+    async def list_paginated_for_teams(
+        self,
+        *,
+        team_ids: list[UUID],
+        search: str = "",
+        limit: int,
+        offset: int,
+    ) -> list[TeamRow]:
+        if not team_ids:
+            return []
+        clauses = ["t.id = ANY($1::uuid[])"]
+        args: list[object] = [team_ids]
+        idx = 2
+        if search:
+            pattern = f"%{search}%"
+            clauses.append(f"(t.name ILIKE ${idx} OR t.slug ILIKE ${idx})")
+            args.append(pattern)
+            idx += 1
+        where = f"WHERE {' AND '.join(clauses)}"
+        query = f"""
+            SELECT t.id, t.organization_id, t.name, t.slug, t.created_at
+            FROM teams t
+            {where}
+            ORDER BY t.name ASC
+            LIMIT ${idx} OFFSET ${idx + 1}
+        """
+        args.extend([limit, offset])
+        rows = await self._conn.fetch(query, *args)
+        return [_row_to_team(row) for row in rows]
+
+    async def count_for_teams(
+        self,
+        *,
+        team_ids: list[UUID],
+        search: str = "",
+    ) -> int:
+        if not team_ids:
+            return 0
+        clauses = ["t.id = ANY($1::uuid[])"]
+        args: list[object] = [team_ids]
+        idx = 2
+        if search:
+            pattern = f"%{search}%"
+            clauses.append(f"(t.name ILIKE ${idx} OR t.slug ILIKE ${idx})")
+            args.append(pattern)
+        where = f"WHERE {' AND '.join(clauses)}"
+        query = f"SELECT COUNT(*)::int FROM teams t {where}"
+        return await self._conn.fetchval(query, *args) or 0
+
     async def get(self, team_id: UUID) -> TeamRow | None:
         row = await self._conn.fetchrow(
             """

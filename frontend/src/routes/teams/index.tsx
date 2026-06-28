@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useMe } from "@/hooks/use-auth"
+import { useOrgPermission } from "@/hooks/use-permission"
 import { useTeamsPage } from "@/hooks/use-teams"
 import { parsePageSearch } from "@/lib/pagination"
 
@@ -24,14 +24,13 @@ export const Route = createFileRoute("/teams/")({
 })
 
 function TeamsPage() {
-  const me = useMe()
   const navigate = Route.useNavigate()
   const { page } = Route.useSearch()
   const teams = useTeamsPage({ page })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogSession, setDialogSession] = useState(0)
 
-  const isOrgAdmin = me.data?.user.is_org_admin ?? false
+  const canCreateTeam = useOrgPermission("team.create")
   const total = teams.data?.total ?? 0
 
   function openCreateDialog() {
@@ -48,14 +47,14 @@ function TeamsPage() {
       title="Teams"
       description={`${total} team${total === 1 ? "" : "s"}`}
       actions={
-        isOrgAdmin ? (
+        canCreateTeam ? (
           <Button type="button" size="sm" onClick={openCreateDialog}>
             Create team
           </Button>
         ) : undefined
       }
     >
-      {isOrgAdmin ? (
+      {canCreateTeam ? (
         <TeamCreateDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
@@ -95,7 +94,7 @@ function TeamsPage() {
                 ))
               ) : (
                 <EmptyState colSpan={3}>
-                  {isOrgAdmin
+                  {canCreateTeam
                     ? 'No teams yet. Click "Create team" to get started.'
                     : "No teams yet. Contact your org admin."}
                 </EmptyState>
