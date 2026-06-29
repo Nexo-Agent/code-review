@@ -1,0 +1,269 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: cogitoreviewinstallations.platform.cogito.review
+spec:
+  group: platform.cogito.review
+  names:
+    kind: CogitoReviewInstallation
+    listKind: CogitoReviewInstallationList
+    plural: cogitoreviewinstallations
+    singular: cogitoreviewinstallation
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CogitoReviewInstallationSpec defines a managed installation.
+            properties:
+              auth:
+                description: AuthSpec toggles product authentication.
+                properties:
+                  enabled:
+                    type: boolean
+                required:
+                - enabled
+                type: object
+              components:
+                description: ComponentsSpec groups component overrides.
+                properties:
+                  api:
+                    description: ComponentReplicaSpec configures component replica
+                      count override.
+                    properties:
+                      replicas:
+                        format: int32
+                        type: integer
+                    type: object
+                  worker:
+                    description: ComponentReplicaSpec configures component replica
+                      count override.
+                    properties:
+                      replicas:
+                        format: int32
+                        type: integer
+                    type: object
+                type: object
+              database:
+                description: DatabaseSpec configures PostgreSQL connectivity.
+                properties:
+                  mode:
+                    type: string
+                  urlSecretRef:
+                    description: SecretRef references a key in a Kubernetes Secret.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                required:
+                - mode
+                - urlSecretRef
+                type: object
+              frontend:
+                description: FrontendSpec configures public frontend URL.
+                properties:
+                  publicUrl:
+                    type: string
+                required:
+                - publicUrl
+                type: object
+              images:
+                description: ImageSpec pins application images.
+                properties:
+                  agent:
+                    type: string
+                  app:
+                    type: string
+                required:
+                - agent
+                - app
+                type: object
+              ingress:
+                description: IngressSpec configures optional HTTP ingress.
+                properties:
+                  className:
+                    type: string
+                  enabled:
+                    type: boolean
+                  host:
+                    type: string
+                  tlsSecretRef:
+                    description: SecretRef references a key in a Kubernetes Secret.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                required:
+                - enabled
+                type: object
+              redis:
+                description: RedisSpec configures Redis connectivity.
+                properties:
+                  mode:
+                    type: string
+                  urlSecretRef:
+                    description: SecretRef references a key in a Kubernetes Secret.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                required:
+                - mode
+                - urlSecretRef
+                type: object
+              runtimePolicyRef:
+                type: string
+              scalingPolicyRef:
+                type: string
+              secrets:
+                description: InstallationSecretsSpec references installation-level
+                  secrets.
+                properties:
+                  callbackSecretRef:
+                    description: SecretRef references a key in a Kubernetes Secret.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                  encryptionKeySecretRef:
+                    description: SecretRef references a key in a Kubernetes Secret.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                  sessionSecretRef:
+                    description: SecretRef references a key in a Kubernetes Secret.
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                required:
+                - callbackSecretRef
+                - encryptionKeySecretRef
+                - sessionSecretRef
+                type: object
+              version:
+                type: string
+            required:
+            - database
+            - images
+            - redis
+            - secrets
+            - version
+            type: object
+          status:
+            description: CogitoReviewInstallationStatus reports installation health.
+            properties:
+              availableComponents:
+                items:
+                  type: string
+                type: array
+              conditions:
+                items:
+                  description: Condition describes an operator condition.
+                  properties:
+                    lastTransitionTime:
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              endpoints:
+                items:
+                  description: EndpointStatus reports a service endpoint.
+                  properties:
+                    name:
+                      type: string
+                    url:
+                      type: string
+                  required:
+                  - name
+                  - url
+                  type: object
+                type: array
+              observedGeneration:
+                format: int64
+                type: integer
+              observedVersion:
+                type: string
+              phase:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

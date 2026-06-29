@@ -1,0 +1,13 @@
+namespace: cogito-review-system
+namePrefix: cogito-review-
+
+resources:
+- ../crd
+- ../rbac
+- ../manager
+- namespace.yaml
+
+images:
+- name: controller
+  newName: ghcr.io/cogitoforge-ai/cogito-review-operator
+  newTag: latest

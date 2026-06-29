@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cogito-review.dev/schemas/kubernetes-execution-spec/v1",
+  "title": "KubernetesExecutionSpec",
+  "description": "Kubernetes-specific execution translation (schema version 1.0)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "review_id",
+    "namespace",
+    "agent_image",
+    "callback",
+    "workspace",
+    "credentials",
+    "environment"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "review_id": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string" },
+    "installation_ref": { "type": "string" },
+    "runtime_policy_ref": { "type": "string" },
+    "scaling_policy_ref": { "type": "string" },
+    "agent_image": { "type": "string" },
+    "callback": {
+      "type": "object",
+      "required": ["mode", "url", "secret_ref"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["internal-service", "external"] },
+        "url": { "type": "string", "format": "uri" },
+        "secret_ref": { "$ref": "#/$defs/secret_ref" }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "required": ["strategy", "root_path"],
+      "properties": {
+        "strategy": { "type": "string", "enum": ["ephemeral-clone"] },
+        "root_path": { "type": "string" }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "required": ["git_credential_ref", "llm_credential_ref"],
+      "properties": {
+        "git_credential_ref": { "$ref": "#/$defs/secret_ref" },
+        "llm_credential_ref": { "$ref": "#/$defs/secret_ref" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "review": {
+      "type": "object",
+      "required": ["repo_full_name", "pr_number", "head_sha"],
+      "properties": {
+        "repo_full_name": { "type": "string" },
+        "pr_number": { "type": "integer", "minimum": 1 },
+        "head_sha": { "type": "string" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "provider_ref": { "type": "string" },
+        "llm_ref": { "type": "string" },
+        "system_prompt_ref": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "secret_ref": {
+      "type": "object",
+      "required": ["name", "key"],
+      "properties": {
+        "name": { "type": "string" },
+        "key": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cogito-review.dev/schemas/cogito-review-run/v1",
+  "title": "CogitoReviewRunSpec",
+  "description": "CogitoReviewRun CRD spec shape (schema version 1.0)",
+  "type": "object",
+  "required": ["review", "execution"],
+  "properties": {
+    "installationRef": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    },
+    "runtimePolicyRef": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    },
+    "scalingPolicyRef": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["reviewId", "repoFullName", "prNumber", "headSha"],
+      "properties": {
+        "reviewId": { "type": "string", "format": "uuid" },
+        "repoFullName": { "type": "string" },
+        "prNumber": { "type": "integer", "minimum": 1 },
+        "headSha": { "type": "string" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["kind", "spec"],
+      "properties": {
+        "kind": { "type": "string", "const": "kubernetes" },
+        "spec": {
+          "type": "object",
+          "required": ["agentImage", "callback", "workspace", "credentials"],
+          "properties": {
+            "agentImage": { "type": "string" },
+            "callback": {
+              "type": "object",
+              "required": ["mode", "url", "secretRef"],
+              "properties": {
+                "mode": { "type": "string", "enum": ["internal-service", "external"] },
+                "url": { "type": "string", "format": "uri" },
+                "secretRef": { "$ref": "#/$defs/secret_ref" }
+              }
+            },
+            "workspace": {
+              "type": "object",
+              "required": ["strategy", "rootPath"],
+              "properties": {
+                "strategy": { "type": "string", "enum": ["ephemeral-clone"] },
+                "rootPath": { "type": "string" }
+              }
+            },
+            "credentials": {
+              "type": "object",
+              "required": ["gitCredentialRef", "llmCredentialRef"],
+              "properties": {
+                "gitCredentialRef": { "$ref": "#/$defs/secret_ref" },
+                "llmCredentialRef": { "$ref": "#/$defs/secret_ref" }
+              }
+            },
+            "environment": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "providerRef": { "type": "string" },
+        "llmRef": { "type": "string" },
+        "systemPromptRef": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "secret_ref": {
+      "type": "object",
+      "required": ["name", "key"],
+      "properties": {
+        "name": { "type": "string" },
+        "key": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    }
+  }
+}

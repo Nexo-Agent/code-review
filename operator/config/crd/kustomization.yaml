@@ -1,0 +1,5 @@
+resources:
+- bases/platform.cogito.review_cogitoreviewruns.yaml
+- bases/platform.cogito.review_cogitoreviewinstallations.yaml
+- bases/platform.cogito.review_cogitoreviewruntimepolicies.yaml
+- bases/platform.cogito.review_cogitoreviewscalingpolicies.yaml

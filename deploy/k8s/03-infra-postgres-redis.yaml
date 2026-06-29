@@ -1,0 +1,84 @@
+# Optional in-cluster PostgreSQL and Redis for local / kind testing.
+# Skip this file when using external managed databases.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: cogito-review
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: cogito-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: app
+        - name: POSTGRES_PASSWORD
+          value: app
+        - name: POSTGRES_DB
+          value: app
+        readinessProbe:
+          exec:
+            command: [pg_isready, -U, app]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: cogito-review
+spec:
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: cogito-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          exec:
+            command: [redis-cli, ping]
+          initialDelaySeconds: 3
+          periodSeconds: 5
