@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cogito-review-api
+  namespace: cogito-review
+  labels:
+    app.kubernetes.io/name: cogito-review
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cogito-review
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cogito-review
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: cogito-review-api
+      containers:
+      - name: api
+        image: ghcr.io/cogitoforge-ai/cogito-review:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: cogito-review-config
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: review-db
+              key: DATABASE_URL
+        - name: COGITO_REVIEW_CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: review-redis
+              key: REDIS_URL
+        - name: COGITO_REVIEW_AGENT_CALLBACK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: review-callback
+              key: secret
+        - name: COGITO_REVIEW_SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: review-session
+              key: secret
+        - name: COGITO_REVIEW_SECRETS_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: review-encryption
+              key: key
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cogito-review-api
+  namespace: cogito-review
+  labels:
+    app.kubernetes.io/name: cogito-review
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cogito-review
+    app.kubernetes.io/component: api
+  ports:
+  - name: http
+    port: 8000
+    targetPort: http

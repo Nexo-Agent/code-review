@@ -5,7 +5,7 @@ description = "Cogito Review API (cogito-review)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "coreview-shared[docker]",
+    "coreview-shared[docker,k8s]",
     "asyncpg>=0.31.0",
     "authlib>=1.3.0",
     "celery[redis]>=5.4.0",

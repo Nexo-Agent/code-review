@@ -1,12 +1,12 @@
+"""K8s workspace provider (execution handled by KubernetesExecutionBackend)."""
+
+from __future__ import annotations
+
 import asyncio
-import logging
 from pathlib import Path
 
 from coreview_shared.protocols import CommandRunner, Workspace, WorkspaceSpec
-from coreview_shared.runtime.k8s.job_executor import K8sJobExecutor
 from coreview_shared.runtime.specs import ReviewJobRequest
-
-logger = logging.getLogger(__name__)
 
 
 class K8sRuntimeProvider:
@@ -16,7 +16,7 @@ class K8sRuntimeProvider:
         workspace_root: str,
         agent_image: str = "cogito-review-agent:dev",
         database_url: str = "",
-        k8s_namespace: str = "coreview",
+        k8s_namespace: str = "cogito-review",
         k8s_agent_config_configmap: str = "opencode-config",
     ) -> None:
         self._workspace_root = Path(workspace_root)
@@ -24,7 +24,6 @@ class K8sRuntimeProvider:
         self._database_url = database_url
         self._k8s_namespace = k8s_namespace
         self._k8s_agent_config_configmap = k8s_agent_config_configmap
-        self._job_executor = K8sJobExecutor()
 
     async def prepare_workspace(self, spec: WorkspaceSpec) -> Workspace:
         return await asyncio.to_thread(self._prepare_workspace_sync, spec)
@@ -37,7 +36,8 @@ class K8sRuntimeProvider:
         raise NotImplementedError(msg)
 
     async def run_review_job(self, request: ReviewJobRequest) -> None:
-        raise NotImplementedError("K8s runtime not implemented yet")
+        msg = "Use submit_execution via KubernetesExecutionBackend for K8s mode"
+        raise NotImplementedError(msg)
 
     def _prepare_workspace_sync(self, spec: WorkspaceSpec) -> Workspace:
         self._workspace_root.mkdir(parents=True, exist_ok=True)

@@ -82,11 +82,15 @@ class CodeReviewSettings(BaseSettings):
     # Docker network for per-review agent containers (e.g. coreview in Compose).
     # Empty = publish OpenCode port to host (native worker dev).
     agent_network: str = ""
-    # K8s runtime (stub — not implemented yet)
-    k8s_namespace: str = "coreview"
+    # K8s runtime
+    k8s_namespace: str = "cogito-review"
+    k8s_run_namespace: str = ""
     k8s_kubeconfig_path: str = ""
     k8s_agent_config_configmap: str = "opencode-config"
     k8s_image_pull_secret: str = ""
+    k8s_installation_ref: str = "main"
+    k8s_runtime_policy_ref: str = "default"
+    k8s_scaling_policy_ref: str = "default"
     agent_callback_url: str = "http://localhost:8000/api/v1/agent/review-events"
     agent_callback_secret: str = ""
     auth_enabled: bool = False

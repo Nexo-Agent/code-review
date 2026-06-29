@@ -15,3 +15,6 @@ openapi.json
 opencode.generated.json
 .idea
 .vscode
+.tools/
+operator/bin/
+deploy/k8s/secrets.yaml

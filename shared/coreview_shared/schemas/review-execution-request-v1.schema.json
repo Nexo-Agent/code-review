@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cogito-review.dev/schemas/review-execution-request/v1",
+  "title": "ReviewExecutionRequest",
+  "description": "Backend-neutral review execution intent (schema version 1.0)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "review_id",
+    "review",
+    "callback",
+    "config",
+    "credentials"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "review_id": { "type": "string", "format": "uuid" },
+    "review": {
+      "type": "object",
+      "required": ["repo_full_name", "pr_number", "head_sha", "git_provider"],
+      "properties": {
+        "repo_full_name": { "type": "string" },
+        "pr_number": { "type": "integer", "minimum": 1 },
+        "head_sha": { "type": "string" },
+        "git_provider": { "type": "string" }
+      }
+    },
+    "callback": {
+      "type": "object",
+      "required": ["url", "secret_ref"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "secret_ref": { "$ref": "#/$defs/secret_ref" },
+        "metadata": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": ["workspace_root", "opencode_agent", "review_timeout_seconds"],
+      "properties": {
+        "workspace_root": { "type": "string" },
+        "opencode_agent": { "type": "string" },
+        "opencode_log_level": { "type": "string" },
+        "review_timeout_seconds": { "type": "integer", "minimum": 1 },
+        "system_prompt": { "type": "string" },
+        "llm_provider_id": { "type": "string" },
+        "llm_base_url": { "type": "string" },
+        "llm_model": { "type": "string" },
+        "opencode_model": { "type": "string" }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "required": ["git_credential_ref", "llm_credential_ref"],
+      "properties": {
+        "git_credential_ref": { "$ref": "#/$defs/secret_ref" },
+        "llm_credential_ref": { "$ref": "#/$defs/secret_ref" }
+      }
+    },
+    "runtime_metadata": {
+      "type": "object",
+      "properties": {
+        "installation_ref": { "type": "string" },
+        "runtime_policy_ref": { "type": "string" },
+        "scaling_policy_ref": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "secret_ref": {
+      "type": "object",
+      "required": ["name", "key"],
+      "properties": {
+        "name": { "type": "string" },
+        "key": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    }
+  }
+}

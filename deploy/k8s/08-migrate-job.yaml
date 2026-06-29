@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cogito-review-migrate
+  namespace: cogito-review
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: ghcr.io/cogitoforge-ai/cogito-review:latest
+        imagePullPolicy: IfNotPresent
+        command: ["dbmate", "-d", "/app/migrations", "--wait", "up"]
+        envFrom:
+        - configMapRef:
+            name: cogito-review-config
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: review-db
+              key: DATABASE_URL
+        - name: COGITO_REVIEW_CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: review-redis
+              key: REDIS_URL
+        - name: COGITO_REVIEW_AGENT_CALLBACK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: review-callback
+              key: secret

@@ -1,0 +1,42 @@
+apiVersion: platform.cogito.review/v1alpha1
+kind: CogitoReviewRuntimePolicy
+metadata:
+  name: default
+  namespace: cogito-review
+spec:
+  executor:
+    type: kubernetes-job
+    namespace: cogito-review
+    serviceAccountName: cogito-review-agent
+  job:
+    ttlSecondsAfterFinished: 3600
+    backoffLimit: 0
+    activeDeadlineSeconds: 900
+    cleanup:
+      deleteFailedJobsAfterSeconds: 86400
+      deleteSucceededJobsAfterSeconds: 3600
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  execution:
+    timeoutSeconds: 600
+---
+apiVersion: platform.cogito.review/v1alpha1
+kind: CogitoReviewScalingPolicy
+metadata:
+  name: default
+  namespace: cogito-review
+spec:
+  api:
+    replicas: 1
+  worker:
+    replicas: 1
+    concurrency:
+      celeryWorkerConcurrency: 1
+      maxQueuedReviewsPerWorker: 10
+  execution:
+    maxConcurrentReviewJobs: 10

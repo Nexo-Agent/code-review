@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cogito-review
+  labels:
+    app.kubernetes.io/name: cogito-review
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cogito-review-system
+  labels:
+    app.kubernetes.io/name: cogito-review-operator

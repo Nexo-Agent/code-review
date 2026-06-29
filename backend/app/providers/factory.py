@@ -11,7 +11,10 @@ from coreview_shared.providers.git.bitbucket_cloud import BitbucketCloudProvider
 from coreview_shared.providers.git.bitbucket_dc import BitbucketDataCenterProvider
 from coreview_shared.providers.git.github import GitHubProvider
 from coreview_shared.providers.git.gitlab import GitLabProvider
+from coreview_shared.runtime.composite import CompositeRuntimeProvider
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
+from coreview_shared.runtime.execution.docker_backend import DockerExecutionBackend
+from coreview_shared.runtime.execution.k8s_backend import KubernetesExecutionBackend
 from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
 
 from app.config import (
@@ -84,7 +87,7 @@ def _build_ci_provider(runtime: ReviewRuntimeConfig):
 def _build_runtime(
     cfg: CodeReviewSettings,
     database_url: str,
-) -> DockerRuntimeProvider | K8sRuntimeProvider:
+) -> CompositeRuntimeProvider:
     runtime_cls = _RUNTIME_PROVIDERS.get(cfg.runtime_provider)
     if runtime_cls is None:
         msg = f"Unsupported runtime provider: {cfg.runtime_provider}"
@@ -93,7 +96,7 @@ def _build_runtime(
     git_image = cfg.git_image or cfg.workspace_image or "alpine/git:latest"
 
     if runtime_cls is DockerRuntimeProvider:
-        return DockerRuntimeProvider(
+        workspace = DockerRuntimeProvider(
             workspace_root=cfg.workspace_root,
             docker_host=cfg.docker_host or None,
             git_image=git_image,
@@ -103,14 +106,31 @@ def _build_runtime(
             agent_mem_limit=cfg.agent_mem_limit,
             agent_cpus=cfg.agent_cpus,
         )
+        execution = DockerExecutionBackend(workspace)
+        return CompositeRuntimeProvider(workspace=workspace, execution=execution)
 
-    return K8sRuntimeProvider(
+    workspace = K8sRuntimeProvider(
         workspace_root=cfg.workspace_root,
         agent_image=cfg.agent_image,
         database_url=database_url,
-        k8s_namespace=cfg.k8s_namespace,
+        k8s_namespace=cfg.k8s_run_namespace or cfg.k8s_namespace,
         k8s_agent_config_configmap=cfg.k8s_agent_config_configmap,
     )
+    execution = KubernetesExecutionBackend(
+        namespace=cfg.k8s_run_namespace or cfg.k8s_namespace,
+        agent_image=cfg.agent_image,
+        kubeconfig_path=cfg.k8s_kubeconfig_path,
+    )
+    return CompositeRuntimeProvider(workspace=workspace, execution=execution)
+
+
+def build_execution_backend(
+    infra: CodeReviewSettings | None = None,
+    *,
+    app_settings: Settings | None = None,
+):
+    runtime = build_runtime_provider(infra=infra, app_settings=app_settings)
+    return runtime._execution
 
 
 def build_runtime_provider(

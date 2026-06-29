@@ -1,0 +1,67 @@
+name: Operator
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "operator/**"
+      - "shared/coreview_shared/schemas/**"
+      - "scripts/validate-k8s-contracts.sh"
+      - ".github/workflows/operator.yml"
+  pull_request:
+    paths:
+      - "operator/**"
+      - "shared/coreview_shared/schemas/**"
+      - "scripts/validate-k8s-contracts.sh"
+      - ".github/workflows/operator.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install kubebuilder
+        run: |
+          mkdir -p .tools/bin
+          curl -L -o .tools/bin/kubebuilder "https://go.kubebuilder.io/dl/latest/$(go env GOOS)/$(go env GOARCH)"
+          chmod +x .tools/bin/kubebuilder
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Validate K8s contracts
+        run: bash scripts/validate-k8s-contracts.sh
+
+      - name: Generate manifests
+        working-directory: operator
+        run: make manifests
+
+      - name: Verify generated CRDs are committed
+        run: git diff --exit-code operator/config/crd/bases/
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: operator
+          push: true
+          tags: ghcr.io/cogitoforge-ai/cogito-review-operator:latest

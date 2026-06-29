@@ -1,0 +1,248 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: cogitoreviewruns.platform.cogito.review
+spec:
+  group: platform.cogito.review
+  names:
+    kind: CogitoReviewRun
+    listKind: CogitoReviewRunList
+    plural: cogitoreviewruns
+    shortNames:
+    - crr
+    singular: cogitoreviewrun
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CogitoReviewRun is the Schema for the cogitoreviewruns API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CogitoReviewRunSpec defines the desired state of CogitoReviewRun.
+            properties:
+              config:
+                additionalProperties:
+                  type: string
+                type: object
+              execution:
+                description: CogitoReviewRunExecution wraps the execution backend
+                  spec.
+                properties:
+                  kind:
+                    type: string
+                  spec:
+                    description: KubernetesExecutionInnerSpec is the kubernetes execution
+                      payload.
+                    properties:
+                      agentImage:
+                        type: string
+                      callback:
+                        description: CallbackSpec configures agent callback delivery.
+                        properties:
+                          mode:
+                            type: string
+                          secretRef:
+                            description: SecretRef references a key in a Kubernetes
+                              Secret.
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          url:
+                            type: string
+                        required:
+                        - mode
+                        - secretRef
+                        - url
+                        type: object
+                      credentials:
+                        description: CredentialRefs references secrets holding provider
+                          credentials.
+                        properties:
+                          gitCredentialRef:
+                            description: SecretRef references a key in a Kubernetes
+                              Secret.
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          llmCredentialRef:
+                            description: SecretRef references a key in a Kubernetes
+                              Secret.
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                        required:
+                        - gitCredentialRef
+                        - llmCredentialRef
+                        type: object
+                      environment:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      workspace:
+                        description: WorkspaceSpec configures repository workspace
+                          preparation.
+                        properties:
+                          rootPath:
+                            type: string
+                          strategy:
+                            type: string
+                        required:
+                        - rootPath
+                        - strategy
+                        type: object
+                    required:
+                    - agentImage
+                    - callback
+                    - credentials
+                    - workspace
+                    type: object
+                required:
+                - kind
+                - spec
+                type: object
+              installationRef:
+                description: ResourceRef references another namespaced custom resource.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                type: object
+              review:
+                description: CogitoReviewRunReview identifies the product review record.
+                properties:
+                  headSha:
+                    type: string
+                  prNumber:
+                    format: int32
+                    type: integer
+                  repoFullName:
+                    type: string
+                  reviewId:
+                    type: string
+                required:
+                - headSha
+                - prNumber
+                - repoFullName
+                - reviewId
+                type: object
+              runtimePolicyRef:
+                description: ResourceRef references another namespaced custom resource.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                type: object
+              scalingPolicyRef:
+                description: ResourceRef references another namespaced custom resource.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - execution
+            - review
+            type: object
+          status:
+            description: CogitoReviewRunStatus defines the observed state of CogitoReviewRun.
+            properties:
+              callbackObserved:
+                type: boolean
+              completedAt:
+                type: string
+              conditions:
+                items:
+                  description: Condition describes an operator condition.
+                  properties:
+                    lastTransitionTime:
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              exitCode:
+                format: int32
+                type: integer
+              failureReason:
+                type: string
+              jobRef:
+                type: string
+              phase:
+                type: string
+              podRefs:
+                items:
+                  type: string
+                type: array
+              selectedExecutor:
+                type: string
+              startedAt:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

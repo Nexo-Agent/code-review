@@ -2,6 +2,15 @@ import json
 from uuid import UUID
 
 from coreview_shared.runtime.specs import ReviewJobRequest
+from coreview_shared.schemas.execution_contracts import (
+    CallbackConfig,
+    CredentialRefs,
+    ExecutionConfig,
+    ReviewContext,
+    ReviewExecutionRequest,
+    RuntimeMetadata,
+    SecretRef,
+)
 
 from app.config import CodeReviewSettings, get_code_review_settings
 from app.repositories.repo_integrations import (
@@ -93,6 +102,135 @@ def build_agent_environment(
         )
         env["COGITO_REVIEW_BITBUCKET_DC_TOKEN"] = repo_integration.bitbucket_dc_token
     return env
+
+
+def _secret_env_from_integration(
+    *,
+    review: ReviewRow,
+    repo_integration: RepoIntegrationRow,
+    llm_provider,
+    infra: CodeReviewSettings,
+) -> dict[str, str]:
+    env = build_agent_environment(
+        review_id=str(review.id),
+        review=review,
+        repo_integration=repo_integration,
+        llm_provider=llm_provider,
+        infra=infra,
+    )
+    secret_keys = {
+        "COGITO_REVIEW_GITHUB_TOKEN",
+        "COGITO_REVIEW_GITLAB_TOKEN",
+        "COGITO_REVIEW_GITLAB_BASE_URL",
+        "COGITO_REVIEW_BITBUCKET_TOKEN",
+        "COGITO_REVIEW_BITBUCKET_DC_TOKEN",
+        "COGITO_REVIEW_BITBUCKET_DC_BASE_URL",
+        "COGITO_REVIEW_ADO_PAT",
+        "COGITO_REVIEW_ADO_ORGANIZATION",
+        "COGITO_REVIEW_ADO_PROJECT",
+        "COGITO_REVIEW_LLM_API_TOKEN",
+        "COGITO_REVIEW_CALLBACK_SECRET",
+    }
+    return {k: v for k, v in env.items() if k in secret_keys and v}
+
+
+def build_review_execution_request(
+    *,
+    review_id: str,
+    review: ReviewRow,
+    repo_integration: RepoIntegrationRow,
+    llm_provider,
+    infra: CodeReviewSettings,
+) -> ReviewExecutionRequest:
+    namespace = infra.k8s_run_namespace or infra.k8s_namespace
+    git_secret = SecretRef(
+        name=f"review-{review_id}-git",
+        key="credentials",
+        namespace=namespace,
+    )
+    llm_secret = SecretRef(
+        name=f"review-{review_id}-llm",
+        key="credentials",
+        namespace=namespace,
+    )
+    return ReviewExecutionRequest(
+        review_id=review_id,
+        review=ReviewContext(
+            repo_full_name=review.repo_full_name,
+            pr_number=review.pr_number,
+            head_sha=review.head_sha,
+            git_provider=repo_integration.git_provider,
+        ),
+        callback=CallbackConfig(
+            url=infra.agent_callback_url,
+            secret_ref=SecretRef(
+                name="review-callback",
+                key="secret",
+                namespace=namespace,
+            ),
+            metadata=json.loads(_callback_metadata(review) or "{}"),
+        ),
+        config=ExecutionConfig(
+            workspace_root=infra.workspace_root,
+            opencode_agent=infra.opencode_agent,
+            opencode_log_level=infra.opencode_log_level,
+            review_timeout_seconds=infra.review_timeout_seconds,
+            system_prompt=repo_integration.system_prompt,
+            llm_provider_id=llm_provider.provider_id,
+            llm_base_url=llm_provider.base_url,
+            llm_model=llm_provider.model,
+            opencode_model=llm_provider.resolved_opencode_model,
+        ),
+        credentials=CredentialRefs(
+            git_credential_ref=git_secret,
+            llm_credential_ref=llm_secret,
+        ),
+        runtime_metadata=RuntimeMetadata(
+            installation_ref=infra.k8s_installation_ref,
+            runtime_policy_ref=infra.k8s_runtime_policy_ref,
+            scaling_policy_ref=infra.k8s_scaling_policy_ref,
+            namespace=namespace,
+        ),
+        resolved_secret_env=_secret_env_from_integration(
+            review=review,
+            repo_integration=repo_integration,
+            llm_provider=llm_provider,
+            infra=infra,
+        ),
+    )
+
+
+async def prepare_review_execution(
+    conn,
+    review_id: str,
+    *,
+    infra: CodeReviewSettings | None = None,
+) -> ReviewExecutionRequest:
+    infra = infra or get_code_review_settings()
+
+    repo = ReviewRepository(conn)
+    review = await repo.get(UUID(review_id))
+    if review is None:
+        msg = f"Review not found: {review_id}"
+        raise ValueError(msg)
+
+    repo_integration = await resolve_repo_integration_for_review(
+        conn,
+        repo_integration_id=review.repo_integration_id,
+        repo_full_name=review.repo_full_name,
+    )
+    llm_provider = await resolve_llm_provider_for_repo(conn, repo_integration)
+    if llm_provider is None:
+        msg = "No LLM provider configured"
+        raise ValueError(msg)
+
+    return build_review_execution_request(
+        review_id=review_id,
+        review=review,
+        repo_integration=repo_integration,
+        llm_provider=llm_provider,
+        infra=infra,
+    )
 
 
 async def prepare_review_job(
