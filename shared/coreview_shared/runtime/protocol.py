@@ -1,6 +1,5 @@
 from typing import Protocol
 
-from coreview_shared.runtime.specs import ReviewJobRequest
 from coreview_shared.schemas.execution_contracts import (
     ExecutionSubmissionResult,
     ReviewExecutionRequest,
@@ -16,18 +15,6 @@ class RuntimeProvider(Protocol):
 
     def command_runner(self) -> CommandRunner: ...
 
-    async def run_review_job(self, request: ReviewJobRequest) -> None: ...
-
-
-class WorkspaceProvider(Protocol):
-    async def prepare_workspace(self, spec: WorkspaceSpec) -> Workspace: ...
-
-    async def cleanup_workspace(self, workspace: Workspace) -> None: ...
-
-    def command_runner(self) -> CommandRunner: ...
-
-
-class ExecutionBackend(Protocol):
     async def submit_execution(
         self, request: ReviewExecutionRequest
     ) -> ExecutionSubmissionResult: ...

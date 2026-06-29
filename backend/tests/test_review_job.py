@@ -9,7 +9,15 @@ from coreview_shared.runtime.review_job import (
     agent_nano_cpus,
     build_docker_review_job_spec,
 )
-from coreview_shared.runtime.specs import ReviewJobRequest
+from coreview_shared.schemas.execution_contracts import (
+    CallbackConfig,
+    CredentialRefs,
+    ExecutionConfig,
+    ReviewContext,
+    ReviewExecutionRequest,
+    RuntimeMetadata,
+    SecretRef,
+)
 
 from app.config import CodeReviewSettings, Settings
 from app.providers.factory import build_runtime_provider
@@ -36,6 +44,42 @@ def _sample_environment() -> dict[str, str]:
         "COGITO_REVIEW_CALLBACK_METADATA": "{}",
         "PYTHONUNBUFFERED": "1",
     }
+
+
+def _sample_request() -> ReviewExecutionRequest:
+    return ReviewExecutionRequest(
+        review_id="550e8400-e29b-41d4-a716-446655440000",
+        review=ReviewContext(
+            repo_full_name="org/repo",
+            pr_number=1,
+            head_sha="abc",
+            git_provider="github",
+        ),
+        callback=CallbackConfig(
+            url="http://api:8000/api/v1/agent/review-events",
+            secret_ref=SecretRef(name="review-callback", key="secret"),
+        ),
+        config=ExecutionConfig(
+            workspace_root="/workspaces",
+            opencode_agent="code-reviewer",
+            opencode_log_level="INFO",
+            review_timeout_seconds=600,
+            llm_provider_id="openai-compat",
+            llm_base_url="https://api.example.com/v1",
+            llm_model="gpt-4o",
+            opencode_model="openai-compat/gpt-4o",
+        ),
+        credentials=CredentialRefs(
+            git_credential_ref=SecretRef(name="inline", key="git"),
+            llm_credential_ref=SecretRef(name="inline", key="llm"),
+        ),
+        runtime_metadata=RuntimeMetadata(),
+        resolved_secret_env={
+            "COGITO_REVIEW_GITHUB_TOKEN": "ghp_test",
+            "COGITO_REVIEW_LLM_API_TOKEN": "sk-test",
+            "COGITO_REVIEW_CALLBACK_SECRET": "dev-callback-secret",
+        },
+    )
 
 
 def test_agent_database_url_rewrites_localhost_for_host_gateway() -> None:
@@ -175,12 +219,7 @@ async def test_docker_runtime_provider_raises_on_nonzero_exit() -> None:
 
     with patch.object(provider, "_get_job_executor", return_value=mock_executor):
         with pytest.raises(RuntimeError, match="exit 1"):
-            await provider.run_review_job(
-                ReviewJobRequest(
-                    review_id="r1",
-                    environment=_sample_environment(),
-                ),
-            )
+            await provider.submit_execution(_sample_request())
 
 
 @patch("coreview_shared.runtime.docker.provider.get_docker_client")

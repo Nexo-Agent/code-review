@@ -1,1 +1,1 @@
-"""Execution backends and translation helpers for dispatching review runs."""
+"""Execution translation helpers for dispatching review runs."""

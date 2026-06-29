@@ -3,7 +3,7 @@ import logging
 import asyncpg
 
 from app.config import get_code_review_settings, get_settings
-from app.providers.factory import build_execution_backend
+from app.providers.factory import build_runtime_provider
 from app.services.review_job_prepare import prepare_review_execution
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,8 @@ async def dispatch_review_job(review_id: str) -> bool:
     finally:
         await conn.close()
 
-    backend = build_execution_backend(infra=infra, app_settings=settings)
-    result = await backend.submit_execution(request)
+    runtime = build_runtime_provider(infra=infra, app_settings=settings)
+    result = await runtime.submit_execution(request)
     if not result.accepted:
         msg = f"Execution submission rejected for review {review_id}"
         raise RuntimeError(msg)
