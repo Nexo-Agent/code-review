@@ -50,6 +50,15 @@ apply_with_local_images() {
     "${src}" | kubectl apply -f -
 }
 
+rollout_restart_if_present() {
+  local namespace="$1"
+  local deployment="$2"
+
+  if kubectl get deployment "${deployment}" -n "${namespace}" >/dev/null 2>&1; then
+    kubectl rollout restart "deployment/${deployment}" -n "${namespace}"
+  fi
+}
+
 echo "==> Applying Kubernetes manifests..."
 kubectl apply -f "${ROOT}/deploy/k8s/01-namespace.yaml"
 kubectl apply -f "${ROOT}/deploy/k8s/crd/"
@@ -73,7 +82,13 @@ kubectl wait --for=condition=complete job/cogito-review-migrate -n cogito-review
 apply_with_local_images "${ROOT}/deploy/k8s/09-api.yaml"
 apply_with_local_images "${ROOT}/deploy/k8s/10-worker.yaml"
 
+echo "==> Restarting long-running workloads to pick up rebuilt local images..."
+rollout_restart_if_present "cogito-review-system" "cogito-review-operator"
+rollout_restart_if_present "cogito-review" "cogito-review-api"
+rollout_restart_if_present "cogito-review" "cogito-review-worker"
+
 echo "==> Waiting for application..."
+kubectl wait --for=condition=available deployment/cogito-review-operator -n cogito-review-system --timeout=180s
 kubectl wait --for=condition=available deployment/cogito-review-api -n cogito-review --timeout=180s
 kubectl wait --for=condition=available deployment/cogito-review-worker -n cogito-review --timeout=180s
 
