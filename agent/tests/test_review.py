@@ -1,3 +1,5 @@
+import asyncio
+
 from coreview_shared.agent.opencode import OpenCodeAgent
 from coreview_shared.review import PRContext, PRMetadata, ReviewFinding
 
@@ -114,6 +116,35 @@ def test_opencode_parse_ndjson_stream_without_findings_returns_empty() -> None:
         '{"type":"step_finish","part":{"type":"step-finish"}}'
     )
     assert provider._parse_cli_output(stdout) == []
+
+
+def test_opencode_pump_stream_handles_long_lines() -> None:
+    provider = OpenCodeAgent(
+        agent="code-reviewer",
+        model="test/model",
+        timeout_seconds=60,
+    )
+    long_text = "x" * 10000
+    payload = (
+        '{"type":"text","part":{"type":"text","text":"'
+        + long_text
+        + '"}}\n{"type":"step_finish"}\n'
+    ).encode("utf-8")
+
+    async def run() -> tuple[list[bytes], list[str]]:
+        reader = asyncio.StreamReader(limit=32)
+        chunks: list[bytes] = []
+        lines: list[str] = []
+        reader.feed_data(payload)
+        reader.feed_eof()
+        await provider._pump_stream(reader, chunks, lines.append)
+        return chunks, lines
+
+    chunks, lines = asyncio.run(run())
+    assert b"".join(chunks) == payload
+    assert len(lines) == 2
+    assert long_text in lines[0]
+    assert lines[1] == '{"type":"step_finish"}'
 
 
 def test_split_findings() -> None:

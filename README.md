@@ -9,6 +9,10 @@ AI-assisted code review platform for pull requests and merge requests.
 
 Cogito Review helps teams review code faster with automated, structured feedback on pull requests and merge requests. Connect your repository, configure your model provider, and let the system surface findings your reviewers can act on quickly.
 
+> [!WARNING]
+> Cogito Review is currently under active development and is not production-ready yet.
+> Expect breaking changes, incomplete features, and operational gaps while the project is evolving.
+
 ## Why teams use Cogito Review
 
 - Review changes automatically when pull requests or merge requests are opened or updated
