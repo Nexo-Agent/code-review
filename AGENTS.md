@@ -2,283 +2,105 @@
 
 Instructions for AI coding agents working on this repository.
 
-## Project overview
-
-Monorepo for an LLM-powered code review pilot (**Cogito Review**, codename `cogito-review`):
-
-- **Agent** — Python 3.11+, MCP server (`cogito-review-agent`), OpenCode runtime image
-- **Backend** — Python 3.11+, FastAPI, asyncpg, Celery, Typer CLI (`cogito-review`)
-- **Frontend** — React 19, Vite, TanStack Router/Query/Table, shadcn/ui (New York)
-- **Database** — PostgreSQL (dbmate migrations)
-- **Agent runtime** — [OpenCode](https://opencode.ai/) + MCP toolbase (Git/CI tools)
-
-Production ships as a single Docker image (API + bundled SPA). Architecture diagrams: `docs/architecture.svg`, `docs/flow.svg`.
-
-### Runtime architecture
-
-Three layers with clear boundaries:
-
-1. **Backend (API)** — Configuration management, webhooks, frontend API. Stores organizations, teams, projects, repo integrations, and LLM providers in Postgres.
-2. **Job (Celery worker)** — Reads review + integration config from DB, builds a full `COGITO_REVIEW_*` env dict, spawns a one-shot agent container via the Docker runtime provider.
-3. **Agent (stateless container)** — Receives all execution config via env (materializes ephemeral `opencode.json` locally). Uses a persistent repo mirror + per-PR git worktree under `/workspaces`, runs LLM review, posts to GitHub. Reports progress and findings via **HTTP callback** (schema v1, HMAC-signed); it does **not** connect to Postgres.
-
-The agent does **not** read `repo_integrations` or `llm_providers` from the database.
-
-### Review callback (schema v1)
-
-Agent posts `review.started`, `review.completed`, and `review.failed` events to `COGITO_REVIEW_CALLBACK_URL` with `X-Review-Signature-256` HMAC auth. Spec: [`shared/coreview_shared/schemas/review-callback-v1.schema.json`](shared/coreview_shared/schemas/review-callback-v1.schema.json) (Pydantic models in `review_callback.py`). The Cogito Review backend receives them at `POST /api/v1/agent/review-events` and persists to Postgres. Third-party orchestrators can implement the same callback contract without the Cogito Review database schema.
-
-### CLI modes
-
-```bash
-cd backend && uv run cogito-review backend run   # FastAPI server
-cd backend && uv run cogito-review job worker    # Celery worker (prepare env + spawn agent)
-cd agent && uv run cogito-review-agent review run --review-id <uuid>  # one-shot review (env injected by job)
-```
-
-### Provider abstractions
-
-Protocols, GitHub Git/CI implementations, runtime specs (Docker/K8s), OpenCode LLM provider, and callback schemas live in **`shared/`** (`coreview-shared` package). Backend and agent wire them via local `factory.py` and app-specific config.
-
-| Module (in `coreview_shared`) | Purpose |
-|--------|---------|
-| `llm/opencode` | OpenCode CLI review runner |
-| `providers/git`, `providers/ci` | GitHub worktree checkout, diff, webhook, CI summary |
-| `runtime/docker`, `runtime/k8s` | Job execution and persistent workspace volume |
-| `schemas/review_callback` | Agent callback contract (v1) |
-
-Backend-specific: `backend/app/providers/factory.py`, `opencode_config.py` (multi-provider DB merge). Agent-specific: `agent/app/providers/factory.py`, MCP toolbase in `agent/app/toolbase/`.
-
-**Agent env validation (`agent/app/services/review_env.py`):** `require_review_env()` checks provider-specific Git credentials before the agent container runs. When adding a Git provider, update **both** `backend/app/services/review_job_prepare.py` (`build_agent_environment`) and `require_review_env()` — otherwise the worker enqueues the job but the agent exits immediately (review stuck in `pending` because no callback is sent). Required vars per provider:
-
-| `COGITO_REVIEW_GIT_PROVIDER` | Git credential env var(s) |
-|------------------------------|---------------------------|
-| `github` (default) | `COGITO_REVIEW_GITHUB_TOKEN` |
-| `gitlab` | `COGITO_REVIEW_GITLAB_TOKEN` (optional `COGITO_REVIEW_GITLAB_BASE_URL` for self-hosted) |
-| `bitbucket` | `COGITO_REVIEW_BITBUCKET_TOKEN` |
-| `bitbucket-dc` | `COGITO_REVIEW_BITBUCKET_DC_BASE_URL`, `COGITO_REVIEW_BITBUCKET_DC_TOKEN` |
-| `azure-devops` | `COGITO_REVIEW_ADO_ORGANIZATION`, `COGITO_REVIEW_ADO_PROJECT`, `COGITO_REVIEW_ADO_PAT` |
-
-Agent skills bundled into the Docker image live in `agent/skills/code-reviewer/` (OpenCode). IDE/dev skills remain in `.agents/skills/`. MCP tools are in `agent/app/toolbase/`.
-
-### Organization / Team / Project hierarchy
-
-Self-hosted deployments use a single **organization** (singleton per install):
-
-| Entity | Purpose |
-|--------|---------|
-| **Organization** | Owns the LLM provider pool (`llm_providers.organization_id`) |
-| **Team** | Isolation boundary — users only see reviews for teams they belong to |
-| **Project** | Business grouping of repos; selects one LLM from the org pool (`projects.llm_provider_id`) |
-| **Repository** (`repo_integrations`) | Git credentials, system prompt, webhook secret; scoped to a project |
-
-Migration `008_teams_projects_auth.sql` backfills a default org/team/project for existing installs. Reviews store denormalized `team_id` and `project_id`.
-
-**LLM resolution at review time:** `project.llm_provider_id` → org default (`is_default=true`) via `resolve_llm_provider_for_project()`. Repos do **not** store LLM config.
-
-**Webhooks (per integration):**
-
-```
-POST /api/v1/webhooks/github/{integration_id}
-POST /api/v1/webhooks/azure-devops/{integration_id}
-POST /api/v1/webhooks/gitlab/{integration_id}
-POST /api/v1/webhooks/bitbucket/{integration_id}
-POST /api/v1/webhooks/bitbucket-dc/{integration_id}
-```
-
-Global `/webhooks/github`, `/webhooks/azure-devops`, `/webhooks/bitbucket`, and `/webhooks/bitbucket-dc` are deprecated (410). Configure the per-repo URL in the repo detail UI.
-
-### First-boot install (`/install`)
-
-Fresh installs with no users require a one-time setup wizard at **`/install`**. The super administrator account uses local username/password (`auth_source=local`, `is_superuser=true`). After `system_install.completed_at` is set:
-
-- `POST /api/v1/install/bootstrap` returns **403**
-- The SPA redirects `/install` → `/login`
-- Local break-glass sign-in remains at `POST /api/v1/auth/local/login`
-
-Existing databases are backfilled as already completed (migration `011_local_superuser.sql`).
-
-### Authentication (OIDC / SAML BFF)
-
-When `COGITO_REVIEW_AUTH_ENABLED=true`, the backend runs OIDC authorization code or SAML 2.0 SP flows and stores sessions in Redis (cookie `cogito_session`). IdP settings are stored in Postgres (`organization_identity_providers`) and configured in the UI at **Settings → SSO** (org admin). One IdP per install (OIDC presets: Google, Entra, Okta, Keycloak, Auth0, custom; or SAML 2.0). The SPA uses `credentials: "include"` and never holds access tokens.
-
-| Route | Auth |
-|-------|------|
-| `/api/v1/install/status`, `/install/bootstrap` | Public (bootstrap blocked after setup) |
-| `/api/v1/auth/login`, `/callback`, `/auth/idp`, `/auth/local/login`, `/logout`, `/me` | Public (except `/me` needs session) |
-| `/api/v1/settings/identity-provider` | Org admin |
-| `/api/v1/teams`, `/projects`, `/reviews`, `/settings/llm-providers` | Session cookie |
-| `/api/v1/webhooks/*`, `/api/v1/agent/*`, `/api/v1/health` | Exempt (HMAC / machine) |
-
-Dev default: `COGITO_REVIEW_AUTH_ENABLED=false` uses a bypass org-admin user **after setup is complete**. Before setup, API routes return 401 until bootstrap. Users are JIT-created on first SSO login; org admins assign team membership via `POST/DELETE /api/v1/teams/{team_id}/members`.
-
-See `.env.example` for `COGITO_REVIEW_AUTH_ENABLED`, `COGITO_REVIEW_SECRETS_ENCRYPTION_KEY`, `COGITO_REVIEW_SESSION_*`, and `COGITO_REVIEW_BOOTSTRAP_ORG_ADMIN_EMAIL`.
-
-## Prerequisites
-
-- Docker Compose v2.22+ (`watch` support for file sync)
-- [uv](https://docs.astral.sh/uv/) and Node.js 22+ only for host-side lint/test/openapi tasks
-- Python deps are managed as a **uv workspace** (`pyproject.toml` + `uv.lock` at repo root). Run `uv lock` from the repo root after changing dependencies in `shared/`, `backend/`, or `agent/`.
-
-## Setup commands
-
-```bash
-cp .env.example .env
-
-# Docker dev: HMR + Uvicorn reload + Compose Watch
-make dev
-make pre-commit-install   # optional: lint/format on git commit
-
-# Production (base compose only):
-make prod
-```
-
-| URL | Service |
-|-----|---------|
-| http://localhost:5173 | Frontend (Vite HMR, dev only) |
-| http://localhost:8000/docs | OpenAPI / Swagger |
-| http://localhost:8000/api/v1/health | Health check |
-
-On `make prod`, Compose pulls GHCR images and runs **dbmate migrate** before `app` and `worker` start. OpenCode config is synced on API startup from Postgres.
-
-On Docker Desktop (macOS/Windows), set `CHOKIDAR_USEPOLLING=true` in `.env` if HMR misses file changes.
-
-## Dev environment tips
-
-- Root `.env` is loaded by Makefile, backend (`pydantic-settings`), and Compose.
-- **Infrastructure env vars** use prefix `COGITO_REVIEW_*` (Redis, Docker, OpenCode, MCP). See `.env.example`.
-- **Dynamic settings** (repos, webhook secrets, GitHub tokens, LLM providers, teams, projects) are stored in Postgres and edited in the UI — do not hardcode secrets.
-- **Frontend routes:** `/teams`, `/teams/$teamId/projects/$projectId/repos/$repoId`, `/reviews`, `/llm-providers` (org admin only). Legacy `/repositories/*` redirects to `/teams`.
-- After changing API routes or Pydantic schemas, run `make openapi` to refresh `openapi.json` and `frontend/src/api/generated/schema.ts`.
-- After adding LLM providers via Settings, each new review spawns a fresh agent container with the latest config injected via env.
-- Compose layout: `docker-compose.yaml` (base) + `docker-compose.override.yaml` (dev, auto-merged). Production uses only the base file: `make prod`.
-- `routeTree.gen.ts` is generated by TanStack Router — do not hand-edit.
-
-## Project structure
-
-```
-shared/                 # coreview-shared — protocols, providers, callback schemas (not a runtime service)
-  coreview_shared/
-backend/
-  app/
-    auth/             # OIDC client, Redis session, FastAPI dependencies
-    api/v1/           # Versioned HTTP routes
-    repositories/     # asyncpg data access (dataclass rows)
-    schemas/          # Pydantic request/response models
-    services/         # Business logic
-    providers/        # factory + OpenCode config merge (implementations in coreview_shared)
-    jobs/             # Celery tasks
-    cli/              # Typer commands
-  migrations/         # dbmate SQL (-- migrate:up / migrate:down)
-  tests/
-agent/
-  skills/code-reviewer/  # OpenCode review skill (bundled in agent image)
-  app/
-    mcp/              # MCP server (FastMCP)
-    toolbase/         # Git/CI MCP tool handlers
-    providers/        # factory wiring from env
-    repositories/     # repo_integrations (per-repo credentials)
-    cli/              # cogito-review-agent Typer CLI
-  docker/             # entrypoint + default opencode config
-  Dockerfile          # OpenCode + MCP + git image
-  tests/
-frontend/
-  src/
-    routes/           # TanStack Router file-based routes
-    api/              # HTTP client + generated OpenAPI types
-    hooks/            # TanStack Query hooks
-    components/ui/    # shadcn components
-.agents/skills/       # IDE/dev agent skills (shadcn, etc.)
-```
-
-## Adding a new API feature
-
-1. Add SQL migration in `backend/migrations/` (dbmate format)
-2. Add repository in `backend/app/repositories/`
-3. Add Pydantic schemas in `backend/app/schemas/`
-4. Add route in `backend/app/api/v1/` and register in `backend/app/api/router.py`
-5. Add TanStack Query hook in `frontend/src/hooks/`
-6. Add page under `frontend/src/routes/`
-7. Run `make openapi` and `make lint`
-
-## Code style
-
-### Python (backend)
-
-- Ruff: line length 88, target Python 3.11; rules `E`, `F`, `I`, `UP`
-- Use `uv run` for all Python commands inside `backend/`
-- Repositories return frozen `@dataclass` rows; services orchestrate logic
-- Async throughout: asyncpg, httpx, FastAPI `async def` handlers
-- Config via `app.config.Settings` and `CodeReviewSettings` (`COGITO_REVIEW_` prefix)
-- Import order enforced by Ruff (`I`)
-
-### TypeScript (frontend)
-
-- Strict TypeScript; path alias `@/` maps to `src/`
-- React Compiler enabled (`babel-plugin-react-compiler`) — avoid manual `memo`/`useMemo` unless necessary
-- Data fetching via TanStack Query hooks in `src/hooks/`, not ad-hoc `useEffect` + `fetch`
-- API types from `src/api/generated/schema.ts` (generated — do not edit)
-- shadcn/ui New York style; add components with the shadcn skill / CLI, not copy-paste from random sources
-- ESLint flat config in `frontend/eslint.config.js`
-
-### General
-
-- Minimize scope: match existing patterns, no drive-by refactors
-- Comments only for non-obvious business logic
-- Do not commit `.env`, tokens, or generated secrets
-
-## Testing instructions
-
-```bash
-make test-unit     # pytest, no database (integration tests skipped)
-make test          # unit + integration (requires Postgres)
-make lint          # ruff + ESLint + tsc
-```
-
-Run backend tests directly:
-
-```bash
-cd backend && uv run pytest                    # unit only
-cd backend && uv run pytest -m integration     # integration only
-cd backend && uv run pytest tests/api/test_reviews.py -k "webhook"
-```
-
-Integration tests need Postgres (`docker compose up -d db redis && make migrate`, or run the full dev stack with `make dev`).
-
-Add or update tests for behavior you change. API tests use `httpx.AsyncClient` with mocked dependencies where appropriate.
-
-## Security considerations
-
-- Treat Server Actions / public API routes as untrusted: validate input, authenticate webhooks (GitHub HMAC)
-- Webhook endpoints: `POST /api/v1/webhooks/github/{integration_id}` (and ADO variant)
-- Enable OIDC/SAML in production: `COGITO_REVIEW_AUTH_ENABLED=true`; configure IdP in Settings → SSO; set strong `COGITO_REVIEW_SESSION_SECRET` and `COGITO_REVIEW_SECRETS_ENCRYPTION_KEY`
-- Never log or commit `COGITO_REVIEW_*` tokens, webhook secrets, or GitHub PATs
-- Worker mounts Docker socket for isolated git workspaces — keep runtime images minimal (`alpine/git`)
-- Dynamic credentials belong in Postgres (Settings UI), not in source code
-
-## PR instructions
-
-Before opening a PR:
-
-1. `make lint` — must pass
-2. `make test-unit` — must pass; run `make test` if you touched DB repositories or migrations
-3. `make openapi` — if API contracts changed
-4. Apply migrations locally and verify `make migrate` succeeds
-
-Commit messages: concise, imperative mood, focus on *why* (e.g. `fix webhook signature check for repo integrations`).
-
-Title format: short summary of the change (no strict prefix required).
-
-## Useful commands reference
-
-| Command | Description |
-|---------|-------------|
-| `make dev` | Docker dev with Compose Watch |
-| `make prod` | Production stack (base compose only) |
-| `make prod-down` | Stop the production-like stack |
-| `make migrate` / `make migrate-down` | dbmate up / down via Compose |
-| `make render-opencode-config` | Regenerate `opencode.generated.json` on host (optional debug) |
-| `make build-agent` | Build agent image locally (`docker build`) |
-| `make openapi` | Export OpenAPI + regenerate TS types (host) |
-| `make pre-commit-install` | Install git pre-commit hooks (host) |
-| `make pre-commit` | Run pre-commit on all files (host) |
+## Communication
+
+- All source code, code comments, commit messages, and technical artifacts must use English.
+- All chat messages to the user must use Vietnamese.
+- Keep communication concise, direct, and action-oriented.
+- When presenting plans, assumptions, risks, or implementation status, make them explicit so the user can review quickly.
+- Do not use emoji in source code. Avoid overusing emoji in chat.
+
+## Development flow
+
+Follow the principles below during feature development.
+
+- Do not skip the steps below when a task affects business logic, architecture, schema, API, authentication, authorization, background jobs, integrations, or production data.
+- For small, simple tasks or narrowly scoped bug fixes, the level of formality may be reduced, but the spirit of the process must still be preserved.
+- Always prioritize understanding the problem correctly and the current state of the system before proposing or implementing changes.
+
+### 1. Brainstorm:
+  - Clarify unclear points, open questions, and functional limitations in the proposal.
+  - During this phase, use tools such as web_search or context7 to gather additional information when needed in order to improve the accuracy of facts and decisions.
+  - For uncertain points, ask the user to clarify expectations and business requirements.
+  - Clearly identify the scope of the request: goals, expected behavior, limits of the change, and what is out of scope.
+  - State the assumptions being used. If an assumption could affect design, business logic, schema, contract, or user experience, ask the user before implementation.
+  - Only use web_search or context7 when the repository does not provide enough information, when the issue involves external frameworks/libraries/APIs/tooling, or when a technical detail may have changed over time.
+  - Do not overuse external search for issues that can be verified directly from source code, @docs, tests, or the current repository configuration.
+  - If multiple implementation approaches are reasonable and involve trade-offs, explicitly list the options and recommend the most suitable one.
+  - Clarify possible risks: regression, side effects, data inconsistency, security issues, performance issues, or operational complexity.
+
+### 2. Planning
+  - Read @docs and the source code to understand the current functional and technical state of the system.
+  - Refer to external technical sources through context7 or web_search when needed.
+  - Break the work into sufficiently small (atomic) tasks so execution is straightforward.
+  - Before coding, provide a brief summary of the current system state relevant to the task: current flow, affected components, and the points that need to change.
+  - The plan should be divided into small steps that can be independently verified and executed in a clear order.
+  - Each subtask should identify its goal, the files or system areas affected, the main risks, and the validation approach.
+  - If a conflict is found between @docs and the source code, do not arbitrarily choose one side and continue as if it were certain; report it to the user or clearly state the handling assumption.
+  - When evaluating solutions, prioritize the option that best fits the existing architecture, is easy to review, easy to test, and has the smallest necessary scope to achieve the goal.
+  - Do not expand the scope beyond the main request without user approval, even if you notice a refactoring opportunity. If you have improvement ideas, separate them as recommendations.
+
+### 3. Implementation
+  - If you are on the `main` branch, create a new branch before implementation. If there is any issue during checkout, ask the user.
+  - Write prototypes for functions / classes / modules together with descriptions through docstrings or comments for user review.
+  - Implement each prototype step by step.
+  - Write unit tests with a focus on edge cases.
+  - If bugs appear, fix them and test again.
+  - Before modifying code, clearly identify which files will be affected and why each change is necessary.
+  - For large features, new modules, architectural changes, public interface changes, or important data changes, prepare a prototype or implementation outline for user review first.
+  - For small tasks or local bug fixes, direct implementation is allowed without a full prototype, but the approach must still be stated clearly before editing.
+  - All changes must follow the existing patterns, conventions, layering, naming, dependency direction, and style already present in the codebase.
+  - Do not introduce new abstractions, internal frameworks, or generalizations unless there is a proven practical need within the task scope.
+  - Do not modify unrelated parts just because it is convenient. If unrelated changes are required to complete the task, explain the reason clearly.
+  - When adding or changing logic, update or add corresponding tests at an appropriate level. Prioritize tests for the main flow, edge cases, and scenarios likely to regress.
+  - When possible, run the smallest reliable test scope first, then expand validation if the change has broader impact.
+  - If tests cannot be run or an important part cannot be verified, state that clearly in the final report.
+  - When encountering a bug or unexpected behavior during implementation, identify the root cause when possible, fix it thoroughly within task scope, and re-check related flows.
+  - After implementation is complete, review the diff to remove dead code, temporary debug code, temporary logs, unnecessary comments, or out-of-scope changes.
+
+### 4. Post-implementation report
+  - Summarize each implemented part from a functional perspective.
+  - Explain how I can run those features.
+  - List the cases I should test in the product.
+  - Note any important implementation considerations, if any.
+  - Clearly state what has been verified in practice: which tests were run, what the results were, and the current confidence level.
+  - Clearly state what has not yet been verified or completed, if any.
+  - Point out notable side effects: migration, config, env, permission, dependency, queue, cron, cache, or backward compatibility.
+  - If assumptions were used during the work, restate them in the final report so the user can validate them.
+  - The report should be short enough to scan quickly but specific enough for the user to continue reviewing, testing, or handing off the work.
+
+### 5. Documentation updates
+  - Always ask the user before creating a PR.
+  - Before updating documentation, report the proposed changes to the user for review.
+  - If the user agrees, update @docs.
+  - Do not update @docs on your own just because you notice information that could be clarified; propose the changes first and wait for user approval.
+  - When proposing an @docs update, clearly state the reason, the affected scope, and the main content to be added or changed.
+  - If code changes affect development, operations, integrations, or system understanding, proactively inform the user that @docs may need to be updated.
+  - If the user has not approved updating @docs, you must still complete the code work and clearly report the documentation gaps or mismatches that remain.
+
+## Notice
+
+- During the work, always follow the system's established overall architecture.
+- Do not create your own general architectural design. If such a change becomes necessary, discuss and brainstorm it with the user first.
+- If the current architecture is unclear, read @docs and the source code before drawing conclusions or proposing a direction.
+- If the current architecture appears problematic, do not redesign it within the same task unless the user explicitly asks for that. Instead, describe the observation, its impact, and propose handling it as a separate track.
+- When there is a conflict between delivery speed and architectural consistency, prioritize architectural consistency unless the user explicitly requests a different trade-off.
+- Do not impose personal preferences about code style, folder structure, abstractions, or patterns if the repository already has its own standards.
+- Prefer changes that are small, clear, easy to review, and aligned with the overall direction of the system.
+
+## Definition of done
+
+- A request is only considered complete when the following conditions are satisfied, where applicable to the task scope:
+- The user request has been correctly understood and reflected, or the applied assumptions have been clearly stated.
+- Sufficient context has been read from the source code and @docs.
+- The minimum necessary change to achieve the goal has been implemented.
+- Tests have been added or updated at a reasonable level, or a clear reason has been given if that was not possible.
+- Validation appropriate to the impact of the change has been performed.
+- The results, run instructions, test guidance, remaining risks, and important notes have been reported back.
+
+## Decision rules
+
+- Ask the user again when a change may affect business rules, schema, data migration, API contracts, the security model, the permission model, billing, or user experience in a way that is difficult to reverse.
+- Ask the user again when more than one reasonable solution exists and the right choice depends on product or operational priorities.
+- You may decide on your own for local issues such as a clearly understood bug fix, test improvement, typing fix, lint fix, or a small refactor that does not change behavior.
+- If you decide on your own, clearly state the assumptions and validation approach you used.
