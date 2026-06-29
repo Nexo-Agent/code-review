@@ -3,12 +3,14 @@ import json
 import logging
 import os
 import re
+from collections.abc import Callable
 from typing import Any
 
 from coreview_shared.review import PRContext, ReviewFinding
 from coreview_shared.workspace.models import Workspace
 
 logger = logging.getLogger(__name__)
+STREAM_READ_SIZE = 64 * 1024
 
 FINDINGS_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -122,24 +124,18 @@ class OpenCodeAgent:
         stderr_chunks: list[bytes] = []
 
         async def pump_stderr() -> None:
-            while True:
-                line = await proc.stderr.readline()
-                if not line:
-                    break
-                stderr_chunks.append(line)
-                text = line.decode("utf-8", errors="replace").rstrip()
-                if text:
-                    logger.info("[opencode] %s", text)
+            await self._pump_stream(
+                proc.stderr,
+                stderr_chunks,
+                lambda text: logger.info("[opencode] %s", text),
+            )
 
         async def pump_stdout() -> None:
-            while True:
-                line = await proc.stdout.readline()
-                if not line:
-                    break
-                stdout_chunks.append(line)
-                text = line.decode("utf-8", errors="replace").rstrip()
-                if text:
-                    self._log_stdout_event(text)
+            await self._pump_stream(
+                proc.stdout,
+                stdout_chunks,
+                self._log_stdout_event,
+            )
 
         proc.stdin.write(prompt.encode("utf-8"))
         await proc.stdin.drain()
@@ -166,6 +162,37 @@ class OpenCodeAgent:
             msg = f"opencode run failed (exit {proc.returncode}): {stderr or stdout}"
             raise RuntimeError(msg)
         return stdout, stderr
+
+    async def _pump_stream(
+        self,
+        reader: asyncio.StreamReader,
+        chunks: list[bytes],
+        handle_line: Callable[[str], None],
+    ) -> None:
+        buffer = bytearray()
+        while True:
+            chunk = await reader.read(STREAM_READ_SIZE)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            buffer.extend(chunk)
+            while True:
+                newline_index = buffer.find(b"\n")
+                if newline_index < 0:
+                    break
+                line = bytes(buffer[: newline_index + 1])
+                del buffer[: newline_index + 1]
+                self._handle_stream_line(line, handle_line)
+
+        if buffer:
+            self._handle_stream_line(bytes(buffer), handle_line)
+
+    def _handle_stream_line(
+        self, line: bytes, handle_line: Callable[[str], None]
+    ) -> None:
+        text = line.decode("utf-8", errors="replace").rstrip()
+        if text:
+            handle_line(text)
 
     def _log_stdout_event(self, text: str) -> None:
         try:
