@@ -5,16 +5,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from coreview_shared.git.azure_devops import (
+    AzureDevOpsProvider,
+    parse_repo_full_name,
+)
 from coreview_shared.protocols import (
     InlineComment,
     PreparedWorkspace,
     PRMetadata,
     Workspace,
     WorkspaceSpec,
-)
-from coreview_shared.providers.git.azure_devops import (
-    AzureDevOpsProvider,
-    parse_repo_full_name,
 )
 
 

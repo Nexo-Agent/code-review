@@ -6,6 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from coreview_shared.git.diff_lines import (
+    filter_inline_comments,
+    parse_commentable_lines,
+)
+from coreview_shared.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
 from coreview_shared.protocols import (
     InlineComment,
     InlineCommentsResult,
@@ -13,11 +18,6 @@ from coreview_shared.protocols import (
     Workspace,
     WorkspaceSpec,
 )
-from coreview_shared.providers.git.diff_lines import (
-    filter_inline_comments,
-    parse_commentable_lines,
-)
-from coreview_shared.providers.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
 from coreview_shared.runtime.docker.command_runner import DockerCommandRunner
 
 from app.config import CodeReviewSettings, ReviewRuntimeConfig
@@ -400,8 +400,8 @@ def test_provider_factory_github_docker() -> None:
 
 
 def test_provider_factory_azure_devops() -> None:
-    from coreview_shared.providers.ci.noop import NoOpCIProvider
-    from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
+    from coreview_shared.ci.noop import NoOpCIProvider
+    from coreview_shared.git.azure_devops import AzureDevOpsProvider
 
     from app.providers.factory import build_providers
 
@@ -423,8 +423,8 @@ def test_provider_factory_azure_devops() -> None:
 
 
 def test_provider_factory_gitlab() -> None:
-    from coreview_shared.providers.ci.gitlab import GitLabCIProvider
-    from coreview_shared.providers.git.gitlab import GitLabProvider
+    from coreview_shared.ci.gitlab import GitLabCIProvider
+    from coreview_shared.git.gitlab import GitLabProvider
 
     from app.providers.factory import build_providers
 
@@ -452,8 +452,8 @@ def test_provider_factory_gitlab() -> None:
 
 
 def test_provider_factory_bitbucket_cloud() -> None:
-    from coreview_shared.providers.ci.bitbucket_cloud import BitbucketCloudCIProvider
-    from coreview_shared.providers.git.bitbucket_cloud import BitbucketCloudProvider
+    from coreview_shared.ci.bitbucket_cloud import BitbucketCloudCIProvider
+    from coreview_shared.git.bitbucket_cloud import BitbucketCloudProvider
 
     from app.providers.factory import build_providers
 
@@ -474,8 +474,8 @@ def test_provider_factory_bitbucket_cloud() -> None:
 
 
 def test_provider_factory_bitbucket_dc() -> None:
-    from coreview_shared.providers.ci.bitbucket_dc import BitbucketDataCenterCIProvider
-    from coreview_shared.providers.git.bitbucket_dc import BitbucketDataCenterProvider
+    from coreview_shared.ci.bitbucket_dc import BitbucketDataCenterCIProvider
+    from coreview_shared.git.bitbucket_dc import BitbucketDataCenterProvider
 
     from app.providers.factory import build_providers
 

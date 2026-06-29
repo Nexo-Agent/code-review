@@ -3,7 +3,7 @@ import logging
 from uuid import UUID
 
 import asyncpg
-from coreview_shared.providers.git.azure_devops import _organization_from_base_url
+from coreview_shared.git.azure_devops import _organization_from_base_url
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 

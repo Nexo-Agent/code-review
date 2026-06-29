@@ -2,7 +2,7 @@ from urllib.parse import quote
 
 import httpx
 
-from coreview_shared.providers.git.gitlab import (
+from coreview_shared.git.gitlab import (
     DEFAULT_GITLAB_BASE_URL,
     normalize_gitlab_base_url,
     parse_repo_full_name,

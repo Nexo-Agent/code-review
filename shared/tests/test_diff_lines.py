@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 
-from coreview_shared.protocols import InlineComment
-from coreview_shared.providers.git.diff_lines import (
+from coreview_shared.git.diff_lines import (
     filter_inline_comments,
     parse_commentable_lines,
 )
+from coreview_shared.protocols import InlineComment
 from coreview_shared.schemas.review_callback import (
     ReviewCallbackAgent,
     ReviewCallbackEvent,

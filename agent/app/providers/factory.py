@@ -1,14 +1,14 @@
+from coreview_shared.ci.bitbucket_cloud import BitbucketCloudCIProvider
+from coreview_shared.ci.bitbucket_dc import BitbucketDataCenterCIProvider
+from coreview_shared.ci.github import GitHubCIProvider
+from coreview_shared.ci.gitlab import GitLabCIProvider
+from coreview_shared.ci.noop import NoOpCIProvider
+from coreview_shared.git.azure_devops import AzureDevOpsProvider
+from coreview_shared.git.bitbucket_cloud import BitbucketCloudProvider
+from coreview_shared.git.bitbucket_dc import BitbucketDataCenterProvider
+from coreview_shared.git.github import GitHubProvider
+from coreview_shared.git.gitlab import GitLabProvider
 from coreview_shared.protocols import ProviderBundle
-from coreview_shared.providers.ci.bitbucket_cloud import BitbucketCloudCIProvider
-from coreview_shared.providers.ci.bitbucket_dc import BitbucketDataCenterCIProvider
-from coreview_shared.providers.ci.github import GitHubCIProvider
-from coreview_shared.providers.ci.gitlab import GitLabCIProvider
-from coreview_shared.providers.ci.noop import NoOpCIProvider
-from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
-from coreview_shared.providers.git.bitbucket_cloud import BitbucketCloudProvider
-from coreview_shared.providers.git.bitbucket_dc import BitbucketDataCenterProvider
-from coreview_shared.providers.git.github import GitHubProvider
-from coreview_shared.providers.git.gitlab import GitLabProvider
 
 from app.config import AgentSettings, get_agent_settings
 

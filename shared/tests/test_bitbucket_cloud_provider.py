@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from coreview_shared.providers.git.bitbucket_cloud import (
+from coreview_shared.git.bitbucket_cloud import (
     BitbucketCloudProvider,
     parse_repo_full_name,
 )

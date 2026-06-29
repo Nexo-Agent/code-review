@@ -1,11 +1,12 @@
-import base64
+import hashlib
+import hmac
 import json
 import logging
 from pathlib import Path
-from urllib.parse import urlparse
 
 import httpx
 
+from coreview_shared.git.diff_lines import filter_inline_comments
 from coreview_shared.protocols import (
     CommandRunner,
     InlineComment,
@@ -17,40 +18,31 @@ from coreview_shared.protocols import (
     WebhookEvent,
     WorkspaceSpec,
 )
-from coreview_shared.providers.git.diff_lines import filter_inline_comments
 from coreview_shared.workspace import GitWorkspaceAdapter
 
 logger = logging.getLogger(__name__)
 
-HANDLED_WEBHOOK_EVENTS = frozenset({"pr:opened", "pr:from_ref_updated", "pr:reopened"})
+API_BASE = "https://api.bitbucket.org/2.0"
+HANDLED_WEBHOOK_EVENTS = frozenset({"pullrequest:created", "pullrequest:updated"})
 
 
 def parse_repo_full_name(repo_full_name: str) -> tuple[str, str]:
     parts = [part.strip() for part in repo_full_name.split("/", maxsplit=1)]
     if len(parts) != 2 or not parts[0] or not parts[1]:
-        msg = f"Invalid Bitbucket DC repo_full_name: {repo_full_name!r}"
+        msg = f"Invalid Bitbucket repo_full_name: {repo_full_name!r}"
         raise ValueError(msg)
     return parts[0], parts[1]
 
 
-def normalize_base_url(base_url: str) -> str:
-    return base_url.strip().rstrip("/")
-
-
-class BitbucketDataCenterProvider:
+class BitbucketCloudProvider:
     def __init__(
         self,
         token: str,
         *,
-        base_url: str,
         workspace_adapter: GitWorkspaceAdapter | None = None,
     ) -> None:
         self._token = token
-        self._base_url = normalize_base_url(base_url)
         self._workspace_adapter = workspace_adapter or GitWorkspaceAdapter()
-
-    def _api_base(self) -> str:
-        return f"{self._base_url}/rest/api/latest"
 
     def _headers(self) -> dict[str, str]:
         headers = {"Accept": "application/json"}
@@ -58,32 +50,27 @@ class BitbucketDataCenterProvider:
             headers["Authorization"] = f"Bearer {self._token}"
         return headers
 
-    def _pr_api_url(
-        self,
-        project_key: str,
-        repo_slug: str,
-        pr_number: int,
-        suffix: str = "",
-    ) -> str:
+    def _pr_url(self, repo_full_name: str, pr_number: int, suffix: str = "") -> str:
+        workspace, repo_slug = parse_repo_full_name(repo_full_name)
         return (
-            f"{self._api_base()}/projects/{project_key}/repos/{repo_slug}"
-            f"/pull-requests/{pr_number}{suffix}"
+            f"{API_BASE}/repositories/{workspace}/{repo_slug}"
+            f"/pullrequests/{pr_number}{suffix}"
         )
 
-    def _clone_url(self, project_key: str, repo_slug: str) -> str:
-        parsed = urlparse(self._base_url)
-        host = parsed.netloc or parsed.path
-        return f"https://{self._token}@{host}/scm/{project_key}/{repo_slug}.git"
+    def _clone_url(self, repo_full_name: str) -> str:
+        workspace, repo_slug = parse_repo_full_name(repo_full_name)
+        return (
+            f"https://x-token-auth:{self._token}@bitbucket.org/"
+            f"{workspace}/{repo_slug}.git"
+        )
 
     def _remote_access(self, repo_full_name: str) -> RemoteRepoAccess:
-        project_key, repo_slug = parse_repo_full_name(repo_full_name)
-        return RemoteRepoAccess(clone_url=self._clone_url(project_key, repo_slug))
+        return RemoteRepoAccess(clone_url=self._clone_url(repo_full_name))
 
     def build_pr_url(self, repo_full_name: str, pr_number: int) -> str:
-        project_key, repo_slug = parse_repo_full_name(repo_full_name)
+        workspace, repo_slug = parse_repo_full_name(repo_full_name)
         return (
-            f"{self._base_url}/projects/{project_key}/repos/{repo_slug}"
-            f"/pull-requests/{pr_number}"
+            f"https://bitbucket.org/{workspace}/{repo_slug}/pull-requests/{pr_number}"
         )
 
     def build_blob_url(
@@ -95,12 +82,9 @@ class BitbucketDataCenterProvider:
     ) -> str | None:
         if not file_path.strip():
             return None
-        project_key, repo_slug = parse_repo_full_name(repo_full_name)
-        base = (
-            f"{self._base_url}/projects/{project_key}/repos/{repo_slug}"
-            f"/browse/{file_path}?at={ref}"
-        )
-        return f"{base}#{line}" if line else base
+        workspace, repo_slug = parse_repo_full_name(repo_full_name)
+        base = f"https://bitbucket.org/{workspace}/{repo_slug}/src/{ref}/{file_path}"
+        return f"{base}#lines-{line}" if line else base
 
     def verify_webhook_signature(
         self,
@@ -110,25 +94,18 @@ class BitbucketDataCenterProvider:
         *,
         headers: dict[str, str] | None = None,
     ) -> bool:
-        del headers, payload
-        if not secret or ":" not in secret:
+        del headers
+        if not secret or not signature:
             return False
-        if not signature or not signature.lower().startswith("basic "):
-            return False
-
-        expected_user, expected_pass = secret.split(":", 1)
-        if not expected_user or not expected_pass:
-            return False
-
-        try:
-            decoded = base64.b64decode(signature.split(" ", 1)[1].strip()).decode()
-        except (ValueError, UnicodeDecodeError):
-            return False
-
-        if ":" not in decoded:
-            return False
-        user, password = decoded.split(":", 1)
-        return user == expected_user and password == expected_pass
+        for prefix, digestmod in (("sha256=", hashlib.sha256), ("sha1=", hashlib.sha1)):
+            if signature.startswith(prefix):
+                expected = hmac.new(
+                    secret.encode(),
+                    payload,
+                    digestmod,
+                ).hexdigest()
+                return hmac.compare_digest(signature.removeprefix(prefix), expected)
+        return False
 
     def parse_webhook(
         self, headers: dict[str, str], body: bytes
@@ -139,50 +116,45 @@ class BitbucketDataCenterProvider:
             return None
 
         payload = json.loads(body)
-        pull_request = payload.get("pullRequest")
-        if not isinstance(pull_request, dict):
+        pullrequest = payload.get("pullrequest")
+        repository = payload.get("repository")
+        if not isinstance(pullrequest, dict) or not isinstance(repository, dict):
             return None
 
-        if pull_request.get("state") != "OPEN":
+        if pullrequest.get("draft"):
             return None
 
-        to_ref = pull_request.get("toRef")
-        from_ref = pull_request.get("fromRef")
-        if not isinstance(to_ref, dict) or not isinstance(from_ref, dict):
+        repo_full_name = repository.get("full_name", "")
+        pr_id = pullrequest.get("id")
+        source = pullrequest.get("source")
+        if not repo_full_name or pr_id is None or not isinstance(source, dict):
             return None
 
-        repository = to_ref.get("repository")
-        project = repository.get("project", {}) if isinstance(repository, dict) else {}
-        project_key = project.get("key", "") if isinstance(project, dict) else ""
-        repo_slug = repository.get("slug", "") if isinstance(repository, dict) else ""
-        if not project_key or not repo_slug:
+        commit = source.get("commit")
+        head_sha = commit.get("hash", "") if isinstance(commit, dict) else ""
+        if not head_sha:
             return None
 
-        pr_id = pull_request.get("id")
-        latest_commit = from_ref.get("latestCommit", "")
-        if pr_id is None or not latest_commit:
-            return None
+        pr_url = ""
+        links = pullrequest.get("links")
+        if isinstance(links, dict):
+            html = links.get("html")
+            if isinstance(html, dict):
+                pr_url = html.get("href", "") or ""
+        if not pr_url:
+            pr_url = self.build_pr_url(repo_full_name, int(pr_id))
 
-        repo_full_name = f"{project_key}/{repo_slug}"
-        pr_url = pull_request.get("links", {}).get("self", [{}])
-        if isinstance(pr_url, list) and pr_url:
-            href = pr_url[0].get("href", "") if isinstance(pr_url[0], dict) else ""
-        else:
-            href = ""
-        if not href:
-            href = self.build_pr_url(repo_full_name, int(pr_id))
-
-        delivery_id = normalized.get("x-request-id") or str(pr_id)
+        delivery_id = normalized.get("x-hook-uuid") or normalized.get("x-request-uuid")
 
         return WebhookEvent(
             event_type=event_key,
             action=event_key.rsplit(":", maxsplit=1)[-1],
             repo_full_name=repo_full_name,
             pr_number=int(pr_id),
-            head_sha=latest_commit,
+            head_sha=head_sha,
             delivery_id=delivery_id,
-            pr_title=pull_request.get("title") or "",
-            pr_url=href,
+            pr_title=pullrequest.get("title") or "",
+            pr_url=pr_url,
         )
 
     async def prepare_review(
@@ -229,63 +201,83 @@ class BitbucketDataCenterProvider:
         )
 
     async def get_pr_metadata(self, repo_full_name: str, pr_number: int) -> PRMetadata:
-        project_key, repo_slug = parse_repo_full_name(repo_full_name)
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                self._pr_api_url(project_key, repo_slug, pr_number),
+                self._pr_url(repo_full_name, pr_number),
                 headers=self._headers(),
             )
             response.raise_for_status()
             data = response.json()
 
-        from_ref = data.get("fromRef", {})
-        to_ref = data.get("toRef", {})
+        source = data.get("source", {})
+        destination = data.get("destination", {})
+        source_commit = source.get("commit", {}) if isinstance(source, dict) else {}
+        dest_commit = (
+            destination.get("commit", {}) if isinstance(destination, dict) else {}
+        )
+        source_branch = source.get("branch", {}) if isinstance(source, dict) else {}
+        dest_branch = (
+            destination.get("branch", {}) if isinstance(destination, dict) else {}
+        )
         author = data.get("author", {})
         author_name = (
-            author.get("displayName", "unknown")
+            author.get("display_name", "unknown")
             if isinstance(author, dict)
             else "unknown"
         )
-        html_url = self.build_pr_url(repo_full_name, pr_number)
+        html_url = ""
         links = data.get("links")
         if isinstance(links, dict):
-            self_link = links.get("self")
-            if isinstance(self_link, list) and self_link:
-                href = self_link[0].get("href", "")
-                if href:
-                    html_url = href
+            html = links.get("html")
+            if isinstance(html, dict):
+                html_url = html.get("href", "") or ""
+        if not html_url:
+            html_url = self.build_pr_url(repo_full_name, pr_number)
 
         return PRMetadata(
             repo_full_name=repo_full_name,
             pr_number=pr_number,
             title=data.get("title", ""),
             author=author_name,
-            head_sha=from_ref.get("latestCommit", "")
-            if isinstance(from_ref, dict)
+            head_sha=source_commit.get("hash", "")
+            if isinstance(source_commit, dict)
             else "",
-            base_sha=to_ref.get("latestCommit", "") if isinstance(to_ref, dict) else "",
-            head_ref=from_ref.get("displayId", "")
-            if isinstance(from_ref, dict)
+            base_sha=dest_commit.get("hash", "")
+            if isinstance(dest_commit, dict)
             else "",
-            base_ref=to_ref.get("displayId", "") if isinstance(to_ref, dict) else "",
+            head_ref=source_branch.get("name", "")
+            if isinstance(source_branch, dict)
+            else "",
+            base_ref=dest_branch.get("name", "")
+            if isinstance(dest_branch, dict)
+            else "",
             html_url=html_url,
         )
 
     async def get_pr_diff(self, repo_full_name: str, pr_number: int) -> str:
-        del repo_full_name, pr_number
-        return ""
+        async with httpx.AsyncClient(
+            timeout=60.0,
+            follow_redirects=True,
+        ) as client:
+            response = await client.get(
+                self._pr_url(repo_full_name, pr_number, "/diff"),
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            return response.text
 
     async def fetch_pr_context(
         self, repo_full_name: str, pr_number: int, head_sha: str
     ) -> PRContext:
         metadata = await self.get_pr_metadata(repo_full_name, pr_number)
+        diff = await self.get_pr_diff(repo_full_name, pr_number)
         if head_sha and metadata.head_sha != head_sha:
             logger.warning(
                 "PR head SHA mismatch: expected %s, API returned %s",
                 head_sha[:7],
                 metadata.head_sha[:7],
             )
-        return PRContext(metadata=metadata, diff="")
+        return PRContext(metadata=metadata, diff=diff)
 
     async def ensure_worktree(
         self,
@@ -325,7 +317,6 @@ class BitbucketDataCenterProvider:
             comments,
             body=body,
             diff=review.context.diff,
-            base_sha=review.context.metadata.base_sha,
         )
 
     async def post_review_comment(
@@ -334,37 +325,23 @@ class BitbucketDataCenterProvider:
         pr_number: int,
         body: str,
     ) -> None:
-        project_key, repo_slug = parse_repo_full_name(repo_full_name)
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                self._pr_api_url(project_key, repo_slug, pr_number, "/comments"),
+                self._pr_url(repo_full_name, pr_number, "/comments"),
                 headers=self._headers(),
-                json={"text": body},
+                json={"content": {"raw": body}},
             )
             response.raise_for_status()
 
-    def _anchor_payload(
-        self,
-        comment: InlineComment,
-        *,
-        from_hash: str,
-        to_hash: str,
-        body: str,
-    ) -> dict:
-        line_type = "REMOVED" if comment.side == "LEFT" else "ADDED"
-        file_type = "FROM" if comment.side == "LEFT" else "TO"
+    def _inline_payload(self, comment: InlineComment, body: str) -> dict:
+        inline: dict[str, object] = {"path": comment.path}
+        if comment.side == "LEFT":
+            inline["from"] = comment.line
+        else:
+            inline["to"] = comment.line
         return {
-            "text": body or comment.body,
-            "anchor": {
-                "diffType": "COMMIT",
-                "fromHash": from_hash,
-                "toHash": to_hash,
-                "path": comment.path,
-                "srcPath": comment.path,
-                "line": comment.line,
-                "lineType": line_type,
-                "fileType": file_type,
-            },
+            "content": {"raw": body or comment.body},
+            "inline": inline,
         }
 
     async def post_inline_comments(
@@ -375,8 +352,6 @@ class BitbucketDataCenterProvider:
         comments: list[InlineComment],
         body: str = "",
         diff: str | None = None,
-        *,
-        base_sha: str = "",
     ) -> InlineCommentsResult:
         del commit_id
         if not comments:
@@ -397,25 +372,13 @@ class BitbucketDataCenterProvider:
         if not to_post:
             return InlineCommentsResult(posted=(), skipped=tuple(skipped))
 
-        metadata = await self.get_pr_metadata(repo_full_name, pr_number)
-        from_hash = base_sha or metadata.base_sha
-        to_hash = metadata.head_sha
-        project_key, repo_slug = parse_repo_full_name(repo_full_name)
-
         posted: list[InlineComment] = []
         async with httpx.AsyncClient(timeout=30.0) as client:
             for comment in to_post:
-                payload = self._anchor_payload(
-                    comment,
-                    from_hash=from_hash,
-                    to_hash=to_hash,
-                    body=body,
-                )
+                payload = self._inline_payload(comment, body)
                 try:
                     response = await client.post(
-                        self._pr_api_url(
-                            project_key, repo_slug, pr_number, "/comments"
-                        ),
+                        self._pr_url(repo_full_name, pr_number, "/comments"),
                         headers=self._headers(),
                         json=payload,
                     )
@@ -423,7 +386,7 @@ class BitbucketDataCenterProvider:
                     posted.append(comment)
                 except httpx.HTTPStatusError as exc:
                     logger.warning(
-                        "Skipping inline comment on %s:%d — Bitbucket DC %s: %s",
+                        "Skipping inline comment on %s:%d — Bitbucket %s: %s",
                         comment.path,
                         comment.line,
                         exc.response.status_code,

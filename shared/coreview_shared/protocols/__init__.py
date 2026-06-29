@@ -1,3 +1,5 @@
+"""Public protocol exports for providers, runtime components, and review data models."""
+
 from coreview_shared.protocols.bundle import ProviderBundle
 from coreview_shared.protocols.ci import CIProvider
 from coreview_shared.protocols.common import (

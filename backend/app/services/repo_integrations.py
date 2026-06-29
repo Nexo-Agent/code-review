@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from coreview_shared.providers.git.azure_devops import parse_repo_full_name
+from coreview_shared.git.azure_devops import parse_repo_full_name
 
 from app.repositories.repo_integrations import (
     RepoIntegrationRepository,

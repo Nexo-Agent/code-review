@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from coreview_shared.providers.ci.bitbucket_cloud import BitbucketCloudCIProvider
-from coreview_shared.providers.ci.bitbucket_dc import BitbucketDataCenterCIProvider
+from coreview_shared.ci.bitbucket_cloud import BitbucketCloudCIProvider
+from coreview_shared.ci.bitbucket_dc import BitbucketDataCenterCIProvider
 
 
 @pytest.mark.asyncio

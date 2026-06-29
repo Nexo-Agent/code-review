@@ -1,3 +1,5 @@
+"""Workspace preparation helpers for mirrors, worktrees, and shared path conventions."""
+
 from coreview_shared.workspace.adapter import GitWorkspaceAdapter
 from coreview_shared.workspace.paths import (
     mirror_dir,

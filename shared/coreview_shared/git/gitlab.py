@@ -10,6 +10,7 @@ from urllib.parse import quote, urlparse
 
 import httpx
 
+from coreview_shared.git.diff_lines import filter_inline_comments
 from coreview_shared.protocols import (
     CommandRunner,
     InlineComment,
@@ -21,7 +22,6 @@ from coreview_shared.protocols import (
     WebhookEvent,
     WorkspaceSpec,
 )
-from coreview_shared.providers.git.diff_lines import filter_inline_comments
 from coreview_shared.workspace import GitWorkspaceAdapter
 
 logger = logging.getLogger(__name__)

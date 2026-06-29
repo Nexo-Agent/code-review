@@ -1,1 +1,1 @@
-"""Shared contracts and provider implementations for Cogito Review."""
+"""Shared contracts, provider integrations, and runtime support for Cogito Review."""
