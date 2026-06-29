@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from coreview_shared.protocols import PRMetadata
+from coreview_shared.review import PRMetadata
 from httpx import ASGITransport, AsyncClient
 
 from app.auth.dependencies import AuthContext, get_auth_context

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from coreview_shared.protocols import ProviderBundle
+from coreview_shared.providers import ProviderBundle
 
 from app.config import AgentSettings, get_agent_settings
 from app.providers.factory import build_providers_from_env

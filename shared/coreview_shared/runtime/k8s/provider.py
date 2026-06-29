@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from coreview_shared.protocols import CommandRunner, Workspace, WorkspaceSpec
 from coreview_shared.runtime.specs import ReviewJobRequest
+from coreview_shared.workspace.models import Workspace, WorkspaceSpec
+from coreview_shared.workspace.protocol import CommandRunner
 
 
 class K8sRuntimeProvider:

@@ -2,18 +2,14 @@ import asyncio
 import subprocess
 from pathlib import Path
 
-from coreview_shared.protocols import (
-    CommandRunner,
-    PreparedWorkspace,
-    RemoteRepoAccess,
-    Workspace,
-    WorkspaceSpec,
-)
+from coreview_shared.git.models import RemoteRepoAccess
 from coreview_shared.workspace.git_worktree import (
     prepare_repo_worktree,
     remove_worktree,
 )
+from coreview_shared.workspace.models import PreparedWorkspace, Workspace, WorkspaceSpec
 from coreview_shared.workspace.paths import mirror_dir
+from coreview_shared.workspace.protocol import CommandRunner
 
 
 class GitWorkspaceAdapter:

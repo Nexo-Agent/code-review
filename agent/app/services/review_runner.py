@@ -1,19 +1,19 @@
 import logging
 from pathlib import Path
 
-from coreview_shared.llm.opencode import OpenCodeLLMProvider
-from coreview_shared.protocols import (
+from coreview_shared.git.models import (
     InlineComment,
     PreparedReview,
-    ReviewFinding,
-    WorkspaceSpec,
 )
+from coreview_shared.llm.opencode import OpenCodeLLMProvider
+from coreview_shared.review import ReviewFinding
 from coreview_shared.runtime.command_runner import LocalCommandRunner
 from coreview_shared.schemas.review_callback import (
     ReviewCallbackError,
     ReviewCallbackGithubResult,
     ReviewCallbackResult,
 )
+from coreview_shared.workspace.models import WorkspaceSpec
 from coreview_shared.workspace.paths import repo_base_dir
 
 from app.config import clear_agent_settings_cache, get_agent_settings

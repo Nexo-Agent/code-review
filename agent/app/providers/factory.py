@@ -8,7 +8,7 @@ from coreview_shared.git.bitbucket_cloud import BitbucketCloudProvider
 from coreview_shared.git.bitbucket_dc import BitbucketDataCenterProvider
 from coreview_shared.git.github import GitHubProvider
 from coreview_shared.git.gitlab import GitLabProvider
-from coreview_shared.protocols import ProviderBundle
+from coreview_shared.providers import ProviderBundle
 
 from app.config import AgentSettings, get_agent_settings
 

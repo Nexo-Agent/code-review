@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 
-from coreview_shared.protocols.ci import CIProvider
-from coreview_shared.protocols.git import GitProvider
-from coreview_shared.protocols.runtime import RuntimeProvider
+from coreview_shared.ci.protocol import CIProvider
+from coreview_shared.git.protocol import GitProvider
+from coreview_shared.runtime.protocol import RuntimeProvider
 
 
 @dataclass(slots=True)

@@ -6,18 +6,17 @@ from urllib.parse import urlparse
 
 import httpx
 
-from coreview_shared.protocols import (
-    CommandRunner,
+from coreview_shared.git.models import (
     InlineComment,
     InlineCommentsResult,
-    PRContext,
     PreparedReview,
-    PRMetadata,
     RemoteRepoAccess,
     WebhookEvent,
-    WorkspaceSpec,
 )
-from coreview_shared.workspace import GitWorkspaceAdapter
+from coreview_shared.review import PRContext, PRMetadata
+from coreview_shared.workspace.adapter import GitWorkspaceAdapter
+from coreview_shared.workspace.models import WorkspaceSpec
+from coreview_shared.workspace.protocol import CommandRunner
 
 logger = logging.getLogger(__name__)
 

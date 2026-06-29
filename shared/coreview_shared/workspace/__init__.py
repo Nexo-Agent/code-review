@@ -1,6 +1,5 @@
-"""Workspace preparation helpers for mirrors, worktrees, and shared path conventions."""
+"""Workspace path helpers and related models for review workspaces."""
 
-from coreview_shared.workspace.adapter import GitWorkspaceAdapter
 from coreview_shared.workspace.paths import (
     mirror_dir,
     repo_base_dir,
@@ -9,7 +8,6 @@ from coreview_shared.workspace.paths import (
 )
 
 __all__ = [
-    "GitWorkspaceAdapter",
     "mirror_dir",
     "repo_base_dir",
     "safe_repo_slug",

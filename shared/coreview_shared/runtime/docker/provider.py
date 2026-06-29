@@ -2,11 +2,12 @@ import asyncio
 import logging
 from pathlib import Path
 
-from coreview_shared.protocols import CommandRunner, Workspace, WorkspaceSpec
 from coreview_shared.runtime.docker.client import get_docker_client
 from coreview_shared.runtime.docker.command_runner import DockerCommandRunner
 from coreview_shared.runtime.docker.job_executor import DockerJobExecutor
 from coreview_shared.runtime.specs import ReviewJobRequest
+from coreview_shared.workspace.models import Workspace, WorkspaceSpec
+from coreview_shared.workspace.protocol import CommandRunner
 
 logger = logging.getLogger(__name__)
 

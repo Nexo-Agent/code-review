@@ -5,7 +5,8 @@ import os
 import re
 from typing import Any
 
-from coreview_shared.protocols import PRContext, ReviewFinding, Workspace
+from coreview_shared.review import PRContext, ReviewFinding
+from coreview_shared.workspace.models import Workspace
 
 logger = logging.getLogger(__name__)
 

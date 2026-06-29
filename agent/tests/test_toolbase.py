@@ -1,7 +1,8 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from coreview_shared.protocols import PRContext, PRMetadata, ProviderBundle
+from coreview_shared.providers import ProviderBundle
+from coreview_shared.review import PRContext, PRMetadata
 
 from app.config import AgentSettings
 from app.toolbase import ci_tools, git_tools

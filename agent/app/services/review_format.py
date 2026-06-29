@@ -1,4 +1,5 @@
-from coreview_shared.protocols import InlineComment, ReviewFinding
+from coreview_shared.git.models import InlineComment
+from coreview_shared.review import ReviewFinding
 
 COGITO_REVIEW_REPO_URL = "https://github.com/CogitoForge-AI/cogito-review"
 

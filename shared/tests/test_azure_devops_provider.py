@@ -9,10 +9,10 @@ from coreview_shared.git.azure_devops import (
     AzureDevOpsProvider,
     parse_repo_full_name,
 )
-from coreview_shared.protocols import (
-    InlineComment,
+from coreview_shared.git.models import InlineComment
+from coreview_shared.review import PRMetadata
+from coreview_shared.workspace.models import (
     PreparedWorkspace,
-    PRMetadata,
     Workspace,
     WorkspaceSpec,
 )

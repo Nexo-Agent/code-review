@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from uuid import UUID
 
-from coreview_shared.protocols import ProviderBundle
+from coreview_shared.providers import ProviderBundle
 
 from app.config import CodeReviewSettings, ReviewRuntimeConfig, get_code_review_settings
 from app.paths import opencode_generated_config_path

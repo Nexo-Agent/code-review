@@ -11,14 +11,16 @@ from coreview_shared.git.diff_lines import (
     parse_commentable_lines,
 )
 from coreview_shared.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
-from coreview_shared.protocols import (
+from coreview_shared.git.models import (
     InlineComment,
     InlineCommentsResult,
+)
+from coreview_shared.runtime.docker.command_runner import DockerCommandRunner
+from coreview_shared.workspace.models import (
     PreparedWorkspace,
     Workspace,
     WorkspaceSpec,
 )
-from coreview_shared.runtime.docker.command_runner import DockerCommandRunner
 
 from app.config import CodeReviewSettings, ReviewRuntimeConfig
 

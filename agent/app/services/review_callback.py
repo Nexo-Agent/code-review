@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import httpx
 from coreview_shared.auth.callback_hmac import sign_payload
-from coreview_shared.protocols import PRMetadata, ReviewFinding
+from coreview_shared.review import PRMetadata, ReviewFinding
 from coreview_shared.schemas.review_callback import (
     ReviewCallbackAgent,
     ReviewCallbackError,

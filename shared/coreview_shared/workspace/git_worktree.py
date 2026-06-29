@@ -2,7 +2,6 @@ import logging
 import shutil
 from pathlib import Path
 
-from coreview_shared.protocols import CommandRunner
 from coreview_shared.workspace.git_mirror import (
     ensure_mirror,
     fetch_mirror,
@@ -11,6 +10,7 @@ from coreview_shared.workspace.git_mirror import (
 )
 from coreview_shared.workspace.lock import acquire_mirror_lock
 from coreview_shared.workspace.paths import worktree_dir
+from coreview_shared.workspace.protocol import CommandRunner
 
 logger = logging.getLogger(__name__)
 

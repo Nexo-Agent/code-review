@@ -10,12 +10,13 @@ from coreview_shared.git.bitbucket_cloud import BitbucketCloudProvider
 from coreview_shared.git.bitbucket_dc import BitbucketDataCenterProvider
 from coreview_shared.git.github import GitHubProvider
 from coreview_shared.git.gitlab import GitLabProvider
-from coreview_shared.protocols import ProviderBundle, RuntimeProvider
+from coreview_shared.providers import ProviderBundle
 from coreview_shared.runtime.composite import CompositeRuntimeProvider
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
 from coreview_shared.runtime.execution.docker_backend import DockerExecutionBackend
 from coreview_shared.runtime.execution.k8s_backend import KubernetesExecutionBackend
 from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
+from coreview_shared.runtime.protocol import RuntimeProvider
 
 from app.config import (
     CodeReviewSettings,

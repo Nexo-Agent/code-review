@@ -15,7 +15,7 @@ from coreview_shared.git.gitlab import (
     parse_repo_full_name,
     verify_gitlab_signing_token,
 )
-from coreview_shared.protocols import InlineComment
+from coreview_shared.git.models import InlineComment
 
 
 def _signing_token() -> str:

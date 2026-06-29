@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from coreview_shared.protocols.common import CommandRunner, Workspace, WorkspaceSpec
-from coreview_shared.protocols.execution import ExecutionBackend, WorkspaceProvider
+from coreview_shared.runtime.protocol import ExecutionBackend, WorkspaceProvider
 from coreview_shared.runtime.specs import ReviewJobRequest
 from coreview_shared.schemas.execution_contracts import ReviewExecutionRequest
+from coreview_shared.workspace.models import Workspace, WorkspaceSpec
+from coreview_shared.workspace.protocol import CommandRunner
 
 
 class CompositeRuntimeProvider:

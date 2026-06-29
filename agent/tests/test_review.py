@@ -1,5 +1,5 @@
 from coreview_shared.llm.opencode import OpenCodeLLMProvider
-from coreview_shared.protocols import PRContext, PRMetadata, ReviewFinding
+from coreview_shared.review import PRContext, PRMetadata, ReviewFinding
 
 from app.services.review_format import (
     COGITO_REVIEW_REPO_URL,

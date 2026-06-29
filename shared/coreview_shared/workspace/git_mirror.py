@@ -2,7 +2,7 @@ import logging
 import shutil
 from pathlib import Path
 
-from coreview_shared.protocols import CommandRunner
+from coreview_shared.workspace.protocol import CommandRunner
 
 logger = logging.getLogger(__name__)
 
