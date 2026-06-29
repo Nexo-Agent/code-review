@@ -36,7 +36,7 @@ FINDINGS_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
-class OpenCodeLLMProvider:
+class OpenCodeAgent:
     def __init__(
         self,
         *,

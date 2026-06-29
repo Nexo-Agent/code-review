@@ -1,4 +1,4 @@
-from coreview_shared.llm.opencode import OpenCodeLLMProvider
+from coreview_shared.agent.opencode import OpenCodeAgent
 from coreview_shared.review import PRContext, PRMetadata, ReviewFinding
 
 from app.services.review_format import (
@@ -9,7 +9,7 @@ from app.services.review_format import (
 
 
 def test_opencode_parse_findings_from_json() -> None:
-    provider = OpenCodeLLMProvider(
+    provider = OpenCodeAgent(
         agent="code-reviewer",
         model="anthropic/claude-sonnet-4-5",
         timeout_seconds=60,
@@ -32,7 +32,7 @@ def test_opencode_parse_findings_from_json() -> None:
 
 
 def test_opencode_build_command_includes_log_flags() -> None:
-    provider = OpenCodeLLMProvider(
+    provider = OpenCodeAgent(
         agent="code-reviewer",
         model="openai-compat/gpt-4o",
         timeout_seconds=60,
@@ -51,7 +51,7 @@ def test_opencode_build_command_includes_log_flags() -> None:
 
 
 def test_opencode_slim_prompt_includes_pr_context_and_schema() -> None:
-    provider = OpenCodeLLMProvider(
+    provider = OpenCodeAgent(
         agent="code-reviewer",
         model="test/model",
         timeout_seconds=60,
@@ -79,7 +79,7 @@ def test_opencode_slim_prompt_includes_pr_context_and_schema() -> None:
 
 
 def test_opencode_parse_ndjson_stream_ignores_tool_events() -> None:
-    provider = OpenCodeLLMProvider(
+    provider = OpenCodeAgent(
         agent="code-reviewer",
         model="test/model",
         timeout_seconds=60,
@@ -104,7 +104,7 @@ def test_opencode_parse_ndjson_stream_ignores_tool_events() -> None:
 
 
 def test_opencode_parse_ndjson_stream_without_findings_returns_empty() -> None:
-    provider = OpenCodeLLMProvider(
+    provider = OpenCodeAgent(
         agent="code-reviewer",
         model="test/model",
         timeout_seconds=60,

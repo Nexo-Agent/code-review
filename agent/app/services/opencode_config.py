@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from coreview_shared.opencode.config import (
+from coreview_shared.agent.config import (
     build_code_reviewer_agent_config,
     build_headless_opencode_permissions,
     build_headless_opencode_tools,

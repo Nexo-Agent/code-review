@@ -4,7 +4,7 @@ from coreview_shared.review import PRContext, ReviewFinding
 from coreview_shared.workspace.models import Workspace
 
 
-class LLMProvider(Protocol):
+class AgentProvider(Protocol):
     async def run_review(
         self,
         workspace: Workspace,

@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from coreview_shared.opencode.config import DEFAULT_CODE_REVIEWER_PROMPT
+from coreview_shared.agent.config import DEFAULT_CODE_REVIEWER_PROMPT
 
 from app.config import AgentSettings
 from app.services.opencode_config import (

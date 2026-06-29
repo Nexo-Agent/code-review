@@ -1,11 +1,11 @@
 import logging
 from pathlib import Path
 
+from coreview_shared.agent.opencode import OpenCodeAgent
 from coreview_shared.git.models import (
     InlineComment,
     PreparedReview,
 )
-from coreview_shared.llm.opencode import OpenCodeLLMProvider
 from coreview_shared.review import ReviewFinding
 from coreview_shared.schemas.review_callback import (
     ReviewCallbackError,
@@ -103,7 +103,7 @@ async def execute_review_logic(review_id: str) -> None:
         )
 
         config_path = materialize_opencode_config(infra, review_id=review_id)
-        llm = OpenCodeLLMProvider(
+        review_agent = OpenCodeAgent(
             agent=infra.opencode_agent,
             model=infra.resolved_opencode_model,
             timeout_seconds=infra.review_timeout_seconds,
@@ -111,7 +111,10 @@ async def execute_review_logic(review_id: str) -> None:
             log_level=infra.opencode_log_level,
         )
         logger.info("Review %s: running LLM review", review_id)
-        findings = await llm.run_review(prepared_review.workspace.workspace, pr_context)
+        findings = await review_agent.run_review(
+            prepared_review.workspace.workspace,
+            pr_context,
+        )
 
         logger.info(
             "Review %s: posting %d finding(s) to remote",
