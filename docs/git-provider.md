@@ -48,28 +48,48 @@ The system builds a provider bundle from the resolved review runtime configurati
 Despite provider-specific APIs, the current implementations follow a common pattern:
 
 1. fetch provider metadata through the remote API
-2. create or reuse a local git workspace through `GitWorkspaceAdapter`
+2. create or reuse a local git workspace through `GitWorkspace`
 3. generate the diff locally from git data
 4. run review logic against the normalized prepared review
 5. publish comments back through the provider API
 
 This pattern keeps review execution consistent across providers.
 
+Workspace preparation and cleanup happen inside the agent runtime. Backend
+runtime providers only launch the agent; they do not expose local Git execution
+or prepare workspaces on behalf of Git providers.
+
 ## Workspace abstraction
 
-The local git workflow is shared through:
+The local git workflow is shared through a composed workspace package:
 
-- `shared/coreview_shared/workspace/adapter.py`
+- `shared/coreview_shared/workspace/git_workspace.py`
 - `shared/coreview_shared/workspace/git_mirror.py`
 - `shared/coreview_shared/workspace/git_worktree.py`
+- `shared/coreview_shared/workspace/lock.py`
+- `shared/coreview_shared/workspace/diff_builder.py`
 
-The adapter manages:
+`GitWorkspace` is the high-level orchestration entry point used by Git providers.
+
+It composes smaller infrastructure-oriented collaborators:
+
+- `LocalGitExecutor`: runs Git commands locally inside the agent runtime
+- `MirrorOperator`: manages bare mirror creation, fetch, and mirror recovery
+- `WorktreeOperator`: manages per-review worktree creation, stale worktree pruning, and cleanup
+- `WorkspaceLock`: serializes mirror and worktree mutations per repository
+- `DiffBuilder`: generates unified diffs from the prepared local worktree
+
+`GitWorkspace` coordinates:
 
 - bare mirror reuse
 - fetch and checkout
 - per-review worktree creation
 - diff generation
 - cleanup
+
+Those responsibilities are implemented through dedicated composed classes
+rather than a single adapter-centric module or a cross-runtime command runner
+abstraction.
 
 ## Webhook normalization
 

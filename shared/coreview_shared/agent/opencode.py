@@ -5,7 +5,8 @@ import os
 import re
 from typing import Any
 
-from coreview_shared.protocols import PRContext, ReviewFinding, Workspace
+from coreview_shared.review import PRContext, ReviewFinding
+from coreview_shared.workspace.models import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ FINDINGS_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
-class OpenCodeLLMProvider:
+class OpenCodeAgent:
     def __init__(
         self,
         *,

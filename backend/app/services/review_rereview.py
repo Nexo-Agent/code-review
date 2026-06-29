@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from coreview_shared.protocols import PRMetadata
+from coreview_shared.review import PRMetadata
 
 from app.repositories.reviews import ReviewRepository, ReviewRow
 from app.services.provider_resolution import build_providers_for_repo

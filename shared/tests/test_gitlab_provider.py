@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from coreview_shared.protocols import InlineComment
-from coreview_shared.providers.git.gitlab import (
+from coreview_shared.git.gitlab import (
     GitLabDiffRefs,
     GitLabProvider,
     normalize_gitlab_base_url,
     parse_repo_full_name,
     verify_gitlab_signing_token,
 )
+from coreview_shared.git.models import InlineComment
 
 
 def _signing_token() -> str:

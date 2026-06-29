@@ -58,7 +58,7 @@ The agent executor is a separate one-shot container that:
 
 The repository is a workspace monorepo with three Python packages:
 
-- `shared/`: provider protocols, git and CI providers, workspace tooling, runtime specs, callback schema
+- `shared/`: provider protocols, review agent abstractions, git and CI providers, workspace tooling, runtime specs, callback schema
 - `backend/`: API, services, persistence, auth, RBAC, worker entrypoints
 - `agent/`: review runner, MCP server, OpenCode integration
 
@@ -128,6 +128,9 @@ LLM configuration is stored in PostgreSQL and materialized into OpenCode-compati
 
 The current model is “OpenAI-compatible endpoint profiles” rather than hard-coded vendor SDK integrations.
 
+Review execution itself is a separate concern.
+The shared agent contract and the current `OpenCodeAgent` implementation live in `shared/coreview_shared/agent/`.
+
 ## Data ownership
 
 ### PostgreSQL
@@ -166,7 +169,8 @@ Ephemeral or semi-persistent git workspace state:
 - backend is the source of truth for application state
 - agent communicates by callback, not direct database access
 - permissions are enforced server-side
-- runtime abstraction exists, but Docker is the only implemented review runtime today
+- runtime abstraction is execution-only; repository workspace preparation and
+  review execution belong entirely to the agent runtime
 
 ## Current maturity notes
 

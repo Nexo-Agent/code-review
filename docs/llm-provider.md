@@ -11,6 +11,10 @@ The current design is intentionally simple:
 - otherwise the organization default provider is used
 - the chosen provider is materialized into an OpenCode configuration at runtime
 
+LLM providers are not the same thing as review agents.
+They describe model endpoint configuration.
+The review execution implementation lives in the shared `coreview_shared.agent` package and currently uses `OpenCodeAgent`.
+
 ## Current abstraction
 
 The system does not implement separate vendor SDK adapters for every model vendor.
@@ -78,12 +82,19 @@ The backend can generate an OpenCode config containing all enabled LLM providers
 
 Related files:
 
+- `shared/coreview_shared/agent/config.py`
 - `backend/app/providers/opencode_config.py`
 - `backend/app/services/provider_resolution.py`
 
 ### Agent review execution
 
 The agent uses the resolved provider values when launching OpenCode for the review run.
+
+Related files:
+
+- `shared/coreview_shared/agent/protocol.py`
+- `shared/coreview_shared/agent/opencode.py`
+- `agent/app/services/review_runner.py`
 
 ## `provider_id` versus `opencode_model`
 
@@ -142,3 +153,6 @@ Trade-offs:
 
 - advanced vendor-specific features are not modeled directly
 - compatibility depends on OpenCode and the endpoint behaving like the expected OpenAI-style API
+
+This trade-off is independent from the choice of review agent implementation.
+Additional agents such as `CursorAgent` or `ClaudeAgent` can use the same provider records if they keep the same runtime contract.

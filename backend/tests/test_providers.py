@@ -6,19 +6,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from coreview_shared.protocols import (
+from coreview_shared.git.diff_lines import (
+    filter_inline_comments,
+    parse_commentable_lines,
+)
+from coreview_shared.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
+from coreview_shared.git.models import (
     InlineComment,
     InlineCommentsResult,
+)
+from coreview_shared.workspace.models import (
     PreparedWorkspace,
     Workspace,
     WorkspaceSpec,
 )
-from coreview_shared.providers.git.diff_lines import (
-    filter_inline_comments,
-    parse_commentable_lines,
-)
-from coreview_shared.providers.git.github import HANDLED_WEBHOOK_ACTIONS, GitHubProvider
-from coreview_shared.runtime.docker.command_runner import DockerCommandRunner
 
 from app.config import CodeReviewSettings, ReviewRuntimeConfig
 
@@ -93,7 +94,6 @@ def test_github_parse_webhook_ignored_event() -> None:
 @pytest.mark.asyncio
 async def test_github_ensure_worktree() -> None:
     provider = GitHubProvider(token="tok")
-    runner = AsyncMock()
     spec = WorkspaceSpec(
         review_id="r1",
         repo_full_name="org/repo",
@@ -110,22 +110,21 @@ async def test_github_ensure_worktree() -> None:
     )
 
     with patch.object(
-        provider._workspace_adapter,
+        provider._git_workspace,
         "prepare_workspace",
         new=AsyncMock(return_value=prepared_workspace),
     ) as mock_prepare:
-        path = await provider.ensure_worktree(spec, repo_base, runner)
+        path = await provider.ensure_worktree(spec, repo_base)
 
     assert path == expected
     mock_prepare.assert_awaited_once()
-    access = mock_prepare.await_args.args[3]
+    access = mock_prepare.await_args.args[2]
     assert access.clone_url == "https://x-access-token:tok@github.com/org/repo.git"
 
 
 @pytest.mark.asyncio
 async def test_github_prepare_review_prefers_local_diff() -> None:
     provider = GitHubProvider(token="tok")
-    runner = AsyncMock()
     spec = WorkspaceSpec(
         review_id="r1",
         repo_full_name="org/repo",
@@ -159,17 +158,17 @@ async def test_github_prepare_review_prefers_local_diff() -> None:
             ),
         ),
         patch.object(
-            provider._workspace_adapter,
+            provider._git_workspace,
             "prepare_workspace",
             new=AsyncMock(return_value=prepared_workspace),
         ) as mock_prepare,
         patch.object(
-            provider._workspace_adapter,
+            provider._git_workspace,
             "build_diff",
             new=AsyncMock(return_value="local diff"),
         ) as mock_diff,
     ):
-        review = await provider.prepare_review(spec, repo_base, runner)
+        review = await provider.prepare_review(spec, repo_base)
 
     assert review.context.diff == "local diff"
     assert review.workspace == prepared_workspace
@@ -392,16 +391,12 @@ def test_provider_factory_github_docker() -> None:
     )
     assert providers.git is not None
     assert providers.runtime is not None
-    with patch(
-        "coreview_shared.runtime.docker.provider.get_docker_client"
-    ) as get_client:
-        get_client.return_value = MagicMock()
-        assert providers.runtime.command_runner() is not None
+    assert providers.runtime.__class__.__name__ == "DockerRuntimeProvider"
 
 
 def test_provider_factory_azure_devops() -> None:
-    from coreview_shared.providers.ci.noop import NoOpCIProvider
-    from coreview_shared.providers.git.azure_devops import AzureDevOpsProvider
+    from coreview_shared.ci.noop import NoOpCIProvider
+    from coreview_shared.git.azure_devops import AzureDevOpsProvider
 
     from app.providers.factory import build_providers
 
@@ -423,8 +418,8 @@ def test_provider_factory_azure_devops() -> None:
 
 
 def test_provider_factory_gitlab() -> None:
-    from coreview_shared.providers.ci.gitlab import GitLabCIProvider
-    from coreview_shared.providers.git.gitlab import GitLabProvider
+    from coreview_shared.ci.gitlab import GitLabCIProvider
+    from coreview_shared.git.gitlab import GitLabProvider
 
     from app.providers.factory import build_providers
 
@@ -452,8 +447,8 @@ def test_provider_factory_gitlab() -> None:
 
 
 def test_provider_factory_bitbucket_cloud() -> None:
-    from coreview_shared.providers.ci.bitbucket_cloud import BitbucketCloudCIProvider
-    from coreview_shared.providers.git.bitbucket_cloud import BitbucketCloudProvider
+    from coreview_shared.ci.bitbucket_cloud import BitbucketCloudCIProvider
+    from coreview_shared.git.bitbucket_cloud import BitbucketCloudProvider
 
     from app.providers.factory import build_providers
 
@@ -474,8 +469,8 @@ def test_provider_factory_bitbucket_cloud() -> None:
 
 
 def test_provider_factory_bitbucket_dc() -> None:
-    from coreview_shared.providers.ci.bitbucket_dc import BitbucketDataCenterCIProvider
-    from coreview_shared.providers.git.bitbucket_dc import BitbucketDataCenterProvider
+    from coreview_shared.ci.bitbucket_dc import BitbucketDataCenterCIProvider
+    from coreview_shared.git.bitbucket_dc import BitbucketDataCenterProvider
 
     from app.providers.factory import build_providers
 
@@ -509,26 +504,6 @@ def test_provider_factory_unsupported_git() -> None:
     )
     with pytest.raises(NotImplementedError):
         build_providers(runtime)
-
-
-def test_docker_command_runner_invokes_client() -> None:
-    from pathlib import Path
-
-    client = MagicMock()
-    runner = DockerCommandRunner(
-        client=client,
-        git_image="alpine/git:latest",
-        workspace_root=Path("/workspaces"),
-    )
-    import asyncio
-
-    asyncio.run(runner.run(["git", "version"], Path("/workspaces/r1")))
-    client.containers.run.assert_called_once()
-    args, kwargs = client.containers.run.call_args
-    assert args[0] == "alpine/git:latest"
-    assert kwargs["command"] == ["version"]
-    assert kwargs["entrypoint"] == ["git"]
-    assert kwargs["remove"] is True
 
 
 def test_docker_client_uses_explicit_host() -> None:

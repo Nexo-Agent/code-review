@@ -88,50 +88,28 @@ The target execution model is:
 
 ## Runtime protocol split
 
-The existing runtime protocol mixes two different responsibilities:
+The runtime protocol is execution-only.
 
-- workspace management
-- review execution dispatch
-
-In Docker mode those concerns happen to live close together.
-
-In Kubernetes mode they do not.
-
-The target design is to split those responsibilities.
-
-### Workspace provider
-
-The workspace provider is responsible for repository-local execution helpers.
-
-Typical responsibilities:
-
-- prepare a workspace
-- clean up a workspace
-- expose a command runner for git-oriented local workflows
-
-This provider exists for local-first git and workspace workflows and should not be overloaded with Kubernetes control-plane concerns.
-
-### Execution backend
-
-The execution backend is responsible only for dispatching review execution.
-
-Its primary method should become:
-
-- `submit_execution(request: ReviewExecutionRequest)`
-
-This interface should not expose workspace lifecycle methods.
-
-Instead it should focus on:
+The backend and worker submit a generic execution request to the selected
+backend, and the backend-specific runtime adapter is responsible only for:
 
 - accepting a generic execution request
 - translating it into backend-specific execution data
 - submitting that execution to the selected backend
 - returning a submission result
 
-This split keeps the interface honest for both modes:
+Repository-local workspace behavior does not belong to the runtime backend.
+Mirror preparation, worktree checkout, diff generation, and cleanup all happen
+inside the agent runtime after the backend launches the agent.
 
-- Docker mode can translate the request into a `DockerExecutionSpec` and run it directly
-- Kubernetes mode can translate the request into a `KubernetesExecutionSpec` and publish a `CogitoReviewRun`
+That agent-local workflow uses concrete local Git execution inside the agent
+process. Kubernetes and Docker runtime adapters do not provide a shared command
+runner or Git execution hook back into the workspace layer.
+
+This keeps the interface honest for both modes:
+
+- Docker mode translates the request into a `DockerExecutionSpec` and runs the agent directly
+- Kubernetes mode translates the request into a `KubernetesExecutionSpec` and publishes a `CogitoReviewRun`
 
 ## Submission semantics
 

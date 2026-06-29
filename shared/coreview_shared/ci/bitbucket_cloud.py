@@ -1,6 +1,6 @@
 import httpx
 
-from coreview_shared.providers.git.bitbucket_cloud import (
+from coreview_shared.git.bitbucket_cloud import (
     API_BASE,
     parse_repo_full_name,
 )

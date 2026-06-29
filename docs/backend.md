@@ -74,6 +74,7 @@ The backend stores operational settings in PostgreSQL:
 - RBAC permission matrix
 
 LLM provider changes also regenerate an OpenCode configuration artifact on the API host for debugging and synchronization purposes.
+The shared config builders for that artifact live in `shared/coreview_shared/agent/config.py`.
 
 ## Authentication
 

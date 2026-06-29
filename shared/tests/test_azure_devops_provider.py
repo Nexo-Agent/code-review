@@ -5,16 +5,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from coreview_shared.protocols import (
-    InlineComment,
-    PreparedWorkspace,
-    PRMetadata,
-    Workspace,
-    WorkspaceSpec,
-)
-from coreview_shared.providers.git.azure_devops import (
+from coreview_shared.git.azure_devops import (
     AzureDevOpsProvider,
     parse_repo_full_name,
+)
+from coreview_shared.git.models import InlineComment
+from coreview_shared.review import PRMetadata
+from coreview_shared.workspace.models import (
+    PreparedWorkspace,
+    Workspace,
+    WorkspaceSpec,
 )
 
 
@@ -179,7 +179,6 @@ async def test_ado_get_pr_metadata() -> None:
 @pytest.mark.asyncio
 async def test_ado_ensure_worktree() -> None:
     provider = AzureDevOpsProvider(pat="pat")
-    runner = AsyncMock()
     spec = WorkspaceSpec(
         review_id="r1",
         repo_full_name="fabrikam/MyProject/Repo",
@@ -196,22 +195,21 @@ async def test_ado_ensure_worktree() -> None:
     )
 
     with patch.object(
-        provider._workspace_adapter,
+        provider._git_workspace,
         "prepare_workspace",
         new=AsyncMock(return_value=prepared_workspace),
     ) as mock_prepare:
-        path = await provider.ensure_worktree(spec, repo_base, runner)
+        path = await provider.ensure_worktree(spec, repo_base)
 
     assert path == expected
     mock_prepare.assert_awaited_once()
-    access = mock_prepare.await_args.args[3]
+    access = mock_prepare.await_args.args[2]
     assert list(access.auth_args) == provider._git_auth_args()
 
 
 @pytest.mark.asyncio
 async def test_ado_prepare_review_uses_local_diff() -> None:
     provider = AzureDevOpsProvider(pat="pat")
-    runner = AsyncMock()
     spec = WorkspaceSpec(
         review_id="r1",
         repo_full_name="fabrikam/MyProject/Repo",
@@ -247,17 +245,17 @@ async def test_ado_prepare_review_uses_local_diff() -> None:
             new=AsyncMock(return_value=metadata),
         ),
         patch.object(
-            provider._workspace_adapter,
+            provider._git_workspace,
             "prepare_workspace",
             new=AsyncMock(return_value=prepared_workspace),
         ) as mock_prepare,
         patch.object(
-            provider._workspace_adapter,
+            provider._git_workspace,
             "build_diff",
             new=AsyncMock(return_value="local diff"),
         ) as mock_diff,
     ):
-        review = await provider.prepare_review(spec, repo_base, runner)
+        review = await provider.prepare_review(spec, repo_base)
 
     assert review.context.diff == "local diff"
     assert review.workspace == prepared_workspace
@@ -307,7 +305,6 @@ async def test_ado_build_diff_from_workspace(tmp_path: Path) -> None:
     repo_path.mkdir()
     with patch("asyncio.to_thread", new=AsyncMock(return_value="diff text")):
         diff = await provider.build_diff_from_workspace(
-            AsyncMock(),
             repo_path,
             "base",
             "head",

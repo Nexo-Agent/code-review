@@ -199,7 +199,7 @@ async def test_get_review_fallback_pr_url_when_empty(client: AsyncClient) -> Non
     mock_repo.get = AsyncMock(return_value=review)
     mock_repo.list_findings = AsyncMock(return_value=[])
 
-    from coreview_shared.providers.git.github import GitHubProvider
+    from coreview_shared.git.github import GitHubProvider
 
     mock_bundle = MagicMock()
     mock_bundle.git = GitHubProvider(token="")

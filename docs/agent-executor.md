@@ -24,6 +24,9 @@ The current implementation lives in the `agent/` package and is shipped as a ded
 - MCP server: `agent/app/mcp/server.py`
 - Bundled review skill: `agent/skills/code-reviewer/`
 
+Shared agent abstractions now live in `shared/coreview_shared/agent/`.
+The current concrete implementation is `OpenCodeAgent`.
+
 The backend worker spawns the agent as a one-shot container for each review run.
 
 ## Runtime model
@@ -94,11 +97,13 @@ Current workspace strategy:
 
 This keeps git operations fast while preserving isolation between review runs.
 
-## LLM execution model
+## Agent execution model
 
 The executor currently runs OpenCode in headless CLI mode.
 
-- command builder: `shared/coreview_shared/llm/opencode.py`
+- shared agent contract: `shared/coreview_shared/agent/protocol.py`
+- current implementation: `shared/coreview_shared/agent/opencode.py`
+- shared OpenCode config builders: `shared/coreview_shared/agent/config.py`
 - generated config materialization: `agent/app/services/opencode_config.py`
 - bundled agent id: `code-reviewer`
 
@@ -122,5 +127,19 @@ Today the executor is primarily used by the Docker runtime path:
 - worker prepares a review job
 - runtime provider spawns the agent container
 - agent calls back into the backend API
+
+The runtime layer does not prepare mirrors, worktrees, or diffs on the
+agent's behalf. The executor owns the full repository-local workflow inside the
+agent runtime:
+
+- prepare the shared mirror and per-review worktree
+- gather CI context
+- run the review model
+- publish findings
+- clean up the review worktree
+
+Git execution is local to the agent process. The workspace package now uses a
+concrete local Git executor inside the agent runtime rather than passing a
+cross-runtime command runner abstraction through backend or runtime layers.
 
 The runtime abstraction also includes a Kubernetes provider, but Kubernetes review execution is not implemented yet.

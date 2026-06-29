@@ -1,7 +1,7 @@
 import base64
 import json
 
-from coreview_shared.providers.git.bitbucket_dc import (
+from coreview_shared.git.bitbucket_dc import (
     BitbucketDataCenterProvider,
     parse_repo_full_name,
 )

@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from coreview_shared.providers.ci.gitlab import GitLabCIProvider
+from coreview_shared.ci.gitlab import GitLabCIProvider
 
 
 @pytest.mark.asyncio

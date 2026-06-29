@@ -1,4 +1,4 @@
-"""Unit tests for KubernetesExecutionBackend submission."""
+"""Unit tests for K8sRuntimeProvider submission."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coreview_shared.runtime.execution.k8s_backend import KubernetesExecutionBackend
+from coreview_shared.runtime.k8s.provider import K8sRuntimeProvider
 from coreview_shared.schemas.execution_contracts import (
     CallbackConfig,
     CredentialRefs,
@@ -53,14 +53,15 @@ def _sample_request() -> ReviewExecutionRequest:
 
 
 @pytest.mark.asyncio
-async def test_kubernetes_execution_backend_submits_crd() -> None:
-    backend = KubernetesExecutionBackend(
-        namespace="cogito-review",
+async def test_k8s_runtime_provider_submits_crd() -> None:
+    provider = K8sRuntimeProvider(
+        workspace_root="/workspaces",
+        k8s_namespace="cogito-review",
         agent_image="ghcr.io/cogitoforge-ai/cogito-review-agent:latest",
     )
 
-    with patch.object(backend, "_submit_sync") as submit_sync:
-        result = await backend.submit_execution(_sample_request())
+    with patch.object(provider, "_submit_sync") as submit_sync:
+        result = await provider.submit_execution(_sample_request())
 
     submit_sync.assert_called_once()
     assert result.accepted is True
@@ -72,9 +73,10 @@ async def test_kubernetes_execution_backend_submits_crd() -> None:
 
 
 @pytest.mark.asyncio
-async def test_kubernetes_execution_backend_create_custom_object() -> None:
-    backend = KubernetesExecutionBackend(
-        namespace="cogito-review",
+async def test_k8s_runtime_provider_create_custom_object() -> None:
+    provider = K8sRuntimeProvider(
+        workspace_root="/workspaces",
+        k8s_namespace="cogito-review",
         agent_image="ghcr.io/cogitoforge-ai/cogito-review-agent:latest",
         kubeconfig_path="/tmp/fake-kubeconfig",
     )
@@ -88,7 +90,7 @@ async def test_kubernetes_execution_backend_create_custom_object() -> None:
         patch("kubernetes.client.CustomObjectsApi", return_value=mock_api),
         patch("kubernetes.client.CoreV1Api", return_value=mock_core),
     ):
-        backend._submit_sync(
+        provider._submit_sync(
             namespace="cogito-review",
             run_name="review-550e8400-e29b-41d4-a716-446655440000",
             request=request,

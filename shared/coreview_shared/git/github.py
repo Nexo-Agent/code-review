@@ -6,19 +6,17 @@ from pathlib import Path
 
 import httpx
 
-from coreview_shared.protocols import (
-    CommandRunner,
+from coreview_shared.git.diff_lines import filter_inline_comments
+from coreview_shared.git.models import (
     InlineComment,
     InlineCommentsResult,
-    PRContext,
     PreparedReview,
-    PRMetadata,
     RemoteRepoAccess,
     WebhookEvent,
-    WorkspaceSpec,
 )
-from coreview_shared.providers.git.diff_lines import filter_inline_comments
-from coreview_shared.workspace import GitWorkspaceAdapter
+from coreview_shared.review import PRContext, PRMetadata
+from coreview_shared.workspace.git_workspace import GitWorkspace
+from coreview_shared.workspace.models import WorkspaceSpec
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +30,10 @@ class GitHubProvider:
         self,
         token: str,
         *,
-        workspace_adapter: GitWorkspaceAdapter | None = None,
+        git_workspace: GitWorkspace | None = None,
     ) -> None:
         self._token = token
-        self._workspace_adapter = workspace_adapter or GitWorkspaceAdapter()
+        self._git_workspace = git_workspace or GitWorkspace()
 
     def _headers(self) -> dict[str, str]:
         headers = {
@@ -124,7 +122,6 @@ class GitHubProvider:
         self,
         spec: WorkspaceSpec,
         repo_base: Path,
-        runner: CommandRunner,
     ) -> PreparedReview:
         """Prepare a provider-agnostic review session using local git artifacts.
 
@@ -142,13 +139,12 @@ class GitHubProvider:
             )
 
         access = self._remote_access(spec.repo_full_name)
-        prepared_workspace = await self._workspace_adapter.prepare_workspace(
+        prepared_workspace = await self._git_workspace.prepare_workspace(
             spec,
             repo_base,
-            runner,
             access,
         )
-        diff = await self._workspace_adapter.build_diff(
+        diff = await self._git_workspace.build_diff(
             prepared_workspace,
             base_sha=metadata.base_sha,
             head_sha=metadata.head_sha,
@@ -162,11 +158,9 @@ class GitHubProvider:
     async def cleanup_review(
         self,
         review: PreparedReview,
-        runner: CommandRunner,
     ) -> None:
-        await self._workspace_adapter.cleanup_workspace(
+        await self._git_workspace.cleanup_workspace(
             review.workspace,
-            runner,
             review.remote_access,
         )
 
@@ -218,12 +212,10 @@ class GitHubProvider:
         self,
         spec: WorkspaceSpec,
         repo_base: Path,
-        runner: CommandRunner,
     ) -> Path:
-        prepared_workspace = await self._workspace_adapter.prepare_workspace(
+        prepared_workspace = await self._git_workspace.prepare_workspace(
             spec,
             repo_base,
-            runner,
             self._remote_access(spec.repo_full_name),
         )
         return prepared_workspace.worktree_path
