@@ -36,10 +36,22 @@ class ReviewCallbackFinding(BaseModel):
     line_end: int | None = None
 
 
+class ReviewCallbackCommentArtifact(BaseModel):
+    comment_kind: Literal["summary", "inline"]
+    remote_comment_id: str
+    remote_thread_id: str | None = None
+    finding_index: int | None = None
+    file_path: str | None = None
+    line_start: int | None = None
+    side: str = "RIGHT"
+    posted_at: datetime
+
+
 class ReviewCallbackGithubResult(BaseModel):
     summary_comment_posted: bool = False
     inline_comments_posted: int = 0
     inline_comments_skipped: int = 0
+    comment_artifacts: list[ReviewCallbackCommentArtifact] = Field(default_factory=list)
 
 
 class ReviewCallbackResult(BaseModel):

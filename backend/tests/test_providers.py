@@ -182,7 +182,10 @@ async def test_github_post_inline_comments() -> None:
     with patch("httpx.AsyncClient") as client_cls:
         client = AsyncMock()
         client.__aenter__.return_value = client
-        client.post.return_value.raise_for_status = MagicMock()
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json.return_value = {"id": 123}
+        client.post.return_value = response
         client_cls.return_value = client
 
         diff = """diff --git a/a.py b/a.py
@@ -203,10 +206,11 @@ async def test_github_post_inline_comments() -> None:
 
         client.post.assert_awaited_once()
         call_kwargs = client.post.await_args.kwargs
-        assert "reviews" in client.post.await_args.args[0]
-        assert call_kwargs["json"]["comments"][0]["path"] == "a.py"
+        assert "comments" in client.post.await_args.args[0]
+        assert call_kwargs["json"]["path"] == "a.py"
         assert isinstance(result, InlineCommentsResult)
         assert len(result.posted) == 1
+        assert result.posted[0].remote_comment_id == "123"
 
 
 @pytest.mark.asyncio
@@ -238,7 +242,7 @@ async def test_github_post_inline_comments_skips_lines_outside_diff() -> None:
 
 
 @pytest.mark.asyncio
-async def test_github_post_inline_comments_422_fallback() -> None:
+async def test_github_post_inline_comments_422_skip() -> None:
     provider = GitHubProvider(token="tok")
     with patch("httpx.AsyncClient") as client_cls:
         client = AsyncMock()
@@ -248,9 +252,9 @@ async def test_github_post_inline_comments_422_fallback() -> None:
         bad = httpx.Response(422, request=MagicMock(), text="not in hunk")
         good = MagicMock()
         good.raise_for_status = MagicMock()
+        good.json.return_value = {"id": 456}
 
         client.post.side_effect = [
-            httpx.HTTPStatusError("batch", request=MagicMock(), response=bad),
             httpx.HTTPStatusError("single bad", request=MagicMock(), response=bad),
             good,
         ]
@@ -274,7 +278,7 @@ async def test_github_post_inline_comments_422_fallback() -> None:
             diff=diff,
         )
 
-        assert client.post.await_count == 3
+        assert client.post.await_count == 2
         assert len(result.posted) == 1
         assert len(result.skipped) == 1
 

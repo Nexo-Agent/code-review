@@ -54,6 +54,12 @@ export const DEFAULT_REPOSITORIES_SEARCH = {
   git_provider: "all",
 } as const
 
+export const DEFAULT_ANALYTICS_SEARCH = {
+  scope: "all" as const,
+  team_id: "",
+  repo_integration_id: "",
+} as const
+
 export function buildListQuery(
   page: number,
   filters?: Record<string, string | string[] | undefined | null>,

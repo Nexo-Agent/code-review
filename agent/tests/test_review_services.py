@@ -8,6 +8,7 @@ from coreview_shared.git.models import (
     InlineCommentsResult,
     PreparedReview,
     RemoteRepoAccess,
+    ReviewCommentArtifact,
 )
 from coreview_shared.providers import ProviderBundle
 from coreview_shared.review import PRContext, PRMetadata, ReviewFinding
@@ -17,7 +18,11 @@ from coreview_shared.workspace.models import PreparedWorkspace, Workspace, Works
 from app.config import AgentSettings
 from app.services.models import ReviewRunContext
 from app.services.review_context import build_review_context, require_review_env
-from app.services.review_reporter import ReviewReporter
+from app.services.review_reporter import (
+    ReviewReporter,
+    _format_summary_comment,
+    _split_findings,
+)
 from app.services.review_runner import execute_review_logic
 
 
@@ -212,8 +217,22 @@ async def test_build_review_context_assembles_prepared_review() -> None:
 async def test_review_reporter_posts_comments_and_tracks_stats() -> None:
     context = _run_context()
     context.providers.git.publish_inline_comments.return_value = InlineCommentsResult(
-        posted=(InlineComment(path="a.py", line=5, body="one"),),
+        posted=(
+            ReviewCommentArtifact(
+                comment_kind="inline",
+                remote_comment_id="101",
+                path="a.py",
+                line=5,
+                body="one",
+                finding_index=0,
+            ),
+        ),
         skipped=(InlineComment(path="b.py", line=9, body="two"),),
+    )
+    context.providers.git.publish_summary_comment.return_value = ReviewCommentArtifact(
+        comment_kind="summary",
+        remote_comment_id="201",
+        body="summary",
     )
     reporter = ReviewReporter()
     findings = [
@@ -238,7 +257,35 @@ async def test_review_reporter_posts_comments_and_tracks_stats() -> None:
     assert result.inline_comments_posted == 1
     assert result.inline_comments_skipped == 1
     assert result.summary_comment_posted is True
+    assert len(result.posted_comment_artifacts) == 2
     context.providers.git.publish_summary_comment.assert_awaited_once()
+
+
+def test_split_findings_adds_feedback_footer_to_inline_comment() -> None:
+    inline, summary_only = _split_findings(
+        [
+            ReviewFinding(
+                severity="warning",
+                title="Bug",
+                body="details",
+                file_path="a.py",
+                line_start=5,
+            )
+        ]
+    )
+
+    assert len(inline) == 1
+    assert summary_only == []
+    assert "Reply with one of:" in inline[0].body
+    assert "`Helpful`" in inline[0].body
+
+
+def test_format_summary_comment_adds_feedback_footer() -> None:
+    body = _format_summary_comment([], "org/repo", 7)
+
+    assert "No issues found. LGTM!" in body
+    assert "Reply with one of:" in body
+    assert "`Applied`" in body
 
 
 @pytest.mark.asyncio

@@ -403,19 +403,22 @@ class ReviewRepository:
         self,
         review_id: UUID,
         findings: list[dict[str, object]],
-    ) -> None:
+    ) -> list[ReviewFindingRow]:
+        inserted: list[ReviewFindingRow] = []
         async with self._conn.transaction():
             await self._conn.execute(
                 "DELETE FROM review_findings WHERE review_id = $1",
                 review_id,
             )
             for finding in findings:
-                await self._conn.execute(
+                row = await self._conn.fetchrow(
                     """
                     INSERT INTO review_findings (
                         review_id, severity, file_path,
                         line_start, line_end, title, body
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING id, review_id, severity, file_path, line_start,
+                              line_end, title, body, created_at
                     """,
                     review_id,
                     finding["severity"],
@@ -425,6 +428,9 @@ class ReviewRepository:
                     finding["title"],
                     finding["body"],
                 )
+                if row is not None:
+                    inserted.append(_row_to_finding(row))
+        return inserted
 
 
 def _row_to_review(row: asyncpg.Record) -> ReviewRow:

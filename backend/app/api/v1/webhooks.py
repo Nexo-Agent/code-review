@@ -18,6 +18,7 @@ from app.services.provider_resolution import (
     build_review_runtime_config,
     resolve_llm_provider_for_repo,
 )
+from app.services.review_analytics_events import ingest_provider_analytics_event
 
 logger = logging.getLogger(__name__)
 
@@ -122,15 +123,12 @@ async def _enqueue_webhook_review(
     _assert_repo_matches_integration(repo_integration, repo_full_name)
 
     llm_provider = await resolve_llm_provider_for_repo(conn, repo_integration)
-    if llm_provider is None:
-        return JSONResponse(
-            status_code=202,
-            content={"detail": "no LLM provider configured"},
-        )
-
-    providers = build_providers(
-        build_review_runtime_config(repo_integration, llm_provider)
+    runtime_config = build_review_runtime_config(
+        repo_integration,
+        llm_provider or _dummy_llm_provider(),
     )
+
+    providers = build_providers(runtime_config)
 
     webhook_secret = webhook_secret_resolver(repo_integration)
     if not providers.git.verify_webhook_signature(
@@ -144,9 +142,37 @@ async def _enqueue_webhook_review(
             detail="Invalid webhook signature",
         )
 
+    analytics_events_ingested = 0
+    try:
+        analytics_events_ingested = await ingest_provider_analytics_event(
+            conn,
+            repo_integration=repo_integration,
+            body=body,
+            headers=headers,
+        )
+    except NotImplementedError:
+        analytics_events_ingested = 0
+
+    if llm_provider is None:
+        event = providers.git.parse_webhook(headers, body)
+        if event is None:
+            detail = (
+                "analytics event recorded"
+                if analytics_events_ingested
+                else "event ignored"
+            )
+            return JSONResponse(status_code=202, content={"detail": detail})
+        return JSONResponse(
+            status_code=202,
+            content={"detail": "no LLM provider configured"},
+        )
+
     event = providers.git.parse_webhook(headers, body)
     if event is None:
-        return JSONResponse(status_code=202, content={"detail": "event ignored"})
+        detail = (
+            "analytics event recorded" if analytics_events_ingested else "event ignored"
+        )
+        return JSONResponse(status_code=202, content={"detail": detail})
 
     repo_db = ReviewRepository(conn)
     if event.delivery_id:
@@ -184,6 +210,18 @@ async def _enqueue_webhook_review(
         repo_integration.id,
     )
     return _to_review_response(review)
+
+
+class _DummyLlmProvider:
+    provider_id = "analytics"
+    base_url = ""
+    api_token = ""
+    model = ""
+    opencode_model = ""
+
+
+def _dummy_llm_provider() -> _DummyLlmProvider:
+    return _DummyLlmProvider()
 
 
 @router.post(

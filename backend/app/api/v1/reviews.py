@@ -1,18 +1,30 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.pagination import PaginationParams
-from app.auth.dependencies import AuthContext, assert_review_access, get_auth_context
+from app.auth.dependencies import (
+    AuthContext,
+    assert_review_access,
+    get_auth_context,
+    require_org_admin_user,
+)
 from app.dependencies import get_conn
 from app.jobs.review import run_review
+from app.jobs.review_analytics import recompute_review_analytics
 from app.rbac.catalog import ActionKey
+from app.repositories.review_analytics import ReviewAnalyticsRepository
 from app.repositories.reviews import ReviewFindingRow, ReviewRepository, ReviewRow
-from app.schemas.review import (
-    ReviewFindingResponse,
-    ReviewListResponse,
-    ReviewResponse,
+from app.schemas.review import ReviewFindingResponse, ReviewListResponse, ReviewResponse
+from app.schemas.review_analytics import (
+    ReviewAnalyticsHistoryPointResponse,
+    ReviewAnalyticsHistoryResponse,
+    ReviewAnalyticsMetricResponse,
+    ReviewAnalyticsRecomputeRequest,
+    ReviewAnalyticsRecomputeResponse,
+    ReviewAnalyticsSnapshotResponse,
 )
 from app.services.provider_resolution import build_providers_for_repo
 from app.services.review_rereview import (
@@ -22,6 +34,29 @@ from app.services.review_rereview import (
 )
 
 router = APIRouter()
+
+
+def _analytics_dimension_key(
+    *,
+    scope: str,
+    team_id: UUID | None,
+    repo_integration_id: UUID | None,
+) -> str:
+    if scope == "team":
+        if team_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="team_id is required for team scope",
+            )
+        return f"team:{team_id}"
+    if scope == "repo":
+        if repo_integration_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="repo_integration_id is required for repo scope",
+            )
+        return f"repo:{repo_integration_id}"
+    return "all"
 
 
 def _resolve_pr_url(row: ReviewRow, git_provider=None) -> str:
@@ -143,6 +178,134 @@ async def list_reviews(
     )
 
 
+@router.get("/analytics", response_model=ReviewAnalyticsSnapshotResponse)
+async def get_reviews_analytics(
+    scope: str = Query("all", pattern="^(all|team|repo)$"),
+    team_id: UUID | None = Query(None),
+    repo_integration_id: UUID | None = Query(None),
+    conn: asyncpg.Connection = Depends(get_conn),
+    auth: AuthContext = Depends(get_auth_context),
+) -> ReviewAnalyticsSnapshotResponse:
+    all_rows = await ReviewAnalyticsRepository(conn).list_latest_metric_rows(
+        provider="github"
+    )
+    if not all_rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analytics snapshot not found",
+        )
+    allowed_team_ids = set(auth.accessible_team_ids)
+    rows = [
+        row
+        for row in all_rows
+        if row.team_id is None or row.team_id in allowed_team_ids
+    ]
+    if scope == "team":
+        rows = [
+            row
+            for row in rows
+            if row.dimension_key == f"team:{team_id}" or row.team_id == team_id
+        ]
+    elif scope == "repo":
+        rows = [
+            row
+            for row in rows
+            if row.dimension_key == f"repo:{repo_integration_id}"
+            or row.repo_integration_id == repo_integration_id
+        ]
+    latest = max(all_rows, key=lambda row: row.computed_at)
+    return ReviewAnalyticsSnapshotResponse(
+        job_run_id=latest.job_run_id,
+        computed_at=latest.computed_at,
+        window_start=latest.window_start,
+        window_end=latest.window_end,
+        items=[
+            ReviewAnalyticsMetricResponse(
+                metric_key=row.metric_key,
+                provider=row.provider,
+                granularity=row.granularity,
+                window_start=row.window_start,
+                window_end=row.window_end,
+                dimension_key=row.dimension_key,
+                repo_integration_id=row.repo_integration_id,
+                team_id=row.team_id,
+                repo_full_name=row.repo_full_name,
+                metric_value_num=row.metric_value_num,
+                numerator=row.numerator,
+                denominator=row.denominator,
+                sample_size=row.sample_size,
+                dimensions_json=row.dimensions_json,
+                job_run_id=row.job_run_id,
+                computed_at=row.computed_at,
+            )
+            for row in rows
+        ],
+    )
+
+
+@router.get("/analytics/history", response_model=ReviewAnalyticsHistoryResponse)
+async def get_reviews_analytics_history(
+    metric_key: str = Query(..., min_length=1),
+    scope: str = Query("all", pattern="^(all|team|repo)$"),
+    team_id: UUID | None = Query(None),
+    repo_integration_id: UUID | None = Query(None),
+    days: int = Query(30, ge=1, le=365),
+    start: datetime | None = Query(None),
+    end: datetime | None = Query(None),
+    conn: asyncpg.Connection = Depends(get_conn),
+    auth: AuthContext = Depends(get_auth_context),
+) -> ReviewAnalyticsHistoryResponse:
+    range_end = (end or datetime.now(tz=UTC)).astimezone(UTC)
+    range_start = (
+        start.astimezone(UTC) if start is not None else range_end - timedelta(days=days)
+    )
+    if range_start > range_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start must be before end",
+        )
+    dimension_key = _analytics_dimension_key(
+        scope=scope,
+        team_id=team_id,
+        repo_integration_id=repo_integration_id,
+    )
+    if scope == "team" and team_id not in set(auth.accessible_team_ids):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    rows = await ReviewAnalyticsRepository(conn).list_metric_history(
+        provider="github",
+        metric_key=metric_key,
+        dimension_key=dimension_key,
+        start=range_start,
+        end=range_end,
+    )
+    return ReviewAnalyticsHistoryResponse(
+        metric_key=metric_key,
+        scope=scope,
+        team_id=team_id,
+        repo_integration_id=repo_integration_id,
+        range_start=range_start,
+        range_end=range_end,
+        items=[
+            ReviewAnalyticsHistoryPointResponse(
+                metric_key=row.metric_key,
+                provider=row.provider,
+                dimension_key=row.dimension_key,
+                repo_integration_id=row.repo_integration_id,
+                team_id=row.team_id,
+                repo_full_name=row.repo_full_name,
+                metric_value_num=row.metric_value_num,
+                numerator=row.numerator,
+                denominator=row.denominator,
+                sample_size=row.sample_size,
+                computed_at=row.computed_at,
+                window_start=row.window_start,
+                window_end=row.window_end,
+            )
+            for row in rows
+        ],
+    )
+
+
 @router.get("/{review_id}", response_model=ReviewResponse)
 async def get_review(
     review_id: UUID,
@@ -196,3 +359,23 @@ async def retry_review(
         )
     run_review.delay(str(review.id))
     return _to_review_response(review)
+
+
+@router.post(
+    "/analytics/recompute",
+    response_model=ReviewAnalyticsRecomputeResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def recompute_reviews_analytics(
+    payload: ReviewAnalyticsRecomputeRequest,
+    _admin=Depends(require_org_admin_user),
+) -> ReviewAnalyticsRecomputeResponse:
+    task = recompute_review_analytics.delay(
+        payload.window_days,
+        payload.window_end.isoformat() if payload.window_end else None,
+    )
+    return ReviewAnalyticsRecomputeResponse(
+        task_id=task.id,
+        window_days=payload.window_days,
+        window_end=payload.window_end,
+    )

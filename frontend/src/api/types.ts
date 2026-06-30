@@ -47,3 +47,67 @@ export interface ReviewList {
   items: Review[]
   total: number
 }
+
+export interface ReviewAnalyticsMetric {
+  metric_key: string
+  provider: string
+  granularity: string
+  window_start: string
+  window_end: string
+  dimension_key: string
+  repo_integration_id: string | null
+  team_id: string | null
+  repo_full_name: string
+  metric_value_num: number
+  numerator: number | null
+  denominator: number | null
+  sample_size: number
+  dimensions_json: Record<string, unknown>
+  job_run_id: string
+  computed_at: string
+}
+
+export interface ReviewAnalyticsSnapshot {
+  job_run_id: string
+  computed_at: string
+  window_start: string
+  window_end: string
+  items: ReviewAnalyticsMetric[]
+}
+
+export interface ReviewAnalyticsRecomputeRequest {
+  window_days: number
+  window_end?: string | null
+}
+
+export interface ReviewAnalyticsRecomputeResponse {
+  task_id: string
+  window_days: number
+  window_end: string | null
+}
+
+export interface ReviewAnalyticsHistoryPoint {
+  metric_key: string
+  provider: string
+  dimension_key: string
+  repo_integration_id: string | null
+  team_id: string | null
+  repo_full_name: string
+  metric_value_num: number
+  numerator: number | null
+  denominator: number | null
+  sample_size: number
+  computed_at: string
+  window_start: string
+  window_end: string
+}
+
+export interface ReviewAnalyticsHistory {
+  metric_key: string
+  scope: string
+  team_id: string | null
+  repo_integration_id: string | null
+  range_start: string
+  range_end: string
+  items: ReviewAnalyticsHistoryPoint[]
+}

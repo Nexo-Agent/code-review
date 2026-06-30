@@ -3,7 +3,9 @@ from uuid import UUID
 
 from coreview_shared.schemas.review_callback import ReviewCallbackEvent
 
+from app.repositories.repo_integrations import RepoIntegrationRepository
 from app.repositories.reviews import ReviewRepository
+from app.services.review_analytics_events import persist_comment_artifacts_and_events
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,7 @@ async def handle_review_callback(conn, event: ReviewCallbackEvent) -> None:
             head_ref=request.head_ref,
         )
         findings = []
+        finding_rows = []
         if event.result is not None:
             findings = [
                 {
@@ -75,7 +78,26 @@ async def handle_review_callback(conn, event: ReviewCallbackEvent) -> None:
                 inline_comments_posted=github.inline_comments_posted,
                 inline_comments_skipped=github.inline_comments_skipped,
             )
-        await repo.replace_findings(review_id, findings)
+        finding_rows = await repo.replace_findings(review_id, findings)
+        repo_integration = None
+        if row.repo_integration_id is not None:
+            repo_integration = await RepoIntegrationRepository(conn).get(
+                row.repo_integration_id
+            )
+        finding_ids_by_index = {
+            index: finding_row.id for index, finding_row in enumerate(finding_rows)
+        }
+        if event.result is not None and event.result.github.comment_artifacts:
+            await persist_comment_artifacts_and_events(
+                conn,
+                review=row,
+                repo_integration=repo_integration,
+                artifacts=[
+                    artifact.model_dump(mode="python")
+                    for artifact in event.result.github.comment_artifacts
+                ],
+                finding_ids_by_index=finding_ids_by_index,
+            )
         await repo.update_status(review_id, status="completed", set_completed=True)
         logger.info(
             "Review %s completed via callback with %d finding(s)",

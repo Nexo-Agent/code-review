@@ -19,6 +19,7 @@ import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
 import { Route as RepositoriesIndexRouteImport } from './routes/repositories/index'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as LlmProvidersIndexRouteImport } from './routes/llm-providers/index'
+import { Route as AnalyticsIndexRouteImport } from './routes/analytics/index'
 import { Route as SettingsPermissionsRouteImport } from './routes/settings/permissions'
 import { Route as SettingsIdentityProviderRouteImport } from './routes/settings/identity-provider'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
@@ -77,6 +78,11 @@ const LlmProvidersIndexRoute = LlmProvidersIndexRouteImport.update({
   path: '/llm-providers/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsIndexRoute = AnalyticsIndexRouteImport.update({
+  id: '/analytics/',
+  path: '/analytics/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsPermissionsRoute = SettingsPermissionsRouteImport.update({
   id: '/settings/permissions',
   path: '/settings/permissions',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/settings/identity-provider': typeof SettingsIdentityProviderRoute
   '/settings/permissions': typeof SettingsPermissionsRoute
+  '/analytics/': typeof AnalyticsIndexRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/members/': typeof MembersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/settings/identity-provider': typeof SettingsIdentityProviderRoute
   '/settings/permissions': typeof SettingsPermissionsRoute
+  '/analytics': typeof AnalyticsIndexRoute
   '/llm-providers': typeof LlmProvidersIndexRoute
   '/members': typeof MembersIndexRoute
   '/repositories': typeof RepositoriesIndexRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
   '/settings/identity-provider': typeof SettingsIdentityProviderRoute
   '/settings/permissions': typeof SettingsPermissionsRoute
+  '/analytics/': typeof AnalyticsIndexRoute
   '/llm-providers/': typeof LlmProvidersIndexRoute
   '/members/': typeof MembersIndexRoute
   '/repositories/': typeof RepositoriesIndexRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/reviews/$reviewId'
     | '/settings/identity-provider'
     | '/settings/permissions'
+    | '/analytics/'
     | '/llm-providers/'
     | '/members/'
     | '/repositories/'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/reviews/$reviewId'
     | '/settings/identity-provider'
     | '/settings/permissions'
+    | '/analytics'
     | '/llm-providers'
     | '/members'
     | '/repositories'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/reviews/$reviewId'
     | '/settings/identity-provider'
     | '/settings/permissions'
+    | '/analytics/'
     | '/llm-providers/'
     | '/members/'
     | '/repositories/'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
   SettingsIdentityProviderRoute: typeof SettingsIdentityProviderRoute
   SettingsPermissionsRoute: typeof SettingsPermissionsRoute
+  AnalyticsIndexRoute: typeof AnalyticsIndexRoute
   LlmProvidersIndexRoute: typeof LlmProvidersIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
   RepositoriesIndexRoute: typeof RepositoriesIndexRoute
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LlmProvidersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analytics/': {
+      id: '/analytics/'
+      path: '/analytics'
+      fullPath: '/analytics/'
+      preLoaderRoute: typeof AnalyticsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/permissions': {
       id: '/settings/permissions'
       path: '/settings/permissions'
@@ -385,6 +405,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewsReviewIdRoute: ReviewsReviewIdRoute,
   SettingsIdentityProviderRoute: SettingsIdentityProviderRoute,
   SettingsPermissionsRoute: SettingsPermissionsRoute,
+  AnalyticsIndexRoute: AnalyticsIndexRoute,
   LlmProvidersIndexRoute: LlmProvidersIndexRoute,
   MembersIndexRoute: MembersIndexRoute,
   RepositoriesIndexRoute: RepositoriesIndexRoute,

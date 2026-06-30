@@ -14,6 +14,7 @@ from app.main import create_app
 from app.repositories.llm_providers import LlmProviderRow
 from app.repositories.organizations import DEFAULT_ORG_ID
 from app.repositories.repo_integrations import RepoIntegrationRow
+from app.repositories.review_analytics import ReviewMetricAnalyticsRow
 from app.repositories.teams import DEFAULT_TEAM_ID
 from tests.conftest import make_dev_user, make_effective_permissions, make_review_row
 
@@ -192,6 +193,62 @@ async def test_github_webhook_legacy_endpoint_deprecated(client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
+async def test_github_webhook_records_analytics_only_event(client: AsyncClient) -> None:
+    llm = _llm_row()
+    repo_integration = _repo_row(llm)
+    secret = repo_integration.github_webhook_secret
+    payload = {
+        "action": "ready_for_review",
+        "pull_request": {
+            "id": 999,
+            "number": 42,
+            "head": {"sha": "abc123" * 5 + "ab"},
+            "updated_at": "2026-06-30T10:00:00Z",
+            "draft": False,
+            "merged": False,
+        },
+        "sender": {"login": "alice", "type": "User"},
+        "repository": {"full_name": "owner/repo"},
+    }
+    body = json.dumps(payload).encode()
+    delivery_id = str(uuid4())
+
+    mock_integration_repo = MagicMock()
+    mock_integration_repo.get_with_team = AsyncMock(
+        return_value=(repo_integration, DEFAULT_TEAM_ID)
+    )
+
+    with (
+        patch(
+            "app.api.v1.webhooks.RepoIntegrationRepository",
+            return_value=mock_integration_repo,
+        ),
+        patch(
+            "app.api.v1.webhooks.resolve_llm_provider_for_repo",
+            AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.api.v1.webhooks.ingest_provider_analytics_event",
+            AsyncMock(return_value=1),
+        ) as ingest_mock,
+    ):
+        response = await client.post(
+            f"/api/v1/webhooks/github/{repo_integration.id}",
+            content=body,
+            headers={
+                "X-GitHub-Event": "pull_request",
+                "X-GitHub-Delivery": delivery_id,
+                "X-Hub-Signature-256": _sign_payload(body, secret),
+                "Content-Type": "application/json",
+            },
+        )
+
+    assert response.status_code == 202
+    assert response.json()["detail"] == "analytics event recorded"
+    ingest_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_get_review_fallback_pr_url_when_empty(client: AsyncClient) -> None:
     review_id = uuid4()
     review = make_review_row(id=review_id, pr_url="")
@@ -215,3 +272,200 @@ async def test_get_review_fallback_pr_url_when_empty(client: AsyncClient) -> Non
 
     assert response.status_code == 200
     assert response.json()["pr_url"] == "https://github.com/org/repo/pull/42"
+
+
+@pytest.mark.asyncio
+async def test_get_reviews_analytics_snapshot(client: AsyncClient) -> None:
+    now = datetime.now(UTC)
+    metric_row = ReviewMetricAnalyticsRow(
+        id=uuid4(),
+        metric_key="helpful_rate",
+        provider="github",
+        granularity="rolling_window",
+        window_start=now,
+        window_end=now,
+        dimension_key="all",
+        repo_integration_id=None,
+        team_id=None,
+        repo_full_name="",
+        metric_value_num=0.75,
+        numerator=3.0,
+        denominator=4.0,
+        sample_size=4,
+        dimensions_json={"dimension_key": "all"},
+        job_run_id=uuid4(),
+        computed_at=now,
+    )
+    analytics_repo = AsyncMock()
+    analytics_repo.list_latest_metric_rows = AsyncMock(return_value=[metric_row])
+
+    with patch(
+        "app.api.v1.reviews.ReviewAnalyticsRepository",
+        return_value=analytics_repo,
+    ):
+        response = await client.get("/api/v1/reviews/analytics")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["job_run_id"] == str(metric_row.job_run_id)
+    assert payload["items"][0]["metric_key"] == "helpful_rate"
+
+
+@pytest.mark.asyncio
+async def test_get_reviews_analytics_team_scope_filters_rows(
+    client: AsyncClient,
+) -> None:
+    now = datetime.now(UTC)
+    team_metric = ReviewMetricAnalyticsRow(
+        id=uuid4(),
+        metric_key="helpful_rate",
+        provider="github",
+        granularity="rolling_window",
+        window_start=now,
+        window_end=now,
+        dimension_key=f"team:{DEFAULT_TEAM_ID}",
+        repo_integration_id=None,
+        team_id=DEFAULT_TEAM_ID,
+        repo_full_name="",
+        metric_value_num=0.75,
+        numerator=3.0,
+        denominator=4.0,
+        sample_size=4,
+        dimensions_json={"dimension_key": f"team:{DEFAULT_TEAM_ID}"},
+        job_run_id=uuid4(),
+        computed_at=now,
+    )
+    repo_metric = ReviewMetricAnalyticsRow(
+        id=uuid4(),
+        metric_key="helpful_rate",
+        provider="github",
+        granularity="rolling_window",
+        window_start=now,
+        window_end=now,
+        dimension_key="repo:abc",
+        repo_integration_id=uuid4(),
+        team_id=DEFAULT_TEAM_ID,
+        repo_full_name="owner/repo",
+        metric_value_num=0.8,
+        numerator=4.0,
+        denominator=5.0,
+        sample_size=5,
+        dimensions_json={"dimension_key": "repo:abc"},
+        job_run_id=team_metric.job_run_id,
+        computed_at=now,
+    )
+    analytics_repo = AsyncMock()
+    analytics_repo.list_latest_metric_rows = AsyncMock(
+        return_value=[team_metric, repo_metric]
+    )
+
+    with patch(
+        "app.api.v1.reviews.ReviewAnalyticsRepository",
+        return_value=analytics_repo,
+    ):
+        response = await client.get(
+            f"/api/v1/reviews/analytics?scope=team&team_id={DEFAULT_TEAM_ID}"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_reviews_analytics_repo_scope_returns_empty_snapshot(
+    client: AsyncClient,
+) -> None:
+    now = datetime.now(UTC)
+    team_metric = ReviewMetricAnalyticsRow(
+        id=uuid4(),
+        metric_key="helpful_rate",
+        provider="github",
+        granularity="rolling_window",
+        window_start=now,
+        window_end=now,
+        dimension_key=f"team:{DEFAULT_TEAM_ID}",
+        repo_integration_id=None,
+        team_id=DEFAULT_TEAM_ID,
+        repo_full_name="",
+        metric_value_num=0.75,
+        numerator=3.0,
+        denominator=4.0,
+        sample_size=4,
+        dimensions_json={"dimension_key": f"team:{DEFAULT_TEAM_ID}"},
+        job_run_id=uuid4(),
+        computed_at=now,
+    )
+    analytics_repo = AsyncMock()
+    analytics_repo.list_latest_metric_rows = AsyncMock(return_value=[team_metric])
+
+    with patch(
+        "app.api.v1.reviews.ReviewAnalyticsRepository",
+        return_value=analytics_repo,
+    ):
+        response = await client.get(
+            "/api/v1/reviews/analytics"
+            "?scope=repo&repo_integration_id=bc47ecb1-bdb2-4ad1-8f9f-48ecf34655ce"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["job_run_id"] == str(team_metric.job_run_id)
+    assert payload["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_reviews_analytics_history_returns_points_for_scope(
+    client: AsyncClient,
+) -> None:
+    now = datetime.now(UTC)
+    history_row = ReviewMetricAnalyticsRow(
+        id=uuid4(),
+        metric_key="ai_review_coverage",
+        provider="github",
+        granularity="rolling_window",
+        window_start=now,
+        window_end=now,
+        dimension_key=f"repo:{uuid4()}",
+        repo_integration_id=uuid4(),
+        team_id=DEFAULT_TEAM_ID,
+        repo_full_name="owner/repo",
+        metric_value_num=0.6,
+        numerator=3.0,
+        denominator=5.0,
+        sample_size=5,
+        dimensions_json={"dimension_key": "repo"},
+        job_run_id=uuid4(),
+        computed_at=now,
+    )
+    analytics_repo = AsyncMock()
+    analytics_repo.list_metric_history = AsyncMock(return_value=[history_row])
+
+    with patch(
+        "app.api.v1.reviews.ReviewAnalyticsRepository",
+        return_value=analytics_repo,
+    ):
+        response = await client.get(
+            "/api/v1/reviews/analytics/history"
+            f"?metric_key=ai_review_coverage&scope=repo&repo_integration_id={history_row.repo_integration_id}"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["metric_key"] == "ai_review_coverage"
+    assert payload["scope"] == "repo"
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["metric_value_num"] == 0.6
+
+
+@pytest.mark.asyncio
+async def test_get_reviews_analytics_history_rejects_invalid_date_range(
+    client: AsyncClient,
+) -> None:
+    response = await client.get(
+        "/api/v1/reviews/analytics/history"
+        "?metric_key=helpful_rate&start=2026-06-30T00:00:00Z&end=2026-06-01T00:00:00Z"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "start must be before end"

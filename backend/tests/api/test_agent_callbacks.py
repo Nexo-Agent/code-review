@@ -166,9 +166,21 @@ async def test_agent_callback_completed_persists_findings(
     mock_repo.update_delivery_stats = AsyncMock()
     mock_repo.update_request_metadata = AsyncMock()
     mock_repo.update_status = AsyncMock()
+    mock_repo.replace_findings.return_value = []
     monkeypatch.setattr(
         "app.services.review_callback_handler.ReviewRepository",
         lambda _conn: mock_repo,
+    )
+    repo_integration_repo = AsyncMock()
+    repo_integration_repo.get = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "app.services.review_callback_handler.RepoIntegrationRepository",
+        lambda _conn: repo_integration_repo,
+    )
+    persist_mock = AsyncMock()
+    monkeypatch.setattr(
+        "app.services.review_callback_handler.persist_comment_artifacts_and_events",
+        persist_mock,
     )
 
     payload = _started_payload(review_id)
@@ -188,6 +200,17 @@ async def test_agent_callback_completed_persists_findings(
             "summary_comment_posted": True,
             "inline_comments_posted": 1,
             "inline_comments_skipped": 0,
+            "comment_artifacts": [
+                {
+                    "comment_kind": "inline",
+                    "remote_comment_id": "101",
+                    "finding_index": 0,
+                    "file_path": "src/a.py",
+                    "line_start": 10,
+                    "side": "RIGHT",
+                    "posted_at": "2026-06-25T10:01:00Z",
+                }
+            ],
         },
     }
     body = json.dumps(payload).encode()
@@ -214,6 +237,7 @@ async def test_agent_callback_completed_persists_findings(
     mock_repo.replace_findings.assert_awaited_once()
     findings = mock_repo.replace_findings.await_args.args[1]
     assert findings[0]["title"] == "Issue"
+    persist_mock.assert_awaited_once()
     mock_repo.update_delivery_stats.assert_awaited_once_with(
         UUID(review_id),
         summary_comment_posted=True,

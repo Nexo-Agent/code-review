@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from coreview_shared.review import PRContext
 from coreview_shared.workspace.models import PreparedWorkspace
@@ -40,9 +41,22 @@ class InlineComment:
     line: int
     body: str
     side: str = "RIGHT"
+    finding_index: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewCommentArtifact:
+    comment_kind: Literal["summary", "inline"]
+    remote_comment_id: str
+    remote_thread_id: str | None = None
+    body: str = ""
+    path: str | None = None
+    line: int | None = None
+    side: str = "RIGHT"
+    finding_index: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class InlineCommentsResult:
-    posted: tuple[InlineComment, ...]
+    posted: tuple[ReviewCommentArtifact, ...]
     skipped: tuple[InlineComment, ...]

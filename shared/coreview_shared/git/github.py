@@ -12,6 +12,7 @@ from coreview_shared.git.models import (
     InlineCommentsResult,
     PreparedReview,
     RemoteRepoAccess,
+    ReviewCommentArtifact,
     WebhookEvent,
 )
 from coreview_shared.review import PRContext, PRMetadata
@@ -224,8 +225,8 @@ class GitHubProvider:
         self,
         review: PreparedReview,
         body: str,
-    ) -> None:
-        await self.post_review_comment(
+    ) -> ReviewCommentArtifact | None:
+        return await self.post_review_comment(
             review.context.metadata.repo_full_name,
             review.context.metadata.pr_number,
             body,
@@ -251,7 +252,7 @@ class GitHubProvider:
         repo_full_name: str,
         pr_number: int,
         body: str,
-    ) -> None:
+    ) -> ReviewCommentArtifact | None:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{self.API_BASE}/repos/{repo_full_name}/issues/{pr_number}/comments",
@@ -259,41 +260,43 @@ class GitHubProvider:
                 json={"body": body},
             )
             response.raise_for_status()
+            data = response.json()
+        comment_id = data.get("id")
+        if comment_id is None:
+            return None
+        return ReviewCommentArtifact(
+            comment_kind="summary",
+            remote_comment_id=str(comment_id),
+            body=body,
+        )
 
-    def _review_payload(
+    def _comment_payload(
         self,
         commit_id: str,
-        comments: list[InlineComment],
-        body: str,
+        comment: InlineComment,
     ) -> dict:
         return {
             "commit_id": commit_id,
-            "body": body,
-            "event": "COMMENT",
-            "comments": [
-                {
-                    "path": c.path,
-                    "line": c.line,
-                    "side": c.side,
-                    "body": c.body,
-                }
-                for c in comments
-            ],
+            "body": comment.body,
+            "path": comment.path,
+            "line": comment.line,
+            "side": comment.side,
         }
 
-    async def _post_review(
+    async def _post_inline_comment(
         self,
         client: httpx.AsyncClient,
         repo_full_name: str,
         pr_number: int,
         payload: dict,
-    ) -> None:
+    ) -> dict:
         response = await client.post(
-            f"{self.API_BASE}/repos/{repo_full_name}/pulls/{pr_number}/reviews",
+            f"{self.API_BASE}/repos/{repo_full_name}/pulls/{pr_number}/comments",
             headers=self._headers(),
             json=payload,
         )
         response.raise_for_status()
+        return response.json()
 
     async def post_inline_comments(
         self,
@@ -322,40 +325,47 @@ class GitHubProvider:
         if not to_post:
             return InlineCommentsResult(posted=(), skipped=tuple(skipped))
 
-        posted: list[InlineComment] = []
+        posted: list[ReviewCommentArtifact] = []
         async with httpx.AsyncClient(timeout=30.0) as client:
-            batch_payload = self._review_payload(commit_id, to_post, body)
-            try:
-                await self._post_review(
-                    client, repo_full_name, pr_number, batch_payload
-                )
-                posted.extend(to_post)
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code != 422:
-                    raise
-                logger.warning(
-                    "Batch inline review returned 422, "
-                    "posting comments individually: %s",
-                    exc.response.text,
-                )
-                for comment in to_post:
-                    single_payload = self._review_payload(commit_id, [comment], body)
-                    try:
-                        await self._post_review(
-                            client, repo_full_name, pr_number, single_payload
+            for comment in to_post:
+                payload = self._comment_payload(commit_id, comment)
+                try:
+                    data = await self._post_inline_comment(
+                        client,
+                        repo_full_name,
+                        pr_number,
+                        payload,
+                    )
+                    comment_id = data.get("id")
+                    if comment_id is None:
+                        logger.warning(
+                            "Inline comment on %s:%d missing GitHub comment id",
+                            comment.path,
+                            comment.line,
                         )
-                        posted.append(comment)
-                    except httpx.HTTPStatusError as single_exc:
-                        if single_exc.response.status_code == 422:
-                            logger.warning(
-                                "Skipping inline comment on %s:%d — GitHub 422: %s",
-                                comment.path,
-                                comment.line,
-                                single_exc.response.text,
-                            )
-                            skipped.append(comment)
-                            continue
-                        raise
+                        continue
+                    posted.append(
+                        ReviewCommentArtifact(
+                            comment_kind="inline",
+                            remote_comment_id=str(comment_id),
+                            body=comment.body,
+                            path=comment.path,
+                            line=comment.line,
+                            side=comment.side,
+                            finding_index=comment.finding_index,
+                        )
+                    )
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 422:
+                        logger.warning(
+                            "Skipping inline comment on %s:%d — GitHub 422: %s",
+                            comment.path,
+                            comment.line,
+                            exc.response.text,
+                        )
+                        skipped.append(comment)
+                        continue
+                    raise
 
         return InlineCommentsResult(
             posted=tuple(posted),

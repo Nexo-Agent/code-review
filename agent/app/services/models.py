@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from coreview_shared.agent.models import AgentRunConfig, ReviewAgentKind
-from coreview_shared.git.models import InlineComment, PreparedReview
+from coreview_shared.git.models import PreparedReview, ReviewCommentArtifact
 from coreview_shared.providers import ProviderBundle
 from coreview_shared.review import ReviewFinding
 from coreview_shared.schemas.review_callback import ReviewCallbackRequest
@@ -25,7 +25,12 @@ class ReviewRunContext:
 @dataclass(frozen=True, slots=True)
 class ReviewPublishResult:
     findings: tuple[ReviewFinding, ...]
-    posted_inline_comments: tuple[InlineComment, ...] = field(default_factory=tuple)
+    posted_inline_comments: tuple[ReviewCommentArtifact, ...] = field(
+        default_factory=tuple
+    )
+    posted_comment_artifacts: tuple[ReviewCommentArtifact, ...] = field(
+        default_factory=tuple
+    )
     inline_comments_posted: int = 0
     inline_comments_skipped: int = 0
     summary_comment_posted: bool = False

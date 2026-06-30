@@ -28,6 +28,7 @@ import {
 import { useLogout, useMe } from "@/hooks/use-auth"
 import { hasOrgPermission } from "@/lib/permissions"
 import {
+  DEFAULT_ANALYTICS_SEARCH,
   DEFAULT_LIST_SEARCH,
   DEFAULT_REPOSITORIES_SEARCH,
   DEFAULT_REVIEWS_SEARCH,
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils"
 
 type NavRoute =
   | "/"
+  | "/analytics"
   | "/reviews"
   | "/teams"
   | "/repositories"
@@ -85,7 +87,12 @@ const navGroups: NavGroup[] = [
         label: "Review",
         icon: GitPullRequest,
       },
-      { kind: "disabled", label: "Analytics", icon: BarChart3 },
+      {
+        kind: "link",
+        to: "/analytics",
+        label: "Analytics",
+        icon: BarChart3,
+      },
     ],
   },
   {
@@ -200,6 +207,18 @@ function AppNavLink({ item }: { item: NavLinkItem }) {
         <Link
           to="/reviews"
           search={DEFAULT_REVIEWS_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/analytics":
+      return (
+        <Link
+          to="/analytics"
+          search={DEFAULT_ANALYTICS_SEARCH}
           className={navLinkClassName}
           activeOptions={activeOptions}
           activeProps={activeProps}

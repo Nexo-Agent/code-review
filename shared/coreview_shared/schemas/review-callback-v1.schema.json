@@ -70,7 +70,27 @@
           "properties": {
             "summary_comment_posted": { "type": "boolean" },
             "inline_comments_posted": { "type": "integer", "minimum": 0 },
-            "inline_comments_skipped": { "type": "integer", "minimum": 0 }
+            "inline_comments_skipped": { "type": "integer", "minimum": 0 },
+            "comment_artifacts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["comment_kind", "remote_comment_id", "posted_at"],
+                "properties": {
+                  "comment_kind": {
+                    "type": "string",
+                    "enum": ["summary", "inline"]
+                  },
+                  "remote_comment_id": { "type": "string" },
+                  "remote_thread_id": { "type": ["string", "null"] },
+                  "finding_index": { "type": ["integer", "null"] },
+                  "file_path": { "type": ["string", "null"] },
+                  "line_start": { "type": ["integer", "null"] },
+                  "side": { "type": "string" },
+                  "posted_at": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
           }
         }
       }

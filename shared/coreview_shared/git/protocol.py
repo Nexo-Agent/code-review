@@ -5,6 +5,7 @@ from coreview_shared.git.models import (
     InlineComment,
     InlineCommentsResult,
     PreparedReview,
+    ReviewCommentArtifact,
     WebhookEvent,
 )
 from coreview_shared.review import PRContext, PRMetadata
@@ -48,7 +49,7 @@ class GitProvider(Protocol):
         self,
         review: PreparedReview,
         body: str,
-    ) -> None: ...
+    ) -> ReviewCommentArtifact | None: ...
 
     async def publish_inline_comments(
         self,
@@ -62,7 +63,7 @@ class GitProvider(Protocol):
         repo_full_name: str,
         pr_number: int,
         body: str,
-    ) -> None: ...
+    ) -> ReviewCommentArtifact | None: ...
 
     async def post_inline_comments(
         self,
