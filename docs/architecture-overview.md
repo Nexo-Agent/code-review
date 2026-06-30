@@ -9,7 +9,7 @@ The system is built around one core workflow:
 1. a Git provider sends a webhook for a PR or MR change
 2. the backend validates and records a review request
 3. the worker launches an isolated review agent
-4. the agent analyzes the code and posts comments back to the Git provider
+4. the agent analyzes the code through a selected runtime wrapper and posts comments back to the Git provider
 5. the agent reports findings to the backend
 6. the frontend displays runs, findings, and operational settings
 
@@ -50,7 +50,8 @@ The worker is a Celery process that:
 The agent executor is a separate one-shot container that:
 
 - prepares the repository workspace
-- runs OpenCode with the bundled review skill
+- assembles review context and selects a shared coding-agent wrapper
+- runs the wrapper to produce normalized findings
 - posts inline and summary comments to the Git provider
 - sends lifecycle callbacks and findings to the backend
 
@@ -60,7 +61,7 @@ The repository is a workspace monorepo with three Python packages:
 
 - `shared/`: provider protocols, review agent abstractions, git and CI providers, workspace tooling, runtime specs, callback schema
 - `backend/`: API, services, persistence, auth, RBAC, worker entrypoints
-- `agent/`: review runner, MCP server, OpenCode integration
+- `agent/`: review runner, review reporting, MCP server, container runtime entrypoints
 
 This allows backend and agent to share protocols and provider logic without duplicating implementation.
 
@@ -74,7 +75,8 @@ Git webhook
   -> Worker resolves repo + LLM config
   -> Runtime spawns one-shot agent container
   -> Agent prepares git worktree and CI summary
-  -> OpenCode review run
+  -> Agent selects shared runtime wrapper
+  -> Wrapper review run returns findings
   -> Inline comments + summary comment posted to provider
   -> Callback event to backend
   -> Findings persisted in PostgreSQL
@@ -129,7 +131,9 @@ LLM configuration is stored in PostgreSQL and materialized into OpenCode-compati
 The current model is “OpenAI-compatible endpoint profiles” rather than hard-coded vendor SDK integrations.
 
 Review execution itself is a separate concern.
-The shared agent contract and the current `OpenCodeAgent` implementation live in `shared/coreview_shared/agent/`.
+The shared agent contract, runtime factory, runtime models, and the current
+`OpenCodeAgent` implementation live in `shared/coreview_shared/agent/`.
+Today only the `opencode` runtime kind is enabled end to end.
 
 ## Data ownership
 
@@ -171,6 +175,8 @@ Ephemeral or semi-persistent git workspace state:
 - permissions are enforced server-side
 - runtime abstraction is execution-only; repository workspace preparation and
   review execution belong entirely to the agent runtime
+- shared coding-agent wrappers return findings only; PR comment publishing and
+  callback delivery stay in the agent orchestration layer
 
 ## Current maturity notes
 
@@ -179,7 +185,7 @@ Implemented and in active use:
 - multi-team repository management
 - multi-provider Git integration
 - review persistence and retry
-- OpenCode-based review execution
+- OpenCode-based review execution through the shared runtime-wrapper contract
 - OIDC and SAML configuration
 - RBAC permission enforcement
 
