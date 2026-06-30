@@ -1,4 +1,4 @@
-from coreview_shared.agent.config import (
+from coreview_shared.agent.opencode_config import (
     DEFAULT_CODE_REVIEWER_PROMPT,
     HEADLESS_DENIED_PERMISSIONS,
     build_code_reviewer_agent_config,

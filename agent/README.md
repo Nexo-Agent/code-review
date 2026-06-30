@@ -1,6 +1,7 @@
 # Cogito Review Agent
 
-OpenCode CLI review runner with bundled MCP tools (`coreview-git_*`, `coreview-ci_*`).
+Review executor container with bundled MCP tools (`coreview-git_*`,
+`coreview-ci_*`) and shared coding-agent wrappers.
 
 Each review runs as a one-shot container:
 
@@ -8,13 +9,34 @@ Each review runs as a one-shot container:
 cogito-review-agent review run --review-id <uuid>
 ```
 
-Inside the container, `opencode run` reads the review prompt from **stdin**. With `--print-logs` and `--log-level`, internal OpenCode logs stream to **stderr** in real time; `--format json` emits NDJSON events on **stdout**. The Python wrapper streams both pipes to container stdout so the worker can follow progress via `docker logs`.
+The `agent/` package owns orchestration only:
 
-MCP tools are started as a local stdio subprocess (`cogito-review-agent serve`), not as an HTTP server.
+- assemble review context
+- prepare the git workspace
+- build a shared review-agent wrapper
+- publish PR comments
+- send lifecycle callbacks
+
+Concrete review runtimes live in `shared/coreview_shared/agent/`. Today only
+`opencode` is runnable end to end.
+
+Inside the container, the current `OpenCodeAgent` wrapper runs `opencode run`
+headlessly. It reads the review prompt from **stdin**. With `--print-logs` and
+`--log-level`, internal OpenCode logs stream to **stderr** in real time;
+`--format json` emits NDJSON events on **stdout**. The Python wrapper streams
+both pipes to container stdout so the worker can follow progress via
+`docker logs`.
+
+MCP tools are started as a local stdio subprocess (`cogito-review-agent serve`),
+not as an HTTP server.
 
 Review skills for OpenCode live in `skills/code-reviewer/` and are copied into the
 image at `/opencode/skills/`. The skill name matches the OpenCode agent id
 (`code-reviewer`).
+
+OpenCode config building and temp file materialization now live in
+`shared/coreview_shared/agent/opencode_config.py` as part of the shared runtime
+wrapper flow.
 
 ## Callback-only reporting
 
@@ -27,6 +49,21 @@ The agent is **callback-only**: it does not connect to Postgres. The orchestrato
 | `COGITO_REVIEW_CALLBACK_METADATA` | Opaque JSON passthrough (e.g. `delivery_id`) |
 
 Events follow **review-callback-v1** — see [`shared/coreview_shared/schemas/review-callback-v1.schema.json`](../shared/coreview_shared/schemas/review-callback-v1.schema.json).
+
+PR summary comments, inline comments, and callback delivery are handled by the
+agent service layer, not by the runtime wrapper itself. Review-agent wrappers
+only return normalized findings.
+
+## Runtime selection
+
+The executor selects a runtime wrapper via:
+
+| Env | Purpose |
+|-----|---------|
+| `COGITO_REVIEW_AGENT_KIND` | Selects the review runtime wrapper. Default: `opencode` |
+
+Other wrapper modules may exist in `shared/coreview_shared/agent/`, but only
+`opencode` is currently supported for live review runs.
 
 ### Standalone deployment
 

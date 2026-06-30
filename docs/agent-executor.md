@@ -8,7 +8,7 @@ Its responsibilities are:
 
 - receive review context through environment variables
 - clone or reuse the target repository workspace
-- run OpenCode with the bundled review skill
+- select and run a shared review-agent wrapper
 - publish inline comments and summary comments back to the Git provider
 - send lifecycle callbacks and findings back to the backend
 
@@ -20,12 +20,14 @@ The current implementation lives in the `agent/` package and is shipped as a ded
 
 - CLI entrypoint: `cogito-review-agent review run --review-id <uuid>`
 - Main execution flow: `agent/app/services/review_runner.py`
-- Callback client: `agent/app/services/review_callback.py`
+- Review context assembly: `agent/app/services/review_context.py`
+- Comment publishing and callback reporting: `agent/app/services/review_reporter.py`
 - MCP server: `agent/app/mcp/server.py`
 - Bundled review skill: `agent/skills/code-reviewer/`
 
 Shared agent abstractions now live in `shared/coreview_shared/agent/`.
-The current concrete implementation is `OpenCodeAgent`.
+The current selectable runtime kind is `opencode`, implemented by
+`shared/coreview_shared/agent/opencode.py`.
 
 The backend worker spawns the agent as a one-shot container for each review run.
 
@@ -50,10 +52,11 @@ Core inputs include:
 - repository identity: `COGITO_REVIEW_REPO_FULL_NAME`
 - PR or MR number: `COGITO_REVIEW_PR_NUMBER`
 - target commit SHA: `COGITO_REVIEW_HEAD_SHA`
+- review agent runtime kind: `COGITO_REVIEW_AGENT_KIND`
 - Git provider selection and credentials
 - LLM provider selection and credentials
 - callback endpoint and HMAC secret
-- workspace root and OpenCode runtime settings
+- workspace root and runtime-specific agent settings
 - optional repository-specific system prompt
 
 The environment is assembled in `backend/app/services/review_job_prepare.py`.
@@ -99,15 +102,30 @@ This keeps git operations fast while preserving isolation between review runs.
 
 ## Agent execution model
 
-The executor currently runs OpenCode in headless CLI mode.
+The executor owns review orchestration, while concrete coding-agent runtimes live
+in `shared/coreview_shared/agent/`.
 
 - shared agent contract: `shared/coreview_shared/agent/protocol.py`
-- current implementation: `shared/coreview_shared/agent/opencode.py`
-- shared OpenCode config builders: `shared/coreview_shared/agent/config.py`
-- generated config materialization: `agent/app/services/opencode_config.py`
-- bundled agent id: `code-reviewer`
+- shared runtime factory: `shared/coreview_shared/agent/factory.py`
+- shared runtime models: `shared/coreview_shared/agent/models.py`
+- shared OpenCode config builders and materialization:
+  `shared/coreview_shared/agent/opencode_config.py`
+- current implemented runtime wrapper: `shared/coreview_shared/agent/opencode.py`
 
-OpenCode receives a prepared review prompt and returns structured findings in JSON form.
+The orchestration flow is:
+
+- assemble review context from injected env + provider data
+- prepare the review workspace through the Git provider
+- build the selected shared review-agent wrapper
+- call `setup()`, `run_review()`, and `teardown()`
+- publish findings through `ReviewReporter`
+
+The review-agent wrapper returns structured findings only. The executor itself
+is responsible for PR comment publishing and callback delivery.
+
+Today only `opencode` is runnable end to end. Other wrapper modules are present
+as scaffolding for future runtimes such as Cursor CLI, Claude Code, and
+OpenClaude.
 
 ## MCP toolbase
 
@@ -134,8 +152,8 @@ agent runtime:
 
 - prepare the shared mirror and per-review worktree
 - gather CI context
-- run the review model
-- publish findings
+- run the selected review-agent wrapper
+- publish PR comments and callbacks
 - clean up the review worktree
 
 Git execution is local to the agent process. The workspace package now uses a

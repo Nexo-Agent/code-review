@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from coreview_shared.agent.models import ReviewAgentKind
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -44,6 +45,7 @@ class AgentSettings(BaseSettings):
     callback_url: str = ""
     callback_secret: str = ""
     callback_metadata: str = "{}"
+    agent_kind: ReviewAgentKind = ReviewAgentKind.OPENCODE
     opencode_agent: str = "code-reviewer"
     system_prompt: str = ""
     opencode_log_level: str = "INFO"

@@ -6,6 +6,8 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from coreview_shared.agent.models import AgentSetupArtifacts, OpenCodeRunConfig
+from coreview_shared.agent.opencode_config import materialize_opencode_config
 from coreview_shared.review import PRContext, ReviewFinding
 from coreview_shared.workspace.models import Workspace
 
@@ -42,23 +44,31 @@ class OpenCodeAgent:
     def __init__(
         self,
         *,
-        agent: str,
-        model: str,
-        timeout_seconds: int,
-        opencode_config_path: str = "/config/opencode.json",
-        log_level: str = "INFO",
+        config: OpenCodeRunConfig,
     ) -> None:
-        self._agent = agent
-        self._model = model
-        self._timeout = float(timeout_seconds)
-        self._opencode_config_path = opencode_config_path
-        self._log_level = log_level.upper()
+        self._config = config
+        self._timeout = float(config.timeout_seconds)
+        self._log_level = config.log_level.upper()
+        self._setup_artifacts = AgentSetupArtifacts()
+
+    async def setup(self) -> None:
+        config_path = materialize_opencode_config(self._config)
+        self._setup_artifacts = AgentSetupArtifacts(config_path=config_path)
+
+    async def teardown(self) -> None:
+        config_path = self._setup_artifacts.config_path
+        if config_path is not None:
+            config_path.unlink(missing_ok=True)
+        self._setup_artifacts = AgentSetupArtifacts()
 
     async def run_review(
         self,
         workspace: Workspace,
         context: PRContext,
     ) -> list[ReviewFinding]:
+        if self._setup_artifacts.config_path is None:
+            msg = "OpenCodeAgent.setup() must be called before run_review()"
+            raise RuntimeError(msg)
         prompt = self._build_prompt(context)
         stdout, stderr = await self._run_opencode_cli(workspace, prompt)
         if stderr.strip():
@@ -76,9 +86,9 @@ class OpenCodeAgent:
             "--print-logs",
             "run",
             "--agent",
-            self._agent,
+            self._config.agent,
             "-m",
-            self._model,
+            self._config.model,
             "--dir",
             workspace_path,
             "--format",
@@ -92,13 +102,13 @@ class OpenCodeAgent:
         prompt: str,
     ) -> tuple[str, str]:
         env = os.environ.copy()
-        env["OPENCODE_CONFIG"] = self._opencode_config_path
+        env["OPENCODE_CONFIG"] = str(self._setup_artifacts.config_path)
         cmd = self._build_command(str(workspace.path))
         logger.info(
             "Running opencode CLI in %s (agent=%s model=%s log_level=%s)",
             workspace.path,
-            self._agent,
-            self._model,
+            self._config.agent,
+            self._config.model,
             self._log_level,
         )
         proc = await asyncio.create_subprocess_exec(

@@ -4,6 +4,7 @@
 [![Publish](https://github.com/CogitoForge-AI/cogito-review/actions/workflows/publish.yml/badge.svg)](https://github.com/CogitoForge-AI/cogito-review/actions/workflows/publish.yml)
 [![Backend](https://img.shields.io/badge/ghcr.io-cogito--review-2496ED?logo=docker&logoColor=white)](https://github.com/CogitoForge-AI/cogito-review/pkgs/container/cogito-review)
 [![Agent](https://img.shields.io/badge/ghcr.io-cogito--review--agent-2496ED?logo=docker&logoColor=white)](https://github.com/CogitoForge-AI/cogito-review/pkgs/container/cogito-review-agent)
+[![Operator](https://img.shields.io/badge/ghcr.io-cogito--review--agent-2496ED?logo=docker&logoColor=white)](https://github.com/CogitoForge-AI/cogito-review/pkgs/container/cogito-review-operator)
 
 AI-assisted code review platform for pull requests and merge requests.
 
