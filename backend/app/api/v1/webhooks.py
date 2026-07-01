@@ -8,8 +8,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from app.api.v1.reviews import _to_review_response
+from app.config import get_code_review_settings
 from app.dependencies import get_conn
 from app.jobs.review import run_review
+from app.observability.metrics import record_webhook_event
 from app.providers.factory import build_providers
 from app.repositories.repo_integrations import RepoIntegrationRepository
 from app.repositories.reviews import ReviewRepository
@@ -19,6 +21,7 @@ from app.services.provider_resolution import (
     resolve_llm_provider_for_repo,
 )
 from app.services.review_analytics_events import ingest_provider_analytics_event
+from app.services.review_state import is_review_stale
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +113,13 @@ async def _enqueue_webhook_review(
     repo_integration, team_id = resolved
 
     if not repo_integration.enabled:
+        record_webhook_event(expected_git_provider, "ignored")
         return JSONResponse(
             status_code=202,
             content={"detail": "repository not configured for review"},
         )
     if repo_integration.git_provider != expected_git_provider:
+        record_webhook_event(expected_git_provider, "ignored")
         return JSONResponse(
             status_code=202,
             content={"detail": "repository not configured for review"},
@@ -137,6 +142,7 @@ async def _enqueue_webhook_review(
         webhook_secret,
         headers=headers,
     ):
+        record_webhook_event(expected_git_provider, "auth_failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook signature",
@@ -156,12 +162,15 @@ async def _enqueue_webhook_review(
     if llm_provider is None:
         event = providers.git.parse_webhook(headers, body)
         if event is None:
+            outcome = "analytics_only" if analytics_events_ingested else "ignored"
+            record_webhook_event(expected_git_provider, outcome)
             detail = (
                 "analytics event recorded"
                 if analytics_events_ingested
                 else "event ignored"
             )
             return JSONResponse(status_code=202, content={"detail": detail})
+        record_webhook_event(expected_git_provider, "no_llm")
         return JSONResponse(
             status_code=202,
             content={"detail": "no LLM provider configured"},
@@ -169,6 +178,8 @@ async def _enqueue_webhook_review(
 
     event = providers.git.parse_webhook(headers, body)
     if event is None:
+        outcome = "analytics_only" if analytics_events_ingested else "ignored"
+        record_webhook_event(expected_git_provider, outcome)
         detail = (
             "analytics event recorded" if analytics_events_ingested else "event ignored"
         )
@@ -178,6 +189,7 @@ async def _enqueue_webhook_review(
     if event.delivery_id:
         existing = await repo_db.get_by_delivery_id(event.delivery_id)
         if existing:
+            record_webhook_event(expected_git_provider, "deduped")
             return _to_review_response(existing)
 
     existing = await repo_db.get_by_repo_pr_sha(
@@ -186,6 +198,22 @@ async def _enqueue_webhook_review(
         event.head_sha,
     )
     if existing:
+        if is_review_stale(
+            existing,
+            timeout_seconds=get_code_review_settings().review_timeout_seconds,
+        ):
+            recovered = await repo_db.reset_for_retry(existing.id)
+            if recovered is not None:
+                run_review.delay(str(recovered.id))
+                logger.warning(
+                    "Recovered stale review %s for %s#%s at %s",
+                    recovered.id,
+                    event.repo_full_name,
+                    event.pr_number,
+                    event.head_sha,
+                )
+                return _to_review_response(recovered)
+        record_webhook_event(expected_git_provider, "deduped")
         return _to_review_response(existing)
 
     review = await repo_db.create(
@@ -202,6 +230,7 @@ async def _enqueue_webhook_review(
     )
 
     run_review.delay(str(review.id))
+    record_webhook_event(expected_git_provider, "enqueued")
     logger.info(
         "Enqueued review %s for %s#%s (integration %s)",
         review.id,

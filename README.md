@@ -106,6 +106,28 @@ Open the application on `http://localhost:${APP_PORT:-8000}`.
 - Set strong values for `COGITO_REVIEW_SESSION_SECRET`, `COGITO_REVIEW_SECRETS_ENCRYPTION_KEY`, and `COGITO_REVIEW_AGENT_CALLBACK_SECRET` in production
 - Prefer pinned image tags or digests over `latest`
 
+## Observability
+
+Cogito Review exposes Prometheus-compatible `/metrics` endpoints for self-hosted operations. You deploy and configure Prometheus (or any compatible scraper) yourself; this repository does not ship Prometheus, Grafana, or alerting rules.
+
+| Component | Endpoint | Notes |
+| --- | --- | --- |
+| API | `http://<api>:9090/metrics` | Application HTTP API stays on port `8000` |
+| Worker | `http://<worker>:9090/metrics` | Celery background jobs |
+| Operator | `http://<operator>:8080/metrics` | Kubernetes operator (HTTP by default) |
+
+In Docker Compose, port `9090` is available on the internal network only. Do not expose metrics through the application ingress.
+
+Basic configuration (API and worker):
+
+- `COGITO_REVIEW_METRICS_ENABLED` (default: `true`)
+- `COGITO_REVIEW_METRICS_BIND_HOST` (default: `0.0.0.0`)
+- `COGITO_REVIEW_METRICS_BIND_PORT` (default: `9090`)
+
+Agent review containers do not expose metrics in the current release.
+
+For the full metric catalog, scrape examples, and security notes, see the [observability guide](docs/observability.md). Product effectiveness analytics (PR time to merge, helpful rate, and similar) are documented separately in [metrics.md](docs/metrics.md).
+
 ## Images
 
 Published container images:
@@ -123,6 +145,7 @@ Production deployments should pin a version tag or image digest.
 For deeper technical and operational details:
 
 - [Deployment guide](docs/deployment.md)
+- [Observability (Prometheus metrics)](docs/observability.md)
 - [Kubernetes integration](docs/kubernetes.md)
 - [Security model](docs/security.md)
 - [RBAC model](docs/rbac.md)

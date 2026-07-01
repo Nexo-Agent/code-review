@@ -139,6 +139,6 @@ COPY --from=dbmate /usr/local/bin/dbmate /usr/local/bin/dbmate
 RUN mkdir -p /config /app/data \
  && chown -R app:app /app /config /app/data
 
-EXPOSE 8000
+EXPOSE 8000 9090
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -10,7 +10,11 @@ def worker(
 ) -> None:
     """Start the Celery worker for review jobs."""
     from app.jobs.celery_app import celery_app
+    from app.observability.celery_hooks import register_celery_signal_handlers
+    from app.observability.server import start_metrics_server_if_enabled
 
+    register_celery_signal_handlers()
+    start_metrics_server_if_enabled()
     celery_app.worker_main(
         argv=[
             "worker",

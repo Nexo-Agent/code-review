@@ -1,6 +1,8 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from celery.exceptions import MaxRetriesExceededError
 from coreview_shared.runtime.docker.job_executor import DockerJobExecutor
 from coreview_shared.runtime.docker.provider import DockerRuntimeProvider
 from coreview_shared.runtime.review_job import (
@@ -20,6 +22,7 @@ from coreview_shared.schemas.execution_contracts import (
 )
 
 from app.config import CodeReviewSettings, Settings
+from app.jobs.review import run_review
 from app.providers.factory import build_runtime_provider
 
 
@@ -230,3 +233,26 @@ def test_build_providers_docker_runtime(mock_get_client: MagicMock) -> None:
         app_settings=Settings(),
     )
     assert isinstance(runtime, DockerRuntimeProvider)
+
+
+def test_run_review_marks_failed_after_final_retry() -> None:
+    review_id = "550e8400-e29b-41d4-a716-446655440000"
+    mock_self = MagicMock()
+    mock_self.retry.side_effect = MaxRetriesExceededError()
+    mark_failed = AsyncMock()
+
+    def fake_run_db(coro):
+        if coro.cr_code.co_name == "dispatch_review_job":
+            coro.close()
+            raise RuntimeError("boom")
+        return asyncio.run(coro)
+
+    with (
+        patch("app.jobs.review.run_db", side_effect=fake_run_db),
+        patch("app.jobs.review._mark_review_failed", mark_failed),
+    ):
+        with pytest.raises(MaxRetriesExceededError):
+            run_review.run.__func__(mock_self, review_id)
+
+    mock_self.retry.assert_called_once()
+    mark_failed.assert_awaited_once_with(review_id, "boom")

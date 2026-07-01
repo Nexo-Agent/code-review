@@ -23,6 +23,9 @@ spec:
       - name: worker
         image: ghcr.io/cogitoforge-ai/cogito-review:latest
         imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9090
+          name: metrics
         command: ["cogito-review", "job", "worker", "--concurrency", "1"]
         envFrom:
         - configMapRef:

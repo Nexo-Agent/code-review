@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -208,6 +208,58 @@ async def test_resolve_latest_pr_metadata_uses_repo_git_provider() -> None:
 @pytest.mark.asyncio
 async def test_prepare_rereview_resets_same_commit() -> None:
     review = _review_row(status="failed")
+    reset_review = make_review_row(
+        id=review.id,
+        provider=review.provider,
+        repo_full_name=review.repo_full_name,
+        pr_number=review.pr_number,
+        pr_title=review.pr_title,
+        pr_url=review.pr_url,
+        pr_author=review.pr_author,
+        head_sha=review.head_sha,
+        base_sha=review.base_sha,
+        base_ref=review.base_ref,
+        head_ref=review.head_ref,
+        status="pending",
+        delivery_id=review.delivery_id,
+        repo_integration_id=review.repo_integration_id,
+        error_message=None,
+        started_at=None,
+        completed_at=None,
+        created_at=review.created_at,
+    )
+
+    mock_repo = MagicMock()
+    mock_repo.get = AsyncMock(return_value=review)
+    mock_repo.reset_for_retry = AsyncMock(return_value=reset_review)
+    mock_repo.create = AsyncMock()
+
+    conn = AsyncMock()
+    with (
+        patch(
+            "app.services.review_rereview.ReviewRepository",
+            return_value=mock_repo,
+        ),
+        patch(
+            "app.services.review_rereview.resolve_latest_pr_metadata",
+            AsyncMock(return_value=_pr_metadata(head_sha=review.head_sha)),
+        ),
+    ):
+        result = await prepare_rereview(conn, review.id)
+
+    assert result.id == review.id
+    assert result.status == "pending"
+    mock_repo.reset_for_retry.assert_awaited_once_with(review.id)
+    mock_repo.create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_prepare_rereview_recovers_stale_in_progress_review() -> None:
+    review = make_review_row(
+        status="pending",
+        completed_at=None,
+        created_at=datetime.now(UTC) - timedelta(minutes=30),
+    )
     reset_review = make_review_row(
         id=review.id,
         provider=review.provider,
