@@ -1,0 +1,279 @@
+# Production-oriented Docker Compose deployment for Cogito Review.
+#
+# Images are pulled from GHCR (:latest). Pin a release tag or digest in .env for
+# production instead of floating :latest.
+#
+# Usage:
+#   cp .env.example .env   # edit secrets and public URLs
+#   docker compose up -d
+#
+# Optional monitoring stack (Prometheus, Grafana, exporters):
+#   docker compose --profile monitoring up -d
+
+name: cogito-review
+
+networks:
+  cogito-review:
+    name: cogito-review
+
+x-coreview-image: &coreview-image
+  image: ${COGITO_REVIEW_IMAGE:-ghcr.io/cogitoforge-ai/cogito-review:latest}
+  pull_policy: always
+
+x-api-environment: &api-environment
+  DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-cogito_review}?sslmode=disable
+  COGITO_REVIEW_CELERY_BROKER_URL: redis://redis:6379/0
+  COGITO_REVIEW_RUNTIME_PROVIDER: docker
+  COGITO_REVIEW_AGENT_CALLBACK_URL: http://api:8000/api/v1/agent/review-events
+  COGITO_REVIEW_AGENT_CALLBACK_SECRET: ${COGITO_REVIEW_AGENT_CALLBACK_SECRET:?Set COGITO_REVIEW_AGENT_CALLBACK_SECRET in .env}
+  COGITO_REVIEW_AUTH_ENABLED: ${COGITO_REVIEW_AUTH_ENABLED:-true}
+  COGITO_REVIEW_SECRETS_ENCRYPTION_KEY: ${COGITO_REVIEW_SECRETS_ENCRYPTION_KEY:?Set COGITO_REVIEW_SECRETS_ENCRYPTION_KEY in .env}
+  COGITO_REVIEW_SESSION_SECRET: ${COGITO_REVIEW_SESSION_SECRET:?Set COGITO_REVIEW_SESSION_SECRET in .env}
+  COGITO_REVIEW_SESSION_TTL_SECONDS: ${COGITO_REVIEW_SESSION_TTL_SECONDS:-86400}
+  COGITO_REVIEW_BOOTSTRAP_ORG_ADMIN_EMAIL: ${COGITO_REVIEW_BOOTSTRAP_ORG_ADMIN_EMAIL:-}
+  COGITO_REVIEW_FRONTEND_URL: ${COGITO_REVIEW_FRONTEND_URL:?Set COGITO_REVIEW_FRONTEND_URL in .env}
+  COGITO_REVIEW_OPENCODE_LOG_LEVEL: ${COGITO_REVIEW_OPENCODE_LOG_LEVEL:-INFO}
+  COGITO_REVIEW_METRICS_ENABLED: ${COGITO_REVIEW_METRICS_ENABLED:-true}
+  COGITO_REVIEW_METRICS_BIND_HOST: 0.0.0.0
+  COGITO_REVIEW_METRICS_BIND_PORT: 9090
+  DB_POOL_MIN_SIZE: ${DB_POOL_MIN_SIZE:-2}
+  DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-10}
+
+services:
+  api:
+    <<: *coreview-image
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    expose:
+      - "9090"
+    environment:
+      <<: *api-environment
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+    networks:
+      - cogito-review
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    <<: *coreview-image
+    command:
+      [
+        "cogito-review",
+        "job",
+        "worker",
+        "--concurrency",
+        "${WORKER_CONCURRENCY:-2}",
+      ]
+    expose:
+      - "9090"
+    environment:
+      <<: *api-environment
+      COGITO_REVIEW_WORKSPACE_ROOT: /workspaces
+      COGITO_REVIEW_DOCKER_HOST: unix:///var/run/docker.sock
+      COGITO_REVIEW_AGENT_IMAGE: ${COGITO_REVIEW_AGENT_IMAGE:-ghcr.io/cogitoforge-ai/cogito-review-agent:latest}
+      COGITO_REVIEW_AGENT_NETWORK: cogito-review
+      COGITO_REVIEW_AGENT_MEM_LIMIT: ${COGITO_REVIEW_AGENT_MEM_LIMIT:-2g}
+      COGITO_REVIEW_AGENT_CPUS: ${COGITO_REVIEW_AGENT_CPUS:-2.0}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+    volumes:
+      - review_workspaces:/workspaces
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - cogito-review
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 320M
+        reservations:
+          memory: 64M
+    networks:
+      - cogito-review
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c max_connections=100
+      -c work_mem=4MB
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-cogito_review}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      - cogito-review
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:?Set POSTGRES_USER in .env} -d ${POSTGRES_DB:-cogito_review}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrate:
+    <<: *coreview-image
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-cogito_review}?sslmode=disable
+    networks:
+      - cogito-review
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["dbmate", "-d", "/app/migrations", "--wait", "up"]
+
+  migrate-down:
+    profiles: [tools]
+    <<: *coreview-image
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-cogito_review}?sslmode=disable
+    networks:
+      - cogito-review
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["dbmate", "-d", "/app/migrations", "down"]
+
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9091}:9090"
+    networks:
+      - cogito-review
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me-grafana-password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks:
+      - cogito-review
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  postgres-exporter:
+    profiles: [monitoring]
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-cogito_review}?sslmode=disable
+    networks:
+      - cogito-review
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis-exporter:
+    profiles: [monitoring]
+    image: oliver006/redis_exporter:v1.67.0
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    networks:
+      - cogito-review
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  review_workspaces:
+  prometheus_data:
+  grafana_data:
