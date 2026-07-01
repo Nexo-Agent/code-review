@@ -6,7 +6,12 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from coreview_shared.agent.models import AgentSetupArtifacts, OpenCodeRunConfig
+from coreview_shared.agent.models import (
+    AgentSetupArtifacts,
+    LlmCallUsage,
+    OpenCodeRunConfig,
+    ReviewRunResult,
+)
 from coreview_shared.agent.opencode_config import materialize_opencode_config
 from coreview_shared.review import PRContext, ReviewFinding
 from coreview_shared.workspace.models import Workspace
@@ -50,6 +55,7 @@ class OpenCodeAgent:
         self._timeout = float(config.timeout_seconds)
         self._log_level = config.log_level.upper()
         self._setup_artifacts = AgentSetupArtifacts()
+        self._llm_calls: list[LlmCallUsage] = []
 
     async def setup(self) -> None:
         config_path = materialize_opencode_config(self._config)
@@ -65,15 +71,17 @@ class OpenCodeAgent:
         self,
         workspace: Workspace,
         context: PRContext,
-    ) -> list[ReviewFinding]:
+    ) -> ReviewRunResult:
         if self._setup_artifacts.config_path is None:
             msg = "OpenCodeAgent.setup() must be called before run_review()"
             raise RuntimeError(msg)
+        self._llm_calls = []
         prompt = self._build_prompt(context)
         stdout, stderr = await self._run_opencode_cli(workspace, prompt)
         if stderr.strip():
             logger.debug("opencode stderr tail:\n%s", stderr.strip())
-        return self._parse_cli_output(stdout)
+        findings = self._parse_cli_output(stdout)
+        return ReviewRunResult.from_findings(findings, self._llm_calls)
 
     def _build_command(self, workspace_path: str) -> list[str]:
         # Global flags (--print-logs, --log-level) must precede the subcommand.
@@ -210,9 +218,63 @@ class OpenCodeAgent:
         except json.JSONDecodeError:
             logger.info("[opencode:stdout] %s", text)
             return
+        if isinstance(event, dict):
+            usage = self._parse_step_finish_usage(event, len(self._llm_calls))
+            if usage is not None:
+                self._llm_calls.append(usage)
         event_type = str(event.get("type", "event"))
         summary = self._summarize_json_event(event)
         logger.info("[opencode:%s] %s", event_type, summary)
+
+    @staticmethod
+    def _parse_step_finish_usage(
+        event: dict[str, Any],
+        call_index: int,
+    ) -> LlmCallUsage | None:
+        if event.get("type") != "step_finish":
+            return None
+        part = event.get("part")
+        if not isinstance(part, dict):
+            return None
+        tokens = part.get("tokens")
+        if not isinstance(tokens, dict):
+            logger.warning(
+                "OpenCode step_finish missing tokens; recording zero usage "
+                "(call_index=%d)",
+                call_index,
+            )
+            return LlmCallUsage(
+                call_index=call_index,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+                reason=str(part.get("reason", "")),
+            )
+        input_tokens = _coerce_token_count(
+            tokens.get("input"),
+            tokens.get("input_tokens"),
+            tokens.get("prompt"),
+            tokens.get("prompt_tokens"),
+        )
+        output_tokens = _coerce_token_count(
+            tokens.get("output"),
+            tokens.get("output_tokens"),
+            tokens.get("completion"),
+            tokens.get("completion_tokens"),
+        )
+        total_tokens = _coerce_optional_token_count(
+            tokens.get("total"),
+            tokens.get("total_tokens"),
+        )
+        if total_tokens is None:
+            total_tokens = input_tokens + output_tokens
+        return LlmCallUsage(
+            call_index=call_index,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            reason=str(part.get("reason", "")),
+        )
 
     def _summarize_json_event(self, event: dict[str, Any]) -> str:
         for key in ("message", "text", "content", "output"):
@@ -371,3 +433,23 @@ class OpenCodeAgent:
             line_start=item.get("line_start") or item.get("line"),
             line_end=item.get("line_end"),
         )
+
+
+def _coerce_token_count(*values: object) -> int:
+    parsed = _coerce_optional_token_count(*values)
+    return 0 if parsed is None else parsed
+
+
+def _coerce_optional_token_count(*values: object) -> int | None:
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            return max(value, 0)
+        if isinstance(value, float):
+            return max(int(value), 0)
+        if isinstance(value, str) and value.strip().isdigit():
+            return int(value.strip())
+    return None

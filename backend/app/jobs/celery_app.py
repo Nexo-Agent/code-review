@@ -12,7 +12,7 @@ celery_app = Celery(
     "code_review",
     broker=settings.celery_broker_url,
     backend=settings.celery_broker_url,
-    include=["app.jobs.review", "app.jobs.review_analytics"],
+    include=["app.jobs.review", "app.jobs.review_analytics", "app.jobs.usage_metrics"],
 )
 
 celery_app.conf.update(
@@ -28,6 +28,11 @@ celery_app.conf.update(
             "task": "review.analytics.recompute",
             "schedule": settings.analytics_rollup_interval_seconds,
             "args": (settings.analytics_rollup_window_days, None),
-        }
+        },
+        "usage-metrics-recompute": {
+            "task": "usage.metrics.recompute",
+            "schedule": settings.usage_rollup_interval_seconds,
+            "args": (settings.usage_rollup_window_days, None),
+        },
     },
 )

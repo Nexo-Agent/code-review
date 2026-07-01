@@ -66,6 +66,20 @@ class ReviewCallbackError(BaseModel):
     code: str = "runtime_error"
 
 
+class ReviewCallbackLlmCallUsage(BaseModel):
+    call_index: int
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    reason: str = ""
+
+
+class ReviewCallbackTokenUsage(BaseModel):
+    llm_provider_id: str
+    model: str
+    calls: list[ReviewCallbackLlmCallUsage] = Field(default_factory=list)
+
+
 ReviewCallbackEventType = Literal[
     "review.started",
     "review.completed",
@@ -82,4 +96,5 @@ class ReviewCallbackEvent(BaseModel):
     request: ReviewCallbackRequest
     result: ReviewCallbackResult | None = None
     error: ReviewCallbackError | None = None
+    token_usage: ReviewCallbackTokenUsage | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

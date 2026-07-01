@@ -99,6 +99,8 @@ class CodeReviewSettings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     analytics_rollup_interval_seconds: int = 86400
     analytics_rollup_window_days: int = 30
+    usage_rollup_interval_seconds: int = 86400
+    usage_rollup_window_days: int = 30
 
 
 @lru_cache

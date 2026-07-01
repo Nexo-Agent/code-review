@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils"
 type NavRoute =
   | "/"
   | "/analytics"
+  | "/usage"
   | "/reviews"
   | "/teams"
   | "/repositories"
@@ -144,7 +145,13 @@ const navGroups: NavGroup[] = [
         icon: ScrollText,
         permission: "settings.rbac.read",
       },
-      { kind: "disabled", label: "Usage", icon: Gauge },
+      {
+        kind: "link",
+        to: "/usage",
+        label: "Usage",
+        icon: Gauge,
+        permission: "settings.usage.read",
+      },
       { kind: "disabled", label: "System", icon: Server },
     ],
   },
@@ -219,6 +226,23 @@ function AppNavLink({ item }: { item: NavLinkItem }) {
         <Link
           to="/analytics"
           search={DEFAULT_ANALYTICS_SEARCH}
+          className={navLinkClassName}
+          activeOptions={activeOptions}
+          activeProps={activeProps}
+        >
+          {content}
+        </Link>
+      )
+    case "/usage":
+      return (
+        <Link
+          to="/usage"
+          search={{
+            team_id: "",
+            repo_integration_id: "",
+            git_provider: "",
+            llm_provider_id: "",
+          }}
           className={navLinkClassName}
           activeOptions={activeOptions}
           activeProps={activeProps}

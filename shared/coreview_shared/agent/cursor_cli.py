@@ -1,6 +1,6 @@
-from coreview_shared.agent.models import AgentRunConfig
+from coreview_shared.agent.models import AgentRunConfig, ReviewRunResult
 from coreview_shared.agent.protocol import ReviewAgentAdapter
-from coreview_shared.review import PRContext, ReviewFinding
+from coreview_shared.review import PRContext
 from coreview_shared.workspace.models import Workspace
 
 
@@ -15,7 +15,7 @@ class CursorCliAgent(ReviewAgentAdapter):
         self,
         workspace: Workspace,
         context: PRContext,
-    ) -> list[ReviewFinding]:
+    ) -> ReviewRunResult:
         del workspace, context
         msg = "Cursor CLI review agent is not implemented yet"
         raise NotImplementedError(msg)

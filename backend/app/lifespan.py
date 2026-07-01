@@ -5,11 +5,13 @@ import asyncpg
 from fastapi import FastAPI
 
 from app.config import get_settings
+from app.rbac.repositories import PermissionCache
 from app.services.provider_resolution import sync_opencode_config_from_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    PermissionCache.invalidate()
     settings = get_settings()
     app.state.pool = await asyncpg.create_pool(
         dsn=settings.database_url,

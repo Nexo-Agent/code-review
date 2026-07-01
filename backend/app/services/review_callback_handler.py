@@ -6,6 +6,7 @@ from coreview_shared.schemas.review_callback import ReviewCallbackEvent
 from app.repositories.repo_integrations import RepoIntegrationRepository
 from app.repositories.reviews import ReviewRepository
 from app.services.review_analytics_events import persist_comment_artifacts_and_events
+from app.services.usage_events import persist_token_usage_from_callback
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ async def handle_review_callback(conn, event: ReviewCallbackEvent) -> None:
             error_message=message,
             set_completed=True,
         )
+        await persist_token_usage_from_callback(conn, review=row, event=event)
         logger.info("Review %s marked failed via callback", event.review_id)
         return
 
@@ -99,6 +101,7 @@ async def handle_review_callback(conn, event: ReviewCallbackEvent) -> None:
                 finding_ids_by_index=finding_ids_by_index,
             )
         await repo.update_status(review_id, status="completed", set_completed=True)
+        await persist_token_usage_from_callback(conn, review=row, event=event)
         logger.info(
             "Review %s completed via callback with %d finding(s)",
             event.review_id,

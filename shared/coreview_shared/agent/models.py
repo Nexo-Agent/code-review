@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from coreview_shared.review import ReviewFinding
 
 
 class ReviewAgentKind(StrEnum):
@@ -34,3 +38,29 @@ class OpenCodeRunConfig(AgentRunConfig):
 @dataclass(frozen=True, slots=True)
 class AgentSetupArtifacts:
     config_path: Path | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LlmCallUsage:
+    call_index: int
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewRunResult:
+    findings: tuple[ReviewFinding, ...]
+    llm_calls: tuple[LlmCallUsage, ...] = ()
+
+    @classmethod
+    def from_findings(
+        cls,
+        findings: list[ReviewFinding],
+        llm_calls: list[LlmCallUsage] | None = None,
+    ) -> ReviewRunResult:
+        return cls(
+            findings=tuple(findings),
+            llm_calls=tuple(llm_calls or ()),
+        )
