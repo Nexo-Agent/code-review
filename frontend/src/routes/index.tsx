@@ -1,132 +1,102 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
 
 import { AppShell } from "@/components/layout/AppShell"
+import { DashboardAnalyticsHighlights } from "@/components/dashboard/DashboardAnalyticsHighlights"
+import { DashboardOnboardingChecklist } from "@/components/dashboard/DashboardOnboardingChecklist"
+import { DashboardResourceOverview } from "@/components/dashboard/DashboardResourceOverview"
+import { DashboardReviewActivity } from "@/components/dashboard/DashboardReviewActivity"
+import { DashboardUsageSummary } from "@/components/dashboard/DashboardUsageSummary"
 import { CodeHint, InlineError } from "@/components/patterns/inline-error"
-import { HealthBadge } from "@/components/patterns/status-badge"
+import { useMe } from "@/hooks/use-auth"
+import { useDashboard } from "@/hooks/use-dashboard"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useHealth } from "@/hooks/use-health"
-import { useReviews } from "@/hooks/use-reviews"
-import { useLlmProviders, useRepoIntegrations } from "@/hooks/use-settings"
-import {
-  DEFAULT_LIST_SEARCH,
-  DEFAULT_REPOSITORIES_SEARCH,
-  DEFAULT_REVIEWS_SEARCH,
-} from "@/lib/pagination"
+  dismissOnboarding,
+  isOnboardingDismissed,
+} from "@/lib/dashboard-onboarding"
 
 export const Route = createFileRoute("/")({
   component: DashboardPage,
 })
 
 function DashboardPage() {
-  const health = useHealth()
-  const repos = useRepoIntegrations()
-  const llmProviders = useLlmProviders()
-  const reviews = useReviews()
+  const me = useMe()
+  const dashboard = useDashboard()
+  const [dismissedThisSession, setDismissedThisSession] = useState(false)
+
+  const userId = me.data?.user.id
+  const userName = me.data?.user.name || me.data?.user.email || "there"
+  const summary = dashboard.data
+  const loading = dashboard.isPending
+  const error = dashboard.isError
+  const onboardingDismissed =
+    dismissedThisSession || Boolean(userId && isOnboardingDismissed(userId))
+
+  const showOnboarding =
+    summary?.capabilities.onboarding === true &&
+    !onboardingDismissed &&
+    (summary.onboarding.steps.length ?? 0) > 0
+
+  function handleDismissOnboarding() {
+    if (!userId) return
+    dismissOnboarding(userId)
+    setDismissedThisSession(true)
+  }
 
   return (
-    <AppShell title="Dashboard">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">System status</CardTitle>
-            <CardDescription>API and database connectivity</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {health.isPending ? (
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-3.5 w-32" />
-                <Skeleton className="h-3.5 w-48" />
-              </div>
-            ) : health.isError ? (
-              <InlineError
-                message="Failed to reach API. Start backend with"
-                hint={<CodeHint>make dev</CodeHint>}
-              />
-            ) : (
-              <dl className="grid gap-1.5 text-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-muted-foreground">Status</dt>
-                  <dd>
-                    <HealthBadge value={health.data.status} />
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-muted-foreground">Database</dt>
-                  <dd>
-                    <HealthBadge value={health.data.db} />
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Version</dt>
-                  <dd className="font-medium">{health.data.version}</dd>
-                </div>
-              </dl>
-            )}
-          </CardContent>
-        </Card>
+    <AppShell
+      title="Dashboard"
+      description={`Welcome back, ${userName}`}
+    >
+      {error ? (
+        <InlineError
+          message="Failed to load dashboard. Start backend with"
+          hint={<CodeHint>make dev</CodeHint>}
+        />
+      ) : (
+        <div className="grid gap-4">
+          {showOnboarding ? (
+            <DashboardOnboardingChecklist
+              steps={summary.onboarding.steps}
+              onDismiss={handleDismissOnboarding}
+            />
+          ) : null}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Overview</CardTitle>
-            <CardDescription>Configured resources</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {repos.isPending || llmProviders.isPending || reviews.isPending ? (
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-3.5 w-32" />
-                <Skeleton className="h-3.5 w-32" />
-                <Skeleton className="h-3.5 w-32" />
-              </div>
-            ) : (
-              <dl className="grid gap-1.5 text-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-muted-foreground">Repositories</dt>
-                  <dd>
-                    <Link
-                      to="/repositories"
-                      search={DEFAULT_REPOSITORIES_SEARCH}
-                      className="font-medium hover:underline"
-                    >
-                      {repos.data?.total ?? 0}
-                    </Link>
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-muted-foreground">Reviews</dt>
-                  <dd>
-                    <Link
-                      to="/reviews"
-                      search={DEFAULT_REVIEWS_SEARCH}
-                      className="font-medium hover:underline"
-                    >
-                      {reviews.data?.total ?? 0}
-                    </Link>
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-muted-foreground">LLM providers</dt>
-                  <dd>
-                    <Link
-                      to="/llm-providers"
-                      search={DEFAULT_LIST_SEARCH}
-                      className="font-medium hover:underline"
-                    >
-                      {llmProviders.data?.total ?? 0}
-                    </Link>
-                  </dd>
-                </div>
-              </dl>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {summary?.capabilities.reviews !== false ? (
+            <DashboardReviewActivity
+              reviews={summary?.reviews}
+              loading={loading}
+              error={error}
+            />
+          ) : null}
+
+          {summary?.capabilities.analytics ? (
+            <DashboardAnalyticsHighlights
+              analytics={summary?.analytics}
+              loading={loading}
+              error={error}
+            />
+          ) : null}
+
+          <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
+            {summary?.capabilities.resources !== false ? (
+              <DashboardResourceOverview
+                resources={summary?.resources}
+                loading={loading}
+                error={error}
+              />
+            ) : null}
+
+            {summary?.capabilities.usage ? (
+              <DashboardUsageSummary
+                usage={summary?.usage}
+                loading={loading}
+                error={error}
+              />
+            ) : null}
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }

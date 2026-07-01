@@ -155,6 +155,26 @@ class ReviewRepository:
         query = f"SELECT COUNT(*)::int FROM reviews WHERE {' AND '.join(clauses)}"
         return await self._conn.fetchval(query, *args) or 0
 
+    async def count_reviews_by_status(
+        self,
+        *,
+        team_ids: list[UUID] | None = None,
+    ) -> dict[str, int]:
+        clauses, args = self._review_filter_clauses(team_ids=team_ids)
+        query = f"""
+            SELECT status, COUNT(*)::int AS count
+            FROM reviews
+            WHERE {" AND ".join(clauses)}
+            GROUP BY status
+        """
+        rows = await self._conn.fetch(query, *args)
+        counts = {"pending": 0, "running": 0, "completed": 0, "failed": 0}
+        for row in rows:
+            status = row["status"]
+            if status in counts:
+                counts[status] = row["count"]
+        return counts
+
     async def get(self, review_id: UUID) -> ReviewRow | None:
         row = await self._conn.fetchrow(
             f"SELECT {_REVIEW_SELECT} FROM reviews WHERE id = $1",

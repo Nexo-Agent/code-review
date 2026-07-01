@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     agent_callbacks,
     auth,
+    dashboard,
     health,
     identity_provider,
     install,
@@ -23,6 +24,7 @@ v1_router = APIRouter(prefix="/v1")
 v1_router.include_router(health.router, tags=["health"])
 v1_router.include_router(install.router, prefix="/install", tags=["install"])
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 v1_router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 v1_router.include_router(
     org_repositories.router,

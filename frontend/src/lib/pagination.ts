@@ -69,6 +69,13 @@ export const DEFAULT_ANALYTICS_SEARCH = {
   repo_integration_id: "",
 } as const
 
+export const DEFAULT_USAGE_SEARCH = {
+  team_id: "",
+  repo_integration_id: "",
+  git_provider: "",
+  llm_provider_id: "",
+} as const
+
 export function buildListQuery(
   page: number,
   filters?: Record<string, string | string[] | undefined | null>,
