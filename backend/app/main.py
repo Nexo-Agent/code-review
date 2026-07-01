@@ -6,9 +6,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
-from app.config import get_settings
+from app.config import get_code_review_settings, get_settings
 from app.exceptions import register_exception_handlers
 from app.lifespan import lifespan
+from app.observability.middleware import PrometheusMiddleware
 
 
 def create_app() -> FastAPI:
@@ -28,6 +29,8 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
+    if get_code_review_settings().metrics_enabled:
+        app.add_middleware(PrometheusMiddleware)
     app.include_router(api_router)
 
     static_dir = Path(settings.static_dir)

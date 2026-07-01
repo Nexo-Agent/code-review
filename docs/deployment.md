@@ -171,3 +171,7 @@ Local development uses `docker-compose.override.yaml` in addition to the base co
 - local agent image builds
 
 This is a developer workflow, not the production topology.
+
+## Observability
+
+For Prometheus scrape endpoints, metric names, and configuration, see [`observability.md`](observability.md).

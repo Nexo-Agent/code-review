@@ -99,6 +99,9 @@ class CodeReviewSettings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     analytics_rollup_interval_seconds: int = 86400
     analytics_rollup_window_days: int = 30
+    metrics_enabled: bool = True
+    metrics_bind_host: str = "0.0.0.0"
+    metrics_bind_port: int = 9090
 
 
 @lru_cache

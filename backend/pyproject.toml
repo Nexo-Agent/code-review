@@ -19,6 +19,7 @@ dependencies = [
     "argon2-cffi>=23.1.0",
     "python3-saml>=1.16.0",
     "cryptography>=44.0.0",
+    "prometheus-client>=0.21.0",
     "typer>=0.15.0",
     "uvicorn>=0.49.0",
 ]

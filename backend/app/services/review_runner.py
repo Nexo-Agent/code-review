@@ -3,6 +3,10 @@ import logging
 import asyncpg
 
 from app.config import get_code_review_settings, get_settings
+from app.observability.metrics import (
+    increment_review_dispatch,
+    increment_review_dispatch_error,
+)
 from app.providers.factory import build_runtime_provider
 from app.services.review_job_prepare import prepare_review_execution
 
@@ -24,10 +28,17 @@ async def dispatch_review_job(review_id: str) -> bool:
         await conn.close()
 
     runtime = build_runtime_provider(infra=infra, app_settings=settings)
-    result = await runtime.submit_execution(request)
+    try:
+        result = await runtime.submit_execution(request)
+    except Exception:
+        increment_review_dispatch_error()
+        raise
     if not result.accepted:
+        increment_review_dispatch_error()
         msg = f"Execution submission rejected for review {review_id}"
         raise RuntimeError(msg)
+
+    increment_review_dispatch(result.backend_kind)
 
     if result.waits_for_completion:
         logger.info("Review %s finished in agent container", review_id)

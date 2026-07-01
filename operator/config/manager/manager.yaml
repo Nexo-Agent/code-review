@@ -22,8 +22,13 @@ spec:
         command: ["/manager"]
         args:
         - --leader-elect
+        - --metrics-bind-address=:8080
+        - --metrics-secure=false
         - --health-probe-bind-address=:8081
         ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
         - containerPort: 9443
           name: webhook-server
           protocol: TCP

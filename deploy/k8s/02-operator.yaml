@@ -112,8 +112,12 @@ spec:
         command: ["/manager"]
         args:
         - --leader-elect
+        - --metrics-bind-address=:8080
+        - --metrics-secure=false
         - --health-probe-bind-address=:8081
         ports:
+        - containerPort: 8080
+          name: metrics
         - containerPort: 9443
           name: webhook-server
         livenessProbe:
@@ -135,3 +139,19 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cogito-review-operator-metrics
+  namespace: cogito-review-system
+  labels:
+    app.kubernetes.io/name: cogito-review-operator
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cogito-review-operator
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: metrics
