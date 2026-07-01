@@ -1,6 +1,7 @@
 from typing import Protocol
 
-from coreview_shared.review import PRContext, ReviewFinding
+from coreview_shared.agent.models import ReviewRunResult
+from coreview_shared.review import PRContext
 from coreview_shared.workspace.models import Workspace
 
 
@@ -11,6 +12,6 @@ class ReviewAgentAdapter(Protocol):
         self,
         workspace: Workspace,
         context: PRContext,
-    ) -> list[ReviewFinding]: ...
+    ) -> ReviewRunResult: ...
 
     async def teardown(self) -> None: ...

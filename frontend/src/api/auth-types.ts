@@ -51,3 +51,4 @@ export type ActionKey =
   | "settings.llm.update"
   | "settings.rbac.read"
   | "settings.rbac.update"
+  | "settings.usage.read"

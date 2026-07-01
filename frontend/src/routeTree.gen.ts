@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsersIndexRouteImport } from './routes/users/index'
+import { Route as UsageIndexRouteImport } from './routes/usage/index'
 import { Route as TeamsIndexRouteImport } from './routes/teams/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
@@ -46,6 +47,11 @@ const IndexRoute = IndexRouteImport.update({
 const UsersIndexRoute = UsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsageIndexRoute = UsageIndexRouteImport.update({
+  id: '/usage/',
+  path: '/usage/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TeamsIndexRoute = TeamsIndexRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/reviews/': typeof ReviewsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/teams/': typeof TeamsIndexRoute
+  '/usage/': typeof UsageIndexRoute
   '/users/': typeof UsersIndexRoute
   '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/repos/$repoId': typeof TeamsTeamIdReposRepoIdRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/reviews': typeof ReviewsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/teams': typeof TeamsIndexRoute
+  '/usage': typeof UsageIndexRoute
   '/users': typeof UsersIndexRoute
   '/teams/$teamId': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/repos/$repoId': typeof TeamsTeamIdReposRepoIdRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/reviews/': typeof ReviewsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/teams/': typeof TeamsIndexRoute
+  '/usage/': typeof UsageIndexRoute
   '/users/': typeof UsersIndexRoute
   '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/repos/$repoId': typeof TeamsTeamIdReposRepoIdRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/reviews/'
     | '/settings/'
     | '/teams/'
+    | '/usage/'
     | '/users/'
     | '/teams/$teamId/'
     | '/teams/$teamId/repos/$repoId'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/reviews'
     | '/settings'
     | '/teams'
+    | '/usage'
     | '/users'
     | '/teams/$teamId'
     | '/teams/$teamId/repos/$repoId'
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/reviews/'
     | '/settings/'
     | '/teams/'
+    | '/usage/'
     | '/users/'
     | '/teams/$teamId/'
     | '/teams/$teamId/repos/$repoId'
@@ -260,6 +272,7 @@ export interface RootRouteChildren {
   ReviewsIndexRoute: typeof ReviewsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   TeamsIndexRoute: typeof TeamsIndexRoute
+  UsageIndexRoute: typeof UsageIndexRoute
   UsersIndexRoute: typeof UsersIndexRoute
   TeamsTeamIdIndexRoute: typeof TeamsTeamIdIndexRoute
   TeamsTeamIdReposRepoIdRoute: typeof TeamsTeamIdReposRepoIdRoute
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users/'
       preLoaderRoute: typeof UsersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usage/': {
+      id: '/usage/'
+      path: '/usage'
+      fullPath: '/usage/'
+      preLoaderRoute: typeof UsageIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/teams/': {
@@ -412,6 +432,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewsIndexRoute: ReviewsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   TeamsIndexRoute: TeamsIndexRoute,
+  UsageIndexRoute: UsageIndexRoute,
   UsersIndexRoute: UsersIndexRoute,
   TeamsTeamIdIndexRoute: TeamsTeamIdIndexRoute,
   TeamsTeamIdReposRepoIdRoute: TeamsTeamIdReposRepoIdRoute,

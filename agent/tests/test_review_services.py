@@ -2,7 +2,12 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from coreview_shared.agent.models import OpenCodeRunConfig, ReviewAgentKind
+from coreview_shared.agent.models import (
+    LlmCallUsage,
+    OpenCodeRunConfig,
+    ReviewAgentKind,
+    ReviewRunResult,
+)
 from coreview_shared.git.models import (
     InlineComment,
     InlineCommentsResult,
@@ -362,18 +367,29 @@ async def test_execute_review_logic_success_path() -> None:
             inline_comments_skipped=0,
         )
         reporter_cls.return_value = reporter
-        agent.run_review.return_value = findings
+        agent.run_review.return_value = ReviewRunResult.from_findings(
+            findings,
+            [
+                LlmCallUsage(
+                    call_index=0,
+                    input_tokens=10,
+                    output_tokens=5,
+                    total_tokens=15,
+                )
+            ],
+        )
 
         await execute_review_logic("r1")
 
     reporter.send_callback.assert_any_await("review.started", context)
     reporter.post_comments.assert_awaited_once_with(context, findings)
-    reporter.send_callback.assert_any_await(
-        "review.completed",
-        context,
-        findings=findings,
-        publish_result=reporter.post_comments.return_value,
+    completed_call = next(
+        call
+        for call in reporter.send_callback.await_args_list
+        if call.args and call.args[0] == "review.completed"
     )
+    assert completed_call.kwargs["findings"] == findings
+    assert completed_call.kwargs["token_usage"] is not None
     agent.setup.assert_awaited_once()
     agent.teardown.assert_awaited_once()
 
@@ -409,5 +425,6 @@ async def test_execute_review_logic_failure_sends_failed_callback() -> None:
         "review.failed",
         context,
         error=agent.run_review.side_effect,
+        token_usage=None,
     )
     agent.teardown.assert_awaited_once()

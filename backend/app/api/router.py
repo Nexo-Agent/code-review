@@ -13,6 +13,7 @@ from app.api.v1 import (
     reviews,
     team_repos,
     teams,
+    usage,
     users,
     webhooks,
 )
@@ -50,6 +51,7 @@ v1_router.include_router(
     prefix="/settings/rbac",
     tags=["rbac"],
 )
+v1_router.include_router(usage.router, prefix="/usage", tags=["usage"])
 v1_router.include_router(
     repos.router,
     prefix="/settings/repos",

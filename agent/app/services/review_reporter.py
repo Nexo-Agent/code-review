@@ -18,6 +18,7 @@ from coreview_shared.schemas.review_callback import (
     ReviewCallbackFinding,
     ReviewCallbackGithubResult,
     ReviewCallbackResult,
+    ReviewCallbackTokenUsage,
 )
 
 from app.config import get_settings
@@ -168,6 +169,7 @@ class _ReviewCallbackClient:
         context: ReviewRunContext,
         result: ReviewCallbackResult | None = None,
         error: ReviewCallbackError | None = None,
+        token_usage: ReviewCallbackTokenUsage | None = None,
     ) -> ReviewCallbackEvent:
         return ReviewCallbackEvent(
             event=event,
@@ -177,6 +179,7 @@ class _ReviewCallbackClient:
             request=context.callback_request,
             result=result,
             error=error,
+            token_usage=token_usage,
             metadata=dict(self._metadata),
         )
 
@@ -244,6 +247,7 @@ class ReviewReporter:
         findings: list[ReviewFinding] | None = None,
         publish_result: ReviewPublishResult | None = None,
         error: Exception | None = None,
+        token_usage: ReviewCallbackTokenUsage | None = None,
     ) -> None:
         result = None
         callback_error = None
@@ -268,6 +272,7 @@ class ReviewReporter:
             context=context,
             result=result,
             error=callback_error,
+            token_usage=token_usage,
         )
         await self._client(context).post_event(payload)
 

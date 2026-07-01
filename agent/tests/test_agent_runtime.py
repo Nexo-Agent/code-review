@@ -156,6 +156,36 @@ def test_opencode_slim_prompt_includes_pr_context_and_schema() -> None:
     assert "Focus on bugs, security, performance" not in prompt
 
 
+def test_opencode_parse_ndjson_stream_collects_step_finish_tokens() -> None:
+    provider = OpenCodeAgent(config=_opencode_config(model="test/model"))
+    stdout = "\n".join(
+        [
+            '{"type":"step_start","part":{"type":"step-start"}}',
+            (
+                '{"type":"step_finish","part":{"type":"step-finish","reason":"tool-calls",'
+                '"tokens":{"input":100,"output":25,"total":125}}}'
+            ),
+            (
+                '{"type":"text","part":{"type":"text","text":'
+                '"```json\\n{\\"findings\\": [{\\"severity\\": \\"warning\\", '
+                '\\"title\\": \\"Bug\\", \\"body\\": \\"details\\"}]}\\n```"}}'
+            ),
+            (
+                '{"type":"step_finish","part":{"type":"step-finish","reason":"stop",'
+                '"tokens":{"input":50,"output":10,"total":60}}}'
+            ),
+        ]
+    )
+    for line in stdout.splitlines():
+        provider._log_stdout_event(line)
+    assert len(provider._llm_calls) == 2
+    assert provider._llm_calls[0].total_tokens == 125
+    assert provider._llm_calls[1].total_tokens == 60
+    findings = provider._parse_cli_output(stdout)
+    assert len(findings) == 1
+    assert findings[0].title == "Bug"
+
+
 def test_opencode_parse_ndjson_stream_ignores_tool_events() -> None:
     provider = OpenCodeAgent(config=_opencode_config(model="test/model"))
     stdout = "\n".join(

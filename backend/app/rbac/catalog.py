@@ -35,6 +35,7 @@ class ActionKey(StrEnum):
     SETTINGS_LLM_UPDATE = "settings.llm.update"
     SETTINGS_RBAC_READ = "settings.rbac.read"
     SETTINGS_RBAC_UPDATE = "settings.rbac.update"
+    SETTINGS_USAGE_READ = "settings.usage.read"
 
 
 class ScopeKey(StrEnum):
@@ -59,6 +60,7 @@ ORG_SCOPED_ACTIONS: frozenset[ActionKey] = frozenset(
         ActionKey.SETTINGS_LLM_UPDATE,
         ActionKey.SETTINGS_RBAC_READ,
         ActionKey.SETTINGS_RBAC_UPDATE,
+        ActionKey.SETTINGS_USAGE_READ,
     }
 )
 
@@ -92,6 +94,7 @@ ACTION_DEFAULT_SCOPE: dict[ActionKey, ScopeKey] = {
     ActionKey.SETTINGS_LLM_UPDATE: ScopeKey.SETTINGS,
     ActionKey.SETTINGS_RBAC_READ: ScopeKey.SETTINGS,
     ActionKey.SETTINGS_RBAC_UPDATE: ScopeKey.SETTINGS,
+    ActionKey.SETTINGS_USAGE_READ: ScopeKey.SETTINGS,
 }
 
 TEAM_ASSIGNABLE_ROLES: frozenset[RoleKey] = frozenset(
