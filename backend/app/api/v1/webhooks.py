@@ -20,8 +20,8 @@ from app.services.provider_resolution import (
     build_review_runtime_config,
     resolve_llm_provider_for_repo,
 )
-from app.services.review_state import is_review_stale
 from app.services.review_analytics_events import ingest_provider_analytics_event
+from app.services.review_state import is_review_stale
 
 logger = logging.getLogger(__name__)
 
