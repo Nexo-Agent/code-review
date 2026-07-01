@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -167,6 +167,86 @@ async def test_github_webhook_uses_repo_integration(client: AsyncClient) -> None
 
     assert response.status_code == 202
     mock_task.delay.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_github_webhook_recovers_stale_review_for_same_sha(
+    client: AsyncClient,
+) -> None:
+    llm = _llm_row()
+    repo_integration = _repo_row(llm)
+    secret = repo_integration.github_webhook_secret
+    head_sha = "abc123" * 5 + "ab"
+    payload = {
+        "action": "opened",
+        "pull_request": {
+            "number": 42,
+            "head": {"sha": head_sha},
+        },
+        "repository": {"full_name": "owner/repo"},
+    }
+    body = json.dumps(payload).encode()
+    delivery_id = str(uuid4())
+
+    stale_review = make_review_row(
+        provider="github",
+        repo_full_name="owner/repo",
+        pr_number=42,
+        head_sha=head_sha,
+        delivery_id=delivery_id,
+        repo_integration_id=repo_integration.id,
+        status="pending",
+        created_at=datetime.now(UTC) - timedelta(minutes=30),
+    )
+    reset_review = make_review_row(
+        id=stale_review.id,
+        provider=stale_review.provider,
+        repo_full_name=stale_review.repo_full_name,
+        pr_number=stale_review.pr_number,
+        head_sha=stale_review.head_sha,
+        delivery_id=stale_review.delivery_id,
+        repo_integration_id=stale_review.repo_integration_id,
+        status="pending",
+        created_at=stale_review.created_at,
+    )
+
+    mock_repo = MagicMock()
+    mock_repo.get_by_delivery_id = AsyncMock(return_value=None)
+    mock_repo.get_by_repo_pr_sha = AsyncMock(return_value=stale_review)
+    mock_repo.reset_for_retry = AsyncMock(return_value=reset_review)
+
+    mock_integration_repo = MagicMock()
+    mock_integration_repo.get_with_team = AsyncMock(
+        return_value=(repo_integration, DEFAULT_TEAM_ID)
+    )
+
+    with (
+        patch(
+            "app.api.v1.webhooks.RepoIntegrationRepository",
+            return_value=mock_integration_repo,
+        ),
+        patch(
+            "app.api.v1.webhooks.resolve_llm_provider_for_repo",
+            AsyncMock(return_value=llm),
+        ),
+        patch("app.api.v1.webhooks.run_review") as mock_task,
+        patch("app.api.v1.webhooks.ReviewRepository", return_value=mock_repo),
+    ):
+        mock_task.delay = MagicMock()
+        response = await client.post(
+            f"/api/v1/webhooks/github/{repo_integration.id}",
+            content=body,
+            headers={
+                "X-GitHub-Event": "pull_request",
+                "X-GitHub-Delivery": delivery_id,
+                "X-Hub-Signature-256": _sign_payload(body, secret),
+                "Content-Type": "application/json",
+            },
+        )
+
+    assert response.status_code == 202
+    mock_repo.reset_for_retry.assert_awaited_once_with(stale_review.id)
+    mock_task.delay.assert_called_once_with(str(reset_review.id))
 
 
 @pytest.mark.asyncio

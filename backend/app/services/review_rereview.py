@@ -2,8 +2,10 @@ from uuid import UUID
 
 from coreview_shared.review import PRMetadata
 
+from app.config import get_code_review_settings
 from app.repositories.reviews import ReviewRepository, ReviewRow
 from app.services.provider_resolution import build_providers_for_repo
+from app.services.review_state import is_review_stale
 
 
 class ReviewNotFoundError(LookupError):
@@ -40,7 +42,10 @@ async def prepare_rereview(conn, review_id: UUID) -> ReviewRow:
     if review is None:
         raise ReviewNotFoundError(review_id)
 
-    if review.status in {"pending", "running"}:
+    if review.status in {"pending", "running"} and not is_review_stale(
+        review,
+        timeout_seconds=get_code_review_settings().review_timeout_seconds,
+    ):
         msg = "Review is already in progress"
         raise ReviewInProgressError(msg)
 
