@@ -15,6 +15,7 @@ from app.dependencies import get_conn
 from app.jobs.review import run_review
 from app.jobs.review_analytics import recompute_review_analytics
 from app.rbac.catalog import ActionKey
+from app.repositories.repo_integrations import RepoIntegrationRepository
 from app.repositories.review_analytics import ReviewAnalyticsRepository
 from app.repositories.reviews import ReviewFindingRow, ReviewRepository, ReviewRow
 from app.schemas.review import ReviewFindingResponse, ReviewListResponse, ReviewResponse
@@ -27,6 +28,7 @@ from app.schemas.review_analytics import (
     ReviewAnalyticsSnapshotResponse,
 )
 from app.services.provider_resolution import build_providers_for_repo
+from app.services.review_analytics_events import analytics_provider_ids
 from app.services.review_rereview import (
     ReviewInProgressError,
     ReviewNotFoundError,
@@ -186,8 +188,9 @@ async def get_reviews_analytics(
     conn: asyncpg.Connection = Depends(get_conn),
     auth: AuthContext = Depends(get_auth_context),
 ) -> ReviewAnalyticsSnapshotResponse:
-    all_rows = await ReviewAnalyticsRepository(conn).list_latest_metric_rows(
-        provider="github"
+    analytics_repo = ReviewAnalyticsRepository(conn)
+    all_rows = await analytics_repo.list_latest_metric_rows_for_providers(
+        providers=list(analytics_provider_ids()),
     )
     if not all_rows:
         raise HTTPException(
@@ -271,8 +274,16 @@ async def get_reviews_analytics_history(
     )
     if scope == "team" and team_id not in set(auth.accessible_team_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    rows = await ReviewAnalyticsRepository(conn).list_metric_history(
-        provider="github",
+    providers = list(analytics_provider_ids())
+    if scope == "repo" and repo_integration_id is not None:
+        integration = await RepoIntegrationRepository(conn).get(repo_integration_id)
+        if integration is None or not integration.enabled:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
+            )
+        providers = [integration.git_provider]
+    rows = await ReviewAnalyticsRepository(conn).list_metric_history_for_providers(
+        providers=providers,
         metric_key=metric_key,
         dimension_key=dimension_key,
         start=range_start,

@@ -12,6 +12,7 @@ from coreview_shared.git.models import (
     InlineCommentsResult,
     PreparedReview,
     RemoteRepoAccess,
+    ReviewCommentArtifact,
     WebhookEvent,
 )
 from coreview_shared.review import PRContext, PRMetadata
@@ -297,8 +298,8 @@ class BitbucketDataCenterProvider:
         self,
         review: PreparedReview,
         body: str,
-    ) -> None:
-        await self.post_review_comment(
+    ) -> ReviewCommentArtifact | None:
+        return await self.post_review_comment(
             review.context.metadata.repo_full_name,
             review.context.metadata.pr_number,
             body,
@@ -325,7 +326,7 @@ class BitbucketDataCenterProvider:
         repo_full_name: str,
         pr_number: int,
         body: str,
-    ) -> None:
+    ) -> ReviewCommentArtifact | None:
         project_key, repo_slug = parse_repo_full_name(repo_full_name)
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -334,6 +335,15 @@ class BitbucketDataCenterProvider:
                 json={"text": body},
             )
             response.raise_for_status()
+            data = response.json()
+        comment_id = data.get("id")
+        if comment_id is None:
+            return None
+        return ReviewCommentArtifact(
+            comment_kind="summary",
+            remote_comment_id=str(comment_id),
+            body=body,
+        )
 
     def _anchor_payload(
         self,
@@ -394,7 +404,7 @@ class BitbucketDataCenterProvider:
         to_hash = metadata.head_sha
         project_key, repo_slug = parse_repo_full_name(repo_full_name)
 
-        posted: list[InlineComment] = []
+        posted: list[ReviewCommentArtifact] = []
         async with httpx.AsyncClient(timeout=30.0) as client:
             for comment in to_post:
                 payload = self._anchor_payload(
@@ -412,7 +422,26 @@ class BitbucketDataCenterProvider:
                         json=payload,
                     )
                     response.raise_for_status()
-                    posted.append(comment)
+                    data = response.json()
+                    comment_id = data.get("id")
+                    if comment_id is None:
+                        logger.warning(
+                            "Inline comment on %s:%d missing Bitbucket DC comment id",
+                            comment.path,
+                            comment.line,
+                        )
+                        continue
+                    posted.append(
+                        ReviewCommentArtifact(
+                            comment_kind="inline",
+                            remote_comment_id=str(comment_id),
+                            body=comment.body,
+                            path=comment.path,
+                            line=comment.line,
+                            side=comment.side,
+                            finding_index=comment.finding_index,
+                        )
+                    )
                 except httpx.HTTPStatusError as exc:
                     logger.warning(
                         "Skipping inline comment on %s:%d — Bitbucket DC %s: %s",

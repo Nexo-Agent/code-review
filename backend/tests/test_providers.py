@@ -527,6 +527,99 @@ def test_docker_client_uses_explicit_host() -> None:
     docker_client.reset_docker_client()
 
 
+@pytest.mark.asyncio
+async def test_gitlab_post_inline_comments_returns_artifacts() -> None:
+    from coreview_shared.git.gitlab import GitLabProvider
+
+    provider = GitLabProvider(token="tok", base_url="https://gitlab.example.com")
+    with patch("httpx.AsyncClient") as client_cls:
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        mr_response = MagicMock()
+        mr_response.raise_for_status = MagicMock()
+        mr_response.json.return_value = {
+            "diff_refs": {
+                "base_sha": "base",
+                "head_sha": "head",
+                "start_sha": "start",
+            }
+        }
+        discussion_response = MagicMock()
+        discussion_response.raise_for_status = MagicMock()
+        discussion_response.json.return_value = {
+            "id": "disc-1",
+            "notes": [{"id": 501}],
+        }
+        client.get.return_value = mr_response
+        client.post.return_value = discussion_response
+        client_cls.return_value = client
+
+        diff = """diff --git a/a.py b/a.py
+--- a/a.py
++++ b/a.py
+@@ -1,1 +1,2 @@
+ x
++y
+"""
+        result = await provider.post_inline_comments(
+            "acme/backend",
+            1,
+            "head",
+            [InlineComment(path="a.py", line=2, body="issue")],
+            diff=diff,
+        )
+
+        assert len(result.posted) == 1
+        assert result.posted[0].remote_comment_id == "501"
+        assert result.posted[0].remote_thread_id == "disc-1"
+
+
+@pytest.mark.asyncio
+async def test_bitbucket_cloud_post_review_comment_returns_artifact() -> None:
+    from coreview_shared.git.bitbucket_cloud import BitbucketCloudProvider
+
+    provider = BitbucketCloudProvider(token="tok")
+    with patch("httpx.AsyncClient") as client_cls:
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json.return_value = {"id": 77}
+        client.post.return_value = response
+        client_cls.return_value = client
+
+        artifact = await provider.post_review_comment("acme/backend", 1, "summary")
+        assert artifact is not None
+        assert artifact.remote_comment_id == "77"
+
+
+@pytest.mark.asyncio
+async def test_azure_devops_post_review_comment_returns_artifact() -> None:
+    from coreview_shared.git.azure_devops import AzureDevOpsProvider
+
+    provider = AzureDevOpsProvider(pat="pat", organization="fab", project="proj")
+    with patch("httpx.AsyncClient") as client_cls:
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        repo_response = MagicMock()
+        repo_response.raise_for_status = MagicMock()
+        repo_response.json.return_value = {"id": "repo-guid"}
+        thread_response = MagicMock()
+        thread_response.raise_for_status = MagicMock()
+        thread_response.json.return_value = {
+            "id": 9,
+            "comments": [{"id": 42}],
+        }
+        client.get.return_value = repo_response
+        client.post.return_value = thread_response
+        client_cls.return_value = client
+
+        artifact = await provider.post_review_comment("fab/proj/repo", 1, "summary")
+        assert artifact is not None
+        assert artifact.remote_comment_id == "42"
+        assert artifact.remote_thread_id == "9"
+
+
 def test_handled_webhook_actions() -> None:
     assert "opened" in HANDLED_WEBHOOK_ACTIONS
     assert "closed" not in HANDLED_WEBHOOK_ACTIONS

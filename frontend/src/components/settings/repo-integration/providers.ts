@@ -151,6 +151,57 @@ export function gitProviderLogoId(
   return gitProvider as StoredGitProvider
 }
 
+export function gitProviderDisplayLabel(
+  gitProvider: string,
+  gitlabBaseUrl = "",
+): string {
+  return (
+    getGitProviderForStoredValue(gitProvider, gitlabBaseUrl)?.label ?? gitProvider
+  )
+}
+
+/** Short instance hint for self-hosted or org-scoped providers. */
+export function gitProviderInstanceHint(
+  repo: Pick<
+    RepoIntegrationCreate,
+    | "git_provider"
+    | "gitlab_base_url"
+    | "bitbucket_dc_base_url"
+    | "ado_organization"
+    | "ado_project"
+  > & {
+    git_provider: string
+    gitlab_base_url?: string
+    bitbucket_dc_base_url?: string
+    ado_organization?: string
+    ado_project?: string
+  },
+): string | null {
+  if (repo.git_provider === "gitlab" && !isGitLabCloudUrl(repo.gitlab_base_url ?? "")) {
+    return shortenUrl(repo.gitlab_base_url ?? "")
+  }
+  if (repo.git_provider === "bitbucket-dc" && repo.bitbucket_dc_base_url?.trim()) {
+    return shortenUrl(repo.bitbucket_dc_base_url)
+  }
+  if (repo.git_provider === "azure-devops") {
+    const parts = [repo.ado_organization, repo.ado_project].filter(Boolean)
+    return parts.length ? parts.join(" / ") : null
+  }
+  return null
+}
+
+function shortenUrl(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+  try {
+    return new URL(trimmed).host
+  } catch {
+    return trimmed.replace(/^https?:\/\//, "").replace(/\/$/, "")
+  }
+}
+
 export function repoFormFromGitProvider(
   provider: GitProviderDefinition,
 ): RepoIntegrationCreate {

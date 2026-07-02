@@ -56,9 +56,25 @@ async def run_with_connection(fn: Any, *args: Any, **kwargs: Any) -> Any:
         return await fn(conn, *args, **kwargs)
 
 
+_worker_event_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _get_worker_event_loop() -> asyncio.AbstractEventLoop:
+    """Reuse one event loop per process for Celery sync tasks.
+
+    ``asyncio.run()`` creates and closes a loop on every call, which breaks
+    module-level asyncpg pools initialized on a prior loop.
+    """
+    global _worker_event_loop
+    if _worker_event_loop is None or _worker_event_loop.is_closed():
+        _worker_event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_worker_event_loop)
+    return _worker_event_loop
+
+
 def run_db(coro: Coroutine[Any, Any, T]) -> T:
-    return asyncio.run(coro)
+    return _get_worker_event_loop().run_until_complete(coro)
 
 
 def run_db_fn(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    return asyncio.run(run_with_connection(fn, *args, **kwargs))
+    return run_db(run_with_connection(fn, *args, **kwargs))

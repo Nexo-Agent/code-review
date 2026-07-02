@@ -152,6 +152,32 @@ class ReviewAnalyticsRepository:
         )
         return _row_to_comment_artifact(row) if row else None
 
+    async def get_comment_artifact_by_remote_thread(
+        self,
+        *,
+        provider: str,
+        repo_full_name: str,
+        pr_number: int,
+        remote_thread_id: str,
+    ) -> ReviewCommentArtifactRow | None:
+        row = await self._conn.fetchrow(
+            """
+            SELECT id, review_id, review_finding_id, provider, repo_full_name,
+                   pr_number, comment_kind, remote_comment_id, remote_thread_id,
+                   file_path, line_start, side, posted_at, created_at
+            FROM review_comment_artifacts
+            WHERE provider = $1 AND repo_full_name = $2
+              AND pr_number = $3 AND remote_thread_id = $4
+            ORDER BY posted_at ASC
+            LIMIT 1
+            """,
+            provider,
+            repo_full_name,
+            pr_number,
+            remote_thread_id,
+        )
+        return _row_to_comment_artifact(row) if row else None
+
     async def insert_engagement_event(
         self,
         *,
@@ -331,6 +357,22 @@ class ReviewAnalyticsRepository:
         )
         return [_row_to_metric_analytics(row) for row in rows]
 
+    async def list_latest_metric_rows_for_providers(
+        self,
+        *,
+        providers: list[str],
+        granularity: str = "rolling_window",
+    ) -> list[ReviewMetricAnalyticsRow]:
+        rows: list[ReviewMetricAnalyticsRow] = []
+        for provider in providers:
+            rows.extend(
+                await self.list_latest_metric_rows(
+                    provider=provider,
+                    granularity=granularity,
+                )
+            )
+        return rows
+
     async def list_metric_history(
         self,
         *,
@@ -364,6 +406,31 @@ class ReviewAnalyticsRepository:
             end,
         )
         return [_row_to_metric_analytics(row) for row in rows]
+
+    async def list_metric_history_for_providers(
+        self,
+        *,
+        providers: list[str],
+        metric_key: str,
+        dimension_key: str,
+        start: datetime,
+        end: datetime,
+        granularity: str = "rolling_window",
+    ) -> list[ReviewMetricAnalyticsRow]:
+        rows: list[ReviewMetricAnalyticsRow] = []
+        for provider in providers:
+            rows.extend(
+                await self.list_metric_history(
+                    provider=provider,
+                    metric_key=metric_key,
+                    dimension_key=dimension_key,
+                    start=start,
+                    end=end,
+                    granularity=granularity,
+                )
+            )
+        rows.sort(key=lambda row: row.computed_at)
+        return rows
 
 
 def _encode_json(value: dict) -> str:
