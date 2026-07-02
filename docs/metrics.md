@@ -35,7 +35,7 @@ The current recommended effectiveness dashboard is built around six metrics:
 
 1. PR Time to Merge
 2. Time from Review-Ready to Merge
-3. Time to First Human Review
+3. Time to First Human Reply
 4. Helpful Rate of AI Comments
 5. Applied or Fixed Findings Rate
 6. AI Review Coverage
@@ -46,7 +46,7 @@ The current recommended effectiveness dashboard is built around six metrics:
 | --- | --- | --- | --- | --- | --- | --- |
 | **PR Time to Merge** | Total elapsed time from PR creation to merge for AI-reviewed PRs, and ideally compared against non-AI-reviewed PRs | `merged_at - pr_opened_at` | Shows whether AI review is associated with faster delivery from code submission to merge | This is the closest high-level outcome metric for development flow efficiency | `pr_opened_at`, `merged_at`, PR identifier, flag indicating whether AI review ran | Always segment by PR size, repository, and team. Large or risky PRs may naturally take longer and can distort comparisons |
 | **Time from Review-Ready to Merge** | Time spent after a PR is ready for review until merge | `merged_at - review_ready_at` where `review_ready_at` is the moment the PR leaves draft state or is explicitly marked ready | Removes noise from PRs that were opened early but not actually reviewable yet | Gives a cleaner view of review workflow efficiency than total PR lifetime | `review_ready_at`, `merged_at`, PR identifier, AI review presence | If draft state is not available in every provider, define a fallback rule and keep it consistent across providers |
-| **Time to First Human Review** | How long it takes for a human reviewer to respond after the PR becomes reviewable | `first_human_review_at - review_ready_at` | Indicates whether AI review helps teams start the human review loop sooner | Early human engagement is a strong predictor of shorter overall review cycles | `review_ready_at`, `first_human_review_at`, reviewer event source, PR identifier | Clarify what counts as human review: formal review submission, inline comment, approval, or requested changes |
+| **Time to First Human Reply** | How long it takes for a human to reply on an AI comment thread after the PR becomes reviewable | `first_human_reply_at - earliest_ai_comment_at` | Indicates whether AI review helps teams engage with feedback sooner | Early reply delay is a major bottleneck in many review cycles | `earliest_ai_comment_at`, `first_human_reply_at`, PR identifier, AI review presence | Counts direct thread replies only, not formal review approvals |
 | **Helpful Rate of AI Comments** | Share of AI comments that developers explicitly rate as helpful | `helpful_ai_comments / rated_ai_comments` | Measures explicit developer trust in AI feedback | High usage without trust is weak adoption. This metric reveals whether the feedback is considered useful by the developer who reviewed it | Comment-level AI identifier, feedback events such as `helpful` and `not_helpful`, and denominator event rules | If user feedback is optional, also track rating coverage so the team knows whether the rate is statistically meaningful |
 | **Applied or Fixed Findings Rate** | Share of AI findings that lead to an observed fix before merge | `fixed_ai_findings / actionable_ai_findings` | Shows whether AI review produces findings that change code, not only comments that are seen | This is one of the strongest signals that AI review creates practical value | Finding identifier, finding status, code change or resolution event, merge boundary | A finding may be valid but intentionally deferred. Consider separate states such as `fixed`, `dismissed`, `deferred` |
 | **AI Review Coverage** | Share of pull requests that actually receive AI review | `ai_reviewed_prs / total_eligible_prs` | Shows how much of the workflow is influenced by AI review | Without coverage, impact metrics are hard to generalize because the sample may be too narrow | Total eligible PR count, AI-reviewed PR count, eligibility rules | Define eligibility clearly. Exclude drafts, bots, or repositories where AI review is intentionally disabled if needed |
@@ -110,22 +110,23 @@ see.
 - draft-to-ready transitions must be captured consistently
 - if provider support differs, document the fallback behavior
 
-### 3. Time to First Human Review
+### 3. Time to First Human Reply
 
 **Definition**
 
-The elapsed time from review-ready state to the first human review action.
+The elapsed time from review-ready state to the first human reply on an AI review
+comment thread.
 
 **Formula**
 
 ```text
-Time to First Human Review = first_human_review_at - review_ready_at
+Time to First Human Reply = first_human_reply_at - earliest_ai_comment_at
 ```
 
 **Primary insight**
 
 This metric shows whether AI review helps reduce the waiting time before a
-person engages with the pull request.
+person engages with the AI feedback thread.
 
 **Why product teams use it**
 
@@ -134,7 +135,8 @@ delay usually improves the whole review cycle.
 
 **Important caveats**
 
-- define what counts as a review action
+- counts direct replies on AI comment threads only
+- does not measure formal review approval or reviewer vote events
 - do not mix bot activity with human activity
 
 ### 4. Helpful Rate of AI Comments
@@ -162,11 +164,15 @@ This metric measures trust and usefulness, not just visibility.
 AI review systems often generate many comments. The key question is whether
 developers find them useful enough to endorse or act on.
 
-For this metric, endorsement means an explicit in-product feedback action such
-as selecting `helpful` on a specific AI comment.
+For this metric, endorsement means a direct reply on the AI comment thread with
+one of the supported keywords: `Helpful` or `Not Helpful` (case-insensitive,
+exact match after normalization).
 
 **Important caveats**
 
+- feedback only works when the developer replies directly on the AI comment thread
+- only `Helpful` and `Not Helpful` are counted in the current implementation
+- feedback is not inferred from code changes, reactions, or comments outside the thread
 - feedback rate matters as much as helpful rate
 - low participation can make the metric unstable
 - track positive and negative responses separately
@@ -184,6 +190,16 @@ viewer:
 Only comments in `helpful` or `not_helpful` should count as `rated_ai_comments`.
 
 ### 5. Applied or Fixed Findings Rate
+
+**Provider support**
+
+| Provider | Supported |
+| --- | --- |
+| GitHub | Yes |
+| GitLab | Yes |
+| Bitbucket Cloud | Yes |
+| Bitbucket Data Center | Yes |
+| Azure DevOps | No (inline review comments are not posted in the current release) |
 
 **Definition**
 
@@ -291,6 +307,27 @@ following data:
 - timestamp of resolution
 - optional linkage to the commit or revision where the fix appeared
 
+## Feedback collection (current implementation)
+
+Review analytics currently captures developer feedback only through **direct
+replies on AI comment threads** in the Git provider UI.
+
+Supported keywords (exact match after case normalization and trailing punctuation
+removal):
+
+- `Helpful`
+- `Not Helpful`
+
+The system does **not** infer helpfulness from:
+
+- code changes without a qualifying reply
+- emoji reactions or other provider-native reactions
+- top-level PR comments that are not threaded replies to an AI comment
+
+GitLab summary comments may not always expose a reply thread in the same way as
+inline discussion comments. Prefer replying on the inline AI comment thread when
+possible.
+
 ## Reporting guidance
 
 When reporting these metrics to users or internal stakeholders:
@@ -305,7 +342,7 @@ Examples:
 
 - a lower PR Time to Merge with very low coverage may not generalize
 - a high Helpful Rate with very low rating coverage may be misleading
-- a lower Time to First Human Review without better merge outcomes may indicate
+- a lower Time to First Human Reply without better merge outcomes may indicate
   faster engagement but not faster completion
 
 ## Out of scope

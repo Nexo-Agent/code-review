@@ -11,6 +11,7 @@ from coreview_shared.git.models import (
     InlineCommentsResult,
     PreparedReview,
     RemoteRepoAccess,
+    ReviewCommentArtifact,
     WebhookEvent,
 )
 from coreview_shared.review import PRContext, PRMetadata
@@ -401,7 +402,7 @@ class AzureDevOpsProvider:
         repo_full_name: str,
         pr_number: int,
         body: str,
-    ) -> None:
+    ) -> ReviewCommentArtifact | None:
         organization, project, repo = parse_repo_full_name(
             repo_full_name,
             organization=self._organization,
@@ -431,13 +432,29 @@ class AzureDevOpsProvider:
                 json=payload,
             )
             response.raise_for_status()
+            data = response.json()
+        thread_id = data.get("id")
+        comments = data.get("comments")
+        comment_id = None
+        if isinstance(comments, list) and comments:
+            first = comments[0]
+            if isinstance(first, dict):
+                comment_id = first.get("id")
+        if thread_id is None or comment_id is None:
+            return None
+        return ReviewCommentArtifact(
+            comment_kind="summary",
+            remote_comment_id=str(comment_id),
+            remote_thread_id=str(thread_id),
+            body=body,
+        )
 
     async def publish_summary_comment(
         self,
         review: PreparedReview,
         body: str,
-    ) -> None:
-        await self.post_review_comment(
+    ) -> ReviewCommentArtifact | None:
+        return await self.post_review_comment(
             review.context.metadata.repo_full_name,
             review.context.metadata.pr_number,
             body,

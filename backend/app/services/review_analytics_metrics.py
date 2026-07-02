@@ -11,7 +11,10 @@ from app.repositories.repo_integrations import (
 )
 from app.repositories.review_analytics import ReviewAnalyticsRepository
 from app.repositories.reviews import ReviewRepository
-from app.services.review_analytics_events import supports_review_analytics
+from app.services.review_analytics_events import (
+    supports_applied_fixed_metric,
+    supports_review_analytics,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,69 +88,98 @@ async def _build_metric_rows(
     if not integrations:
         return rows
 
-    repo_full_names = [row.repo_full_name for row in integrations if row.repo_full_name]
     analytics_repo = ReviewAnalyticsRepository(conn)
     review_repo = ReviewRepository(conn)
-    events = await analytics_repo.list_engagement_events(
-        provider="github",
-        repo_full_names=repo_full_names,
-        before=window_end,
-    )
-    reviews = await review_repo.list_reviews(
-        repo_full_names=repo_full_names,
+    all_reviews = await review_repo.list_reviews(
+        repo_full_names=[
+            row.repo_full_name for row in integrations if row.repo_full_name
+        ],
         limit=10000,
         offset=0,
     )
 
-    integration_by_repo = {row.repo_full_name: row for row in integrations}
-    prs = _aggregate_prs(events, reviews, integration_by_repo, window_start, window_end)
-    all_rows = _rows_for_dimension(
-        prs=list(prs.values()),
-        dimension_key="all",
-        provider="github",
-        repo_integration_id=None,
-        team_id=None,
-        repo_full_name="",
-        window_start=window_start,
-        window_end=window_end,
-        job_run_id=job_run_id,
-    )
-    rows.extend(all_rows)
-    team_ids = sorted({row.team_id for row in integrations if row.team_id is not None})
-    for team_id in team_ids:
-        scoped = [value for value in prs.values() if value.team_id == team_id]
-        if not scoped:
+    integrations_by_provider: dict[str, list[RepoIntegrationRow]] = {}
+    for integration in integrations:
+        integrations_by_provider.setdefault(integration.git_provider, []).append(
+            integration
+        )
+
+    for provider, provider_integrations in integrations_by_provider.items():
+        repo_full_names = [
+            row.repo_full_name for row in provider_integrations if row.repo_full_name
+        ]
+        if not repo_full_names:
             continue
+        events = await analytics_repo.list_engagement_events(
+            provider=provider,
+            repo_full_names=repo_full_names,
+            before=window_end,
+        )
+        reviews = [
+            review
+            for review in all_reviews
+            if review.provider == provider and review.repo_full_name in repo_full_names
+        ]
+        integration_by_repo = {row.repo_full_name: row for row in provider_integrations}
+        prs = _aggregate_prs(
+            events,
+            reviews,
+            integration_by_repo,
+            window_start,
+            window_end,
+        )
         rows.extend(
             _rows_for_dimension(
-                prs=scoped,
-                dimension_key=f"team:{team_id}",
-                provider="github",
+                prs=list(prs.values()),
+                dimension_key="all",
+                provider=provider,
                 repo_integration_id=None,
-                team_id=team_id,
+                team_id=None,
                 repo_full_name="",
                 window_start=window_start,
                 window_end=window_end,
                 job_run_id=job_run_id,
             )
         )
-    for repo_full_name, integration in integration_by_repo.items():
-        scoped = [
-            value for value in prs.values() if value.repo_full_name == repo_full_name
-        ]
-        rows.extend(
-            _rows_for_dimension(
-                prs=scoped,
-                dimension_key=f"repo:{integration.id}",
-                provider="github",
-                repo_integration_id=integration.id,
-                team_id=integration.team_id,
-                repo_full_name=repo_full_name,
-                window_start=window_start,
-                window_end=window_end,
-                job_run_id=job_run_id,
-            )
+        team_ids = sorted(
+            {row.team_id for row in provider_integrations if row.team_id is not None}
         )
+        for team_id in team_ids:
+            scoped = [value for value in prs.values() if value.team_id == team_id]
+            if not scoped:
+                continue
+            rows.extend(
+                _rows_for_dimension(
+                    prs=scoped,
+                    dimension_key=f"team:{team_id}",
+                    provider=provider,
+                    repo_integration_id=None,
+                    team_id=team_id,
+                    repo_full_name="",
+                    window_start=window_start,
+                    window_end=window_end,
+                    job_run_id=job_run_id,
+                )
+            )
+        for repo_full_name, integration in integration_by_repo.items():
+            scoped = [
+                value
+                for value in prs.values()
+                if value.repo_full_name == repo_full_name
+            ]
+            rows.extend(
+                _rows_for_dimension(
+                    prs=scoped,
+                    dimension_key=f"repo:{integration.id}",
+                    provider=provider,
+                    repo_integration_id=integration.id,
+                    team_id=integration.team_id,
+                    repo_full_name=repo_full_name,
+                    window_start=window_start,
+                    window_end=window_end,
+                    job_run_id=job_run_id,
+                )
+            )
     return rows
 
 
@@ -335,21 +367,6 @@ def _rows_for_dimension(
                 job_run_id=job_run_id,
             ),
             _metric_row(
-                metric_key="applied_or_fixed_findings_rate",
-                metric_value_num=_rate(applied_fixed, actionable_count),
-                numerator=float(applied_fixed),
-                denominator=float(actionable_count),
-                sample_size=actionable_count,
-                provider=provider,
-                dimension_key=dimension_key,
-                repo_integration_id=repo_integration_id,
-                team_id=team_id,
-                repo_full_name=repo_full_name,
-                window_start=window_start,
-                window_end=window_end,
-                job_run_id=job_run_id,
-            ),
-            _metric_row(
                 metric_key="ai_review_coverage",
                 metric_value_num=_rate(reviewed_prs, eligible_prs),
                 numerator=float(reviewed_prs),
@@ -366,6 +383,25 @@ def _rows_for_dimension(
             ),
         ]
     )
+    if supports_applied_fixed_metric(provider):
+        metrics.insert(
+            -1,
+            _metric_row(
+                metric_key="applied_or_fixed_findings_rate",
+                metric_value_num=_rate(applied_fixed, actionable_count),
+                numerator=float(applied_fixed),
+                denominator=float(actionable_count),
+                sample_size=actionable_count,
+                provider=provider,
+                dimension_key=dimension_key,
+                repo_integration_id=repo_integration_id,
+                team_id=team_id,
+                repo_full_name=repo_full_name,
+                window_start=window_start,
+                window_end=window_end,
+                job_run_id=job_run_id,
+            ),
+        )
     return metrics
 
 

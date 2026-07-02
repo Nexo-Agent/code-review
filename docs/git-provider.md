@@ -140,6 +140,23 @@ This allows webhook routes to reuse a common review-enqueue flow after provider 
 - webhook authentication is modeled as a Basic auth pair
 - supports PR open, reopened, and source-ref update events
 
+## Analytics webhook events
+
+Review analytics uses the same integration webhook URL as review enqueue, but
+**additional events must be enabled manually** in each Git provider. Cogito Review
+does not auto-subscribe analytics events.
+
+| Provider | Events to enable | Notes |
+| --- | --- | --- |
+| GitHub | `pull_request`, `pull_request_review_comment` | Uses existing repository webhook |
+| GitLab | Merge request events, Comments (`Note Hook`) | Same project webhook URL |
+| Bitbucket Cloud | `pullrequest:created`, `pullrequest:updated`, `pullrequest:fulfilled`, `pullrequest:comment_created` | Same workspace/repo webhook URL |
+| Bitbucket Data Center | `pr:opened`, `pr:reopened`, `pr:merged`, `pr:comment:added` (or `pr:comment_added`) | Same webhook URL |
+| Azure DevOps | Service hooks: `git.pullrequest.created`, `git.pullrequest.updated`, `git.pullrequest.commented.on` | Configure per project in Service Hooks UI |
+
+After enabling events, run **Recompute analytics** (or wait for the scheduled
+rollup job) so metrics reflect newly ingested engagement events.
+
 ## How providers are used
 
 ### During webhook ingestion

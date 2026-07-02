@@ -29,6 +29,10 @@ from app.schemas.dashboard import (
     DashboardUsageSection,
 )
 from app.schemas.review import ReviewResponse
+from app.services.review_analytics_events import (
+    analytics_provider_ids,
+    supports_applied_fixed_metric,
+)
 
 DASHBOARD_METRIC_KEYS = (
     "ai_review_coverage",
@@ -140,8 +144,10 @@ async def _build_analytics_section(
     if not _can_read_reviews(auth):
         return None
 
-    all_rows = await ReviewAnalyticsRepository(conn).list_latest_metric_rows(
-        provider="github"
+    all_rows = await ReviewAnalyticsRepository(
+        conn
+    ).list_latest_metric_rows_for_providers(
+        providers=list(analytics_provider_ids()),
     )
     if not all_rows:
         return None
@@ -174,12 +180,18 @@ async def _build_analytics_section(
     latest = max(all_rows, key=lambda row: row.computed_at)
     metrics: list[DashboardAnalyticsMetric] = []
     for metric_key in DASHBOARD_METRIC_KEYS:
-        match = next(
-            (row for row in scoped_rows if row.metric_key == metric_key),
-            None,
-        )
-        if match is None:
+        if metric_key == "applied_or_fixed_findings_rate":
+            candidates = [
+                row
+                for row in scoped_rows
+                if row.metric_key == metric_key
+                and supports_applied_fixed_metric(row.provider)
+            ]
+        else:
+            candidates = [row for row in scoped_rows if row.metric_key == metric_key]
+        if not candidates:
             continue
+        match = candidates[0]
         metrics.append(
             DashboardAnalyticsMetric(
                 metric_key=match.metric_key,

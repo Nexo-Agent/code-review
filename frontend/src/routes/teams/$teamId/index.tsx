@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { Settings } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -16,6 +16,12 @@ import {
 import { TeamMemberAddDialog } from "@/components/teams/TeamMemberAddDialog"
 import { TeamRepositoryAddDialog } from "@/components/teams/TeamRepositoryAddDialog"
 import { TeamSettingsDialog } from "@/components/teams/TeamSettingsDialog"
+import {
+  RepoIntegrationEnabledCell,
+  RepoIntegrationLlmCell,
+  RepoIntegrationNameCell,
+  RepoIntegrationProviderCell,
+} from "@/components/repositories/RepoIntegrationListCells"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -139,7 +145,9 @@ function TeamDetailPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Repository</TableHead>
+                    <TableHead>Provider</TableHead>
                     <TableHead>LLM</TableHead>
+                    <TableHead className="w-32 text-right">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -147,24 +155,21 @@ function TeamDetailPage() {
                     repoList.map((repo) => (
                       <TableRow key={repo.id}>
                         <TableCell>
-                          <Link
-                            to="/teams/$teamId/repos/$repoId"
-                            params={{
-                              teamId,
-                              repoId: repo.id,
-                            }}
-                            className="font-medium hover:underline"
-                          >
-                            {repo.repo_full_name || repo.name || "All repositories"}
-                          </Link>
+                          <RepoIntegrationNameCell repo={repo} teamId={teamId} />
                         </TableCell>
                         <TableCell>
-                          {repo.llm_provider_name ?? "Org default"}
+                          <RepoIntegrationProviderCell repo={repo} />
+                        </TableCell>
+                        <TableCell>
+                          <RepoIntegrationLlmCell repo={repo} />
+                        </TableCell>
+                        <TableCell>
+                          <RepoIntegrationEnabledCell repo={repo} />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
-                    <EmptyState colSpan={2}>
+                    <EmptyState colSpan={4}>
                       {canAddRepo
                         ? 'No repositories yet. Click "Add repository" to connect one.'
                         : "No repositories in this team yet."}

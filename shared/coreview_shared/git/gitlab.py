@@ -16,6 +16,7 @@ from coreview_shared.git.models import (
     InlineCommentsResult,
     PreparedReview,
     RemoteRepoAccess,
+    ReviewCommentArtifact,
     WebhookEvent,
 )
 from coreview_shared.review import PRContext, PRMetadata
@@ -390,8 +391,8 @@ class GitLabProvider:
         self,
         review: PreparedReview,
         body: str,
-    ) -> None:
-        await self.post_review_comment(
+    ) -> ReviewCommentArtifact | None:
+        return await self.post_review_comment(
             review.context.metadata.repo_full_name,
             review.context.metadata.pr_number,
             body,
@@ -417,7 +418,7 @@ class GitLabProvider:
         repo_full_name: str,
         pr_number: int,
         body: str,
-    ) -> None:
+    ) -> ReviewCommentArtifact | None:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 self._mr_url(repo_full_name, pr_number, "/notes"),
@@ -425,6 +426,15 @@ class GitLabProvider:
                 json={"body": body},
             )
             response.raise_for_status()
+            data = response.json()
+        note_id = data.get("id")
+        if note_id is None:
+            return None
+        return ReviewCommentArtifact(
+            comment_kind="summary",
+            remote_comment_id=str(note_id),
+            body=body,
+        )
 
     def _discussion_payload(
         self,
@@ -475,7 +485,7 @@ class GitLabProvider:
             return InlineCommentsResult(posted=(), skipped=tuple(skipped))
 
         diff_refs = await self._get_diff_refs(repo_full_name, pr_number)
-        posted: list[InlineComment] = []
+        posted: list[ReviewCommentArtifact] = []
         async with httpx.AsyncClient(timeout=30.0) as client:
             for comment in to_post:
                 payload = self._discussion_payload(comment, diff_refs, body)
@@ -486,7 +496,33 @@ class GitLabProvider:
                         json=payload,
                     )
                     response.raise_for_status()
-                    posted.append(comment)
+                    data = response.json()
+                    discussion_id = data.get("id")
+                    notes = data.get("notes")
+                    note_id = None
+                    if isinstance(notes, list) and notes:
+                        first = notes[0]
+                        if isinstance(first, dict):
+                            note_id = first.get("id")
+                    if discussion_id is None or note_id is None:
+                        logger.warning(
+                            "Inline comment on %s:%d missing GitLab discussion/note id",
+                            comment.path,
+                            comment.line,
+                        )
+                        continue
+                    posted.append(
+                        ReviewCommentArtifact(
+                            comment_kind="inline",
+                            remote_comment_id=str(note_id),
+                            remote_thread_id=str(discussion_id),
+                            body=comment.body,
+                            path=comment.path,
+                            line=comment.line,
+                            side=comment.side,
+                            finding_index=comment.finding_index,
+                        )
+                    )
                 except httpx.HTTPStatusError as exc:
                     logger.warning(
                         "Skipping inline comment on %s:%d — GitLab %s: %s",

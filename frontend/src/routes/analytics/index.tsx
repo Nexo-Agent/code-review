@@ -57,6 +57,17 @@ export const Route = createFileRoute("/analytics/")({
   component: AnalyticsPage,
 })
 
+const APPLIED_FIXED_PROVIDERS = new Set([
+  "github",
+  "gitlab",
+  "bitbucket",
+  "bitbucket-dc",
+])
+
+function supportsAppliedFixedForProvider(gitProvider: string): boolean {
+  return APPLIED_FIXED_PROVIDERS.has(gitProvider)
+}
+
 const METRIC_LABELS: Record<string, string> = {
   pr_time_to_merge: "PR Time to Merge",
   review_ready_to_merge: "Review-Ready to Merge",
@@ -422,6 +433,31 @@ function AnalyticsPage() {
       ? repoNameById.get(search.repo_integration_id)
       : undefined) ?? "Selected repository"
 
+  const visibleMetricKeys = useMemo(() => {
+    let showAppliedFixed = true
+    if (search.scope === "repo" && search.repo_integration_id) {
+      const repo = repositories.data?.items.find(
+        (item) => item.id === search.repo_integration_id,
+      )
+      showAppliedFixed = repo
+        ? supportsAppliedFixedForProvider(repo.git_provider)
+        : false
+    } else if (analytics.data) {
+      showAppliedFixed = analytics.data.items.some(
+        (item) => item.metric_key === "applied_or_fixed_findings_rate",
+      )
+    }
+    return METRIC_KEYS.filter(
+      (metricKey) =>
+        metricKey !== "applied_or_fixed_findings_rate" || showAppliedFixed,
+    )
+  }, [
+    analytics.data,
+    repositories.data?.items,
+    search.repo_integration_id,
+    search.scope,
+  ])
+
   const historyRequest = useMemo(() => {
     const common = {
       metric_key: "ai_review_coverage" as keyof typeof METRIC_LABELS,
@@ -502,7 +538,7 @@ function AnalyticsPage() {
       title="Analytics"
       description={
         analytics.data
-          ? `Latest GitHub snapshot for ${formatWindow(
+          ? `Latest snapshot for ${formatWindow(
               analytics.data.window_start,
               analytics.data.window_end,
             )}`
@@ -658,6 +694,24 @@ function AnalyticsPage() {
         </div>
       </section>
 
+      <section className="mt-6 rounded-[28px] border border-border/70 bg-muted/10 p-5 text-sm text-muted-foreground">
+        <p>
+          Helpful Rate counts only direct replies on AI review comment threads using
+          the exact keywords <code className="text-foreground">Helpful</code> or{" "}
+          <code className="text-foreground">Not Helpful</code>. Analytics webhook
+          events must be enabled manually per Git provider. See{" "}
+          <a
+            href="https://github.com/CogitoForge-AI/cogito-review/blob/main/docs/git-provider.md#analytics-webhook-events"
+            className="text-foreground underline underline-offset-2"
+            target="_blank"
+            rel="noreferrer"
+          >
+            git-provider.md
+          </a>
+          .
+        </p>
+      </section>
+
       <section className="mt-6">
         <div className="mb-4 flex items-center justify-between">
           <div>
@@ -669,7 +723,7 @@ function AnalyticsPage() {
         </div>
 
         <div className="grid gap-4">
-          {METRIC_KEYS.map((metricKey) => (
+          {visibleMetricKeys.map((metricKey) => (
             <AnalyticsTrendPanel
               key={metricKey}
               metricKey={metricKey}

@@ -5,10 +5,12 @@ import { AppShell } from "@/components/layout/AppShell"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { MultiSelectFilter } from "@/components/patterns/multi-select-filter"
 import { PaginatedListPanel } from "@/components/patterns/paginated-list-panel"
-import { ProviderLogo } from "@/components/settings/repo-integration/ProviderLogo"
 import {
-  gitProviderLogoId,
-} from "@/components/settings/repo-integration/providers"
+  RepoIntegrationEnabledCell,
+  RepoIntegrationLlmCell,
+  RepoIntegrationNameCell,
+  RepoIntegrationProviderCell,
+} from "@/components/repositories/RepoIntegrationListCells"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -18,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -219,9 +220,10 @@ function RepositoriesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Repository</TableHead>
+                <TableHead>Provider</TableHead>
                 <TableHead>Team</TableHead>
                 <TableHead>LLM</TableHead>
-                <TableHead className="w-20 text-right">Enabled</TableHead>
+                <TableHead className="w-32 text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,27 +231,13 @@ function RepositoriesPage() {
                 repoList.map((repo) => (
                   <TableRow key={repo.id}>
                     <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <ProviderLogo
-                          providerId={gitProviderLogoId(
-                            repo.git_provider,
-                            repo.gitlab_base_url,
-                          )}
-                          className="size-5"
-                        />
-                        <div className="min-w-0">
-                          <Link
-                            to="/teams/$teamId/repos/$repoId"
-                            params={{
-                              teamId: repo.team_id,
-                              repoId: repo.id,
-                            }}
-                            className="font-medium hover:underline"
-                          >
-                            {repo.repo_full_name || repo.name || "All repositories"}
-                          </Link>
-                        </div>
-                      </div>
+                      <RepoIntegrationNameCell
+                        repo={repo}
+                        teamId={repo.team_id}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <RepoIntegrationProviderCell repo={repo} />
                     </TableCell>
                     <TableCell>
                       <Link
@@ -260,14 +248,16 @@ function RepositoriesPage() {
                         {repo.team_name}
                       </Link>
                     </TableCell>
-                    <TableCell>{repo.llm_provider_name ?? "Org default"}</TableCell>
-                    <TableCell className="text-right">
-                      <Switch checked={repo.enabled} disabled />
+                    <TableCell>
+                      <RepoIntegrationLlmCell repo={repo} />
+                    </TableCell>
+                    <TableCell>
+                      <RepoIntegrationEnabledCell repo={repo} />
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
-                <EmptyState colSpan={4}>
+                <EmptyState colSpan={5}>
                   {hasFilters
                     ? "No repositories match your search or filters."
                     : "No repositories in your accessible teams yet."}
